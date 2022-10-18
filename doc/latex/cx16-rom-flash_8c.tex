@@ -1,0 +1,365 @@
+\hypertarget{cx16-rom-flash_8c}{}\doxysection{src/cx16-\/rom-\/flash.c File Reference}
+\label{cx16-rom-flash_8c}\index{src/cx16-\/rom-\/flash.c@{src/cx16-\/rom-\/flash.c}}
+
+
+COMMANDER X16 ROM FLASH UTILITY.  
+
+
+{\ttfamily \#include $<$cx16.\+h$>$}\newline
+{\ttfamily \#include $<$cx16-\/file.\+h$>$}\newline
+{\ttfamily \#include $<$conio.\+h$>$}\newline
+{\ttfamily \#include $<$printf.\+h$>$}\newline
+{\ttfamily \#include $<$6502.\+h$>$}\newline
+{\ttfamily \#include $<$kernal.\+h$>$}\newline
+Include dependency graph for cx16-\/rom-\/flash.c\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_a67e0112c2a09b158464debe902a7c861}\label{cx16-rom-flash_8c_a67e0112c2a09b158464debe902a7c861}} 
+\#define {\bfseries \+\_\+\+\_\+\+FLASH}
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_a8a652cff0033969443cc2f6f5389fbd9}\label{cx16-rom-flash_8c_a8a652cff0033969443cc2f6f5389fbd9}} 
+\#define {\bfseries ROM\+\_\+\+BASE}~((unsigned int)0x\+C000)
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_ad9e53d1418399b36953a40395ac1384d}\label{cx16-rom-flash_8c_ad9e53d1418399b36953a40395ac1384d}} 
+\#define {\bfseries ROM\+\_\+\+SIZE}~((unsigned int)0x4000)
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_a8f2b7fa249d9d3affd06e7edfef1eff0}\label{cx16-rom-flash_8c_a8f2b7fa249d9d3affd06e7edfef1eff0}} 
+\#define {\bfseries ROM\+\_\+\+PTR\+\_\+\+MASK}~((unsigned long)0x03\+FFF)
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_a99719b21a5d2432f868eac80997d77e7}\label{cx16-rom-flash_8c_a99719b21a5d2432f868eac80997d77e7}} 
+\#define {\bfseries ROM\+\_\+\+BANK\+\_\+\+MASK}~((unsigned long)0x7\+C000)
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_ac224fac45a334ea85c5f091ab66037dd}\label{cx16-rom-flash_8c_ac224fac45a334ea85c5f091ab66037dd}} 
+\#define {\bfseries SST39\+SF010A}~((unsigned char)0x\+B5)
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_a9073d886536fd49114afae0f29b28b27}\label{cx16-rom-flash_8c_a9073d886536fd49114afae0f29b28b27}} 
+\#define {\bfseries SST39\+SF020A}~((unsigned char)0x\+B6)
+\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_a998c69bda3842e763def0f6c8bc75fd2}\label{cx16-rom-flash_8c_a998c69bda3842e763def0f6c8bc75fd2}} 
+\#define {\bfseries SST39\+SF040}~((unsigned char)0x\+B7)
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+unsigned char \mbox{\hyperlink{cx16-rom-flash_8c_a1fd06ed563d27103c3ea13b94d4de6d5}{rom\+\_\+bank}} (unsigned long address)
+\begin{DoxyCompactList}\small\item\em Calculates the 5 bit ROM bank from the ROM 19 bit address. The ROM bank number is calcuated by taking the upper 5 bits (bit 18-\/14) and shifing those 14 bits to the right. \end{DoxyCompactList}\item 
+brom\+\_\+ptr\+\_\+t \mbox{\hyperlink{cx16-rom-flash_8c_a45f13cdc8334c213332cdd8edac28015}{rom\+\_\+ptr}} (unsigned long address)
+\begin{DoxyCompactList}\small\item\em Calcuates the 16 bit ROM pointer from the ROM using the 19 bit address. The 16 bit ROM pointer is calculated by masking the lower 14 bits (bit 13-\/0), and then adding \$\+C000 to it. The 16 bit ROM pointer is returned as a char$\ast$ (brom\+\_\+ptr\+\_\+t). \end{DoxyCompactList}\item 
+unsigned char \mbox{\hyperlink{cx16-rom-flash_8c_a85a543d5bc42e5a467cbdcd519163ab0}{rom\+\_\+read\+\_\+byte}} (unsigned long address)
+\begin{DoxyCompactList}\small\item\em Read a byte from the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are transformed into the {\bfseries{ptr\+\_\+rom}} 16 bit ROM address. The higher 5 bits of the 19 bit ROM address are transformed into the {\bfseries{bank\+\_\+rom}} 5 bit bank number. {\bfseries{bank\+\_\+ptr$\ast$ is used to set the bank using ZP \$01. $\ast$$\ast$ptr\+\_\+rom}} is used to read the byte. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{cx16-rom-flash_8c_a42ba9278c9feb3135a6bb465e8e2450a}{rom\+\_\+write\+\_\+byte}} (unsigned long address, unsigned char value)
+\begin{DoxyCompactList}\small\item\em Write a byte to the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are transformed into the {\bfseries{ptr\+\_\+rom}} 16 bit ROM address. The higher 5 bits of the 19 bit ROM address are transformed into the {\bfseries{bank\+\_\+rom}} 5 bit bank number. {\bfseries{bank\+\_\+ptr$\ast$ is used to set the bank using ZP \$01. $\ast$$\ast$ptr\+\_\+rom}} is used to write the byte into the ROM. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{cx16-rom-flash_8c_a413ddcf851b4da292eb4391f72918ee9}{rom\+\_\+wait}} (brom\+\_\+ptr\+\_\+t ptr\+\_\+rom)
+\begin{DoxyCompactList}\small\item\em Wait for the required time to allow the chip to flash the byte into the ROM. This is a core wait routine which is the most important routine in this whole program. Once a byte is flashed into the ROM, it takes time for the chip to actually flash the byte. The chip has implemented a loop mechanism to guarantee correct flashing of the written byte. It does this by requiring the execution of two sequential reads from the previously written ROM address. And loop those sequential reads until bit 6 of the 2 read bytes are equal. Once those two bits are equal, the chip has successfully flashed the byte into the ROM. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{cx16-rom-flash_8c_a5f4369522c0458285f171bda1eade3d9}{rom\+\_\+unlock}} (unsigned long address, unsigned char unlock\+\_\+code)
+\begin{DoxyCompactList}\small\item\em Unlock a byte location for flashing using the 19 bit address. This is a various purpose routine to unlock the ROM for flashing a byte. The 3rd byte can be variable, depending on the write sequence used, so this byte is a parameter into the routine. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{cx16-rom-flash_8c_adc8e7bb513e6936d98af34037c0f5a89}{rom\+\_\+byte\+\_\+program}} (unsigned long address, unsigned char value)
+\begin{DoxyCompactList}\small\item\em Write a byte and wait until the byte has been successfully flashed into the ROM. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{cx16-rom-flash_8c_a21fca991601518b6c85c5f8e70fabbbf}{rom\+\_\+sector\+\_\+erase}} (unsigned long address)
+\begin{DoxyCompactList}\small\item\em Erases a 1KB sector of the ROM using the 19 bit address. This is required before any new bytes can be flashed into the ROM. Erasing a sector of the ROM requires an erase sector sequence to be initiated, which has the following steps\+: \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{cx16-rom-flash_8c_acdef7a1fd863a6d3770c1268cb06add3}\label{cx16-rom-flash_8c_acdef7a1fd863a6d3770c1268cb06add3}} 
+void {\bfseries main} ()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+COMMANDER X16 ROM FLASH UTILITY. 
+
+\begin{DoxyAuthor}{Author}
+Sven Van de Velde (\href{mailto:sven.van.de.velde@telenet.be}{\texttt{ sven.\+van.\+de.\+velde@telenet.\+be}})
+\end{DoxyAuthor}
+This flash utility can be used to flash a new ROM.\+BIN into ROM banks of the COMMANDER X16. ~\newline
+ Because the ROM.\+BIN is a significantly large binary, ROM flashing will only be possible using the SD CARD. Therefore, this utility follows a simple and lean upload and flashing design, keeping it as simple as possible. The utility program is to be place onto a folder of the SD card, together with the ROM.\+BIN. The user can then simply load the program and run it from the SD card folder to flash the ROM.
+
+Embedded in the source code is the technical documentation how the ROM flash works. The main principles of ROM flashing is to {\bfseries{unlock the ROM}} for flashing following pre-\/defined read/write sequences ~\newline
+ defined by the manufacturer of the chip. Once these sequences have been correctly initiated, a byte can be written at the specified ROM address. And this is where it gets tricky and interesting concerning the COMMANDER X16 ~\newline
+ address bus and architecture. ~\newline
+\hypertarget{cx16-rom-flash_8c_autotoc_md1}{}\doxysubsection{ROM Adressing}\label{cx16-rom-flash_8c_autotoc_md1}
+The address bus of the ROM chips follow 19 bit wide addressing mode. ~\newline
+ As you know, the COMMANDER X16 has 32 banks ROM of 16KB each. ~\newline
+ The COMMANDER X16 implements a banking solution to address these 19 bits, where the most significant 5 bits of the 19 bit address are configured through zero page \$01, configuring one of the 32 ROM banks, while the main address bus is used to addresses the remaining 14 bits of the 19 bit ROM address.
+
+This results in the following architecture, where this flashing program uses a combination of setting the ROM bank and the main address bus to select the 19 bit ROM address.
+
+\begin{DoxyVerb}                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+                              | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+                              | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+                              | BANK (ZP $01)     | MAIN ADDRESS BUS (+ $C000)                            |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+ ROM_BANK_MASK  0x7C000       | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+ ROM_PTR_MASK   0x03FFF       | 0 | 0 | 0 | 0 | 0 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+\end{DoxyVerb}
+ There is also one important caveat to keep in mind at all times ... What does the 6502 CPU see? ~\newline
+ So, the CPU uses zero page \$01 to set the banks, but the lower 14 bit ROM address for the CPU starts at \$\+C000 and ends at \$\+FFFF (16KB), as the CPU has a 16 bit address bus. So the lower 14 bits of the ROM address requires to be added with \$\+C000.\hypertarget{cx16-rom-flash_8c_autotoc_md2}{}\doxysubsection{Flasing the ROM}\label{cx16-rom-flash_8c_autotoc_md2}
+ROM flashing is done by executing specific write sequences at specific addresses with specific bytes into the ROM. Depending on the write sequence, a specific ROM flashing function is selected. ~\newline
+
+
+This utility uses the following ROM flashing sequences\+:
+
+
+\begin{DoxyItemize}
+\item Reading the ROM manufacturer and device ID information.
+\item Clearing a ROM sector (filling with FF). Each ROM sector is 1KB wide.
+\item Flashing the cleared ROM sector with the new ROM bytes.
+\end{DoxyItemize}
+
+That\textquotesingle{}s it. However, there is more to that ...\hypertarget{cx16-rom-flash_8c_autotoc_md3}{}\doxysubsection{ROM flashing approach}\label{cx16-rom-flash_8c_autotoc_md3}
+The ROM flashing requires a specific approach, as you need to keep in mind that while flashing ROM, there is {\bfseries{no ROM available}}! This utility flashes the ROM in four steps\+:
+
+
+\begin{DoxyEnumerate}
+\item Read the complete ROM.\+BIN file from the SD card into (banked) RAM.
+\item Flash the ROM from (banked) RAM.
+\item Verify that the ROM has been correctly flashed (still TODO).
+\item Reset and reboot the COMMANDER X16 using the new ROM state.
+\end{DoxyEnumerate}
+
+During and after ROM flash (from step 2), there cannot be any user interaction anymore and all interrupts must be disabled! The screen writing that you see during flashing is executed directly from the program into the VERA, as no ROM screen IO functions can be used anymore.
+
+\begin{DoxyVersion}{Version}
+0.\+1 
+\end{DoxyVersion}
+\begin{DoxyDate}{Date}
+2022-\/10-\/16
+\end{DoxyDate}
+\begin{DoxyCopyright}{Copyright}
+Copyright (c) 2022 
+\end{DoxyCopyright}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a1fd06ed563d27103c3ea13b94d4de6d5}\label{cx16-rom-flash_8c_a1fd06ed563d27103c3ea13b94d4de6d5}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_bank@{rom\_bank}}
+\index{rom\_bank@{rom\_bank}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_bank()}{rom\_bank()}}
+{\footnotesize\ttfamily unsigned char rom\+\_\+bank (\begin{DoxyParamCaption}\item[{unsigned long}]{address }\end{DoxyParamCaption})}
+
+
+
+Calculates the 5 bit ROM bank from the ROM 19 bit address. The ROM bank number is calcuated by taking the upper 5 bits (bit 18-\/14) and shifing those 14 bits to the right. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em address} & The 19 bit ROM address. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+unsigned char The ROM bank number for usage in ZP \$01. 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c_a1fd06ed563d27103c3ea13b94d4de6d5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_adc8e7bb513e6936d98af34037c0f5a89}\label{cx16-rom-flash_8c_adc8e7bb513e6936d98af34037c0f5a89}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_byte\_program@{rom\_byte\_program}}
+\index{rom\_byte\_program@{rom\_byte\_program}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_byte\_program()}{rom\_byte\_program()}}
+{\footnotesize\ttfamily void rom\+\_\+byte\+\_\+program (\begin{DoxyParamCaption}\item[{unsigned long}]{address,  }\item[{unsigned char}]{value }\end{DoxyParamCaption})}
+
+
+
+Write a byte and wait until the byte has been successfully flashed into the ROM. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em address} & The 19 bit ROM address. \\
+\hline
+{\em value} & The byte value to be written. \\
+\hline
+\end{DoxyParams}
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c_adc8e7bb513e6936d98af34037c0f5a89_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a45f13cdc8334c213332cdd8edac28015}\label{cx16-rom-flash_8c_a45f13cdc8334c213332cdd8edac28015}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_ptr@{rom\_ptr}}
+\index{rom\_ptr@{rom\_ptr}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_ptr()}{rom\_ptr()}}
+{\footnotesize\ttfamily brom\+\_\+ptr\+\_\+t rom\+\_\+ptr (\begin{DoxyParamCaption}\item[{unsigned long}]{address }\end{DoxyParamCaption})}
+
+
+
+Calcuates the 16 bit ROM pointer from the ROM using the 19 bit address. The 16 bit ROM pointer is calculated by masking the lower 14 bits (bit 13-\/0), and then adding \$\+C000 to it. The 16 bit ROM pointer is returned as a char$\ast$ (brom\+\_\+ptr\+\_\+t). 
+
+
+\begin{DoxyParams}{Parameters}
+{\em address} & The 19 bit ROM address. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+brom\+\_\+ptr\+\_\+t The 16 bit ROM pointer for the main CPU addressing. 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c_a45f13cdc8334c213332cdd8edac28015_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a85a543d5bc42e5a467cbdcd519163ab0}\label{cx16-rom-flash_8c_a85a543d5bc42e5a467cbdcd519163ab0}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_read\_byte@{rom\_read\_byte}}
+\index{rom\_read\_byte@{rom\_read\_byte}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_read\_byte()}{rom\_read\_byte()}}
+{\footnotesize\ttfamily unsigned char rom\+\_\+read\+\_\+byte (\begin{DoxyParamCaption}\item[{unsigned long}]{address }\end{DoxyParamCaption})}
+
+
+
+Read a byte from the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are transformed into the {\bfseries{ptr\+\_\+rom}} 16 bit ROM address. The higher 5 bits of the 19 bit ROM address are transformed into the {\bfseries{bank\+\_\+rom}} 5 bit bank number. {\bfseries{bank\+\_\+ptr$\ast$ is used to set the bank using ZP \$01. $\ast$$\ast$ptr\+\_\+rom}} is used to read the byte. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em address} & The 19 bit ROM address. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+unsigned char The byte read from the ROM. 
+\end{DoxyReturn}
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=256pt]{cx16-rom-flash_8c_a85a543d5bc42e5a467cbdcd519163ab0_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a21fca991601518b6c85c5f8e70fabbbf}\label{cx16-rom-flash_8c_a21fca991601518b6c85c5f8e70fabbbf}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_sector\_erase@{rom\_sector\_erase}}
+\index{rom\_sector\_erase@{rom\_sector\_erase}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_sector\_erase()}{rom\_sector\_erase()}}
+{\footnotesize\ttfamily void rom\+\_\+sector\+\_\+erase (\begin{DoxyParamCaption}\item[{unsigned long}]{address }\end{DoxyParamCaption})}
+
+
+
+Erases a 1KB sector of the ROM using the 19 bit address. This is required before any new bytes can be flashed into the ROM. Erasing a sector of the ROM requires an erase sector sequence to be initiated, which has the following steps\+: 
+
+
+\begin{DoxyEnumerate}
+\item Write byte \$\+AA into ROM address \$005555.
+\item Write byte \$55 into ROM address \$002AAA.
+\item Write byte \$80 into ROM address \$005555.
+\item Write byte \$\+AA into ROM address \$005555.
+\item Write byte \$55 into ROM address \$002AAA.
+\end{DoxyEnumerate}
+
+Once this write sequence is finished, the ROM sector is erased by writing byte \$30 into the 19 bit ROM sector address. Then it waits until the chip has correctly flashed the ROM erasure.
+
+Note that a ROM sector is 1KB (not 4KB), so the most 7 significant bits (18-\/12) are used. The remainder 12 low bits are ignored. \begin{DoxyVerb}                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+                              | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+                              | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+ SECTOR              0x7F000  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+ IGNORED             0x00FFF  | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+                              +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
+\end{DoxyVerb}
+ 
+\begin{DoxyParams}{Parameters}
+{\em address} & The 19 bit ROM address. \\
+\hline
+\end{DoxyParams}
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c_a21fca991601518b6c85c5f8e70fabbbf_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a5f4369522c0458285f171bda1eade3d9}\label{cx16-rom-flash_8c_a5f4369522c0458285f171bda1eade3d9}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_unlock@{rom\_unlock}}
+\index{rom\_unlock@{rom\_unlock}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_unlock()}{rom\_unlock()}}
+{\footnotesize\ttfamily void rom\+\_\+unlock (\begin{DoxyParamCaption}\item[{unsigned long}]{address,  }\item[{unsigned char}]{unlock\+\_\+code }\end{DoxyParamCaption})}
+
+
+
+Unlock a byte location for flashing using the 19 bit address. This is a various purpose routine to unlock the ROM for flashing a byte. The 3rd byte can be variable, depending on the write sequence used, so this byte is a parameter into the routine. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em address} & The 3rd write to model the specific unlock sequence. \\
+\hline
+{\em unlock\+\_\+code} & The 3rd write to model the specific unlock sequence. \\
+\hline
+\end{DoxyParams}
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c_a5f4369522c0458285f171bda1eade3d9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=278pt]{cx16-rom-flash_8c_a5f4369522c0458285f171bda1eade3d9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a413ddcf851b4da292eb4391f72918ee9}\label{cx16-rom-flash_8c_a413ddcf851b4da292eb4391f72918ee9}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_wait@{rom\_wait}}
+\index{rom\_wait@{rom\_wait}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_wait()}{rom\_wait()}}
+{\footnotesize\ttfamily void rom\+\_\+wait (\begin{DoxyParamCaption}\item[{brom\+\_\+ptr\+\_\+t}]{ptr\+\_\+rom }\end{DoxyParamCaption})}
+
+
+
+Wait for the required time to allow the chip to flash the byte into the ROM. This is a core wait routine which is the most important routine in this whole program. Once a byte is flashed into the ROM, it takes time for the chip to actually flash the byte. The chip has implemented a loop mechanism to guarantee correct flashing of the written byte. It does this by requiring the execution of two sequential reads from the previously written ROM address. And loop those sequential reads until bit 6 of the 2 read bytes are equal. Once those two bits are equal, the chip has successfully flashed the byte into the ROM. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ptr\+\_\+rom} & The 16 bit pointer where the byte was written. This pointer is used for the sequence reads to verify bit 6. \\
+\hline
+\end{DoxyParams}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=270pt]{cx16-rom-flash_8c_a413ddcf851b4da292eb4391f72918ee9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-rom-flash_8c_a42ba9278c9feb3135a6bb465e8e2450a}\label{cx16-rom-flash_8c_a42ba9278c9feb3135a6bb465e8e2450a}} 
+\index{cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}!rom\_write\_byte@{rom\_write\_byte}}
+\index{rom\_write\_byte@{rom\_write\_byte}!cx16-\/rom-\/flash.c@{cx16-\/rom-\/flash.c}}
+\doxysubsubsection{\texorpdfstring{rom\_write\_byte()}{rom\_write\_byte()}}
+{\footnotesize\ttfamily void rom\+\_\+write\+\_\+byte (\begin{DoxyParamCaption}\item[{unsigned long}]{address,  }\item[{unsigned char}]{value }\end{DoxyParamCaption})}
+
+
+
+Write a byte to the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are transformed into the {\bfseries{ptr\+\_\+rom}} 16 bit ROM address. The higher 5 bits of the 19 bit ROM address are transformed into the {\bfseries{bank\+\_\+rom}} 5 bit bank number. {\bfseries{bank\+\_\+ptr$\ast$ is used to set the bank using ZP \$01. $\ast$$\ast$ptr\+\_\+rom}} is used to write the byte into the ROM. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em address} & The 19 bit ROM address. \\
+\hline
+{\em value} & The byte value to be written. \\
+\hline
+\end{DoxyParams}
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=258pt]{cx16-rom-flash_8c_a42ba9278c9feb3135a6bb465e8e2450a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{cx16-rom-flash_8c_a42ba9278c9feb3135a6bb465e8e2450a_icgraph}
+\end{center}
+\end{figure}

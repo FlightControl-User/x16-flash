@@ -1,0 +1,5 @@
+<map id="rom_read_byte" name="rom_read_byte">
+<area shape="rect" id="node1" title="Read a byte from the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are tr..." alt="" coords="5,31,113,57"/>
+<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#a1fd06ed563d27103c3ea13b94d4de6d5" title="Calculates the 5 bit ROM bank from the ROM 19 bit address. The ROM bank number is calcuated by taking..." alt="" coords="161,5,240,32"/>
+<area shape="rect" id="node3" href="$cx16-rom-flash_8c.html#a45f13cdc8334c213332cdd8edac28015" title="Calcuates the 16 bit ROM pointer from the ROM using the 19 bit address. The 16 bit ROM pointer is cal..." alt="" coords="167,56,234,83"/>
+</map>

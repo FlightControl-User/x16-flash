@@ -1,0 +1,4 @@
+<map id="fopen" name="fopen">
+<area shape="rect" id="node1" title="Load a file to banked ram located between address 0xA000 and 0xBFFF incrementing the banks." alt="" coords="139,5,192,32"/>
+<area shape="rect" id="node2" href="$cx16-file_8h.html#a2ca6269b3916b31bdbfaf5aa20fecd49" title="Load a file to banked ram located between address 0xA000 and 0xBFFF incrementing the banks." alt="" coords="5,5,91,32"/>
+</map>
