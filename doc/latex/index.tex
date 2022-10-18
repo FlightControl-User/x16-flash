@@ -1,8 +1,8 @@
 COMMANDER X16 ROM FLASH UTILITY\begin{DoxyAuthor}{Author}
 Sven Van de Velde (\href{mailto:sven.van.de.velde@telenet.be}{\texttt{ sven.\+van.\+de.\+velde@telenet.\+be}})
 \end{DoxyAuthor}
-This flash utility can be used to flash a new ROM.\+BIN into ROM banks of the COMMANDER X16. ~\newline
- Because the ROM.\+BIN is a significantly large binary, ROM flashing will only be possible using the SD CARD. Therefore, this utility follows a simple and lean upload and flashing design, keeping it as simple as possible. The utility program is to be place onto a folder of the SD card, together with the ROM.\+BIN. The user can then simply load the program and run it from the SD card folder to flash the ROM.
+This flash utility can be used to flash a new ROM.\+BIN into ROM banks of the COMMANDER X16. ROM upgrades for he CX16 will come as ROM.\+BIN files, and will probably be downloadable from a dedicated location. ~\newline
+ Because the ROM.\+BIN files are a significantly large binaries, ROM flashing will only be possible using the SD CARD. Therefore, this utility follows a simple and lean upload and flashing design, keeping it as simple as possible. The utility program is to be place onto a folder of the SD card, together with the ROM.\+BIN. The user can then simply load the program and run it from the SD card folder to flash the ROM.
 
 Embedded in the source code is the technical documentation how the ROM flash works. The main principles of ROM flashing is to {\bfseries{unlock the ROM}} for flashing following pre-\/defined read/write sequences ~\newline
  defined by the manufacturer of the chip. Once these sequences have been correctly initiated, a byte can be written at the specified ROM address. And this is where it gets tricky and interesting concerning the COMMANDER X16 ~\newline

@@ -3,8 +3,9 @@
  * @author Sven Van de Velde (sven.van.de.velde@telenet.be)
  * @brief COMMANDER X16 ROM FLASH UTILITY
  * 
- * This flash utility can be used to flash a new ROM.BIN into ROM banks of the COMMANDER X16.  
- * Because the ROM.BIN is a significantly large binary, ROM flashing will only be possible using the SD CARD.
+ * This flash utility can be used to flash a new ROM.BIN into ROM banks of the COMMANDER X16.
+ * ROM upgrades for he CX16 will come as ROM.BIN files, and will probably be downloadable from a dedicated location.  
+ * Because the ROM.BIN files are a significantly large binaries, ROM flashing will only be possible using the SD CARD.
  * Therefore, this utility follows a simple and lean upload and flashing design, keeping it as simple as possible.
  * The utility program is to be place onto a folder of the SD card, together with the ROM.BIN.
  * The user can then simply load the program and run it from the SD card folder to flash the ROM.
