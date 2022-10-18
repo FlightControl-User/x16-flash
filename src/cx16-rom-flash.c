@@ -47,7 +47,7 @@
  * starting at address $C000 and ending at $FFFF (16KB), as the CPU uses a 16 bit address bus!
  * So the lower 14 bits of the ROM address requires the addition of $C000 to reach the correct memory in the ROM by the CPU!
  * 
- * # Flasing the ROM
+ * # Flashing the ROM
  * 
  * ROM flashing is done by executing specific write sequences at specific addresses into the ROM, with specific bytes.
  * Depending on the write sequence, a specific ROM flashing functions are selected.  
