@@ -316,14 +316,15 @@ void main() {
     bank_set_bram(1);
     bank_set_brom(4);
 
-    printf("\nopening file rom.bin from the sd card ...\n");
-    unsigned int status = file_open(1, 8, 2, "rom.bin");
-    if (status) {
-        printf("cannot open file rom.bin from sd card!\n");
+    printf("\nopening file rom.bin from the sd card ... ");
+    FILE* fp = fopen(1, 8, 2, "rom.bin");
+    if(!fp) {
+        printf("error!\n");
+        printf("error code = %u\n", fp->status);
         return;
     }
 
-    printf("opening of file rom.bin from sd card succesful ...\n");
+    printf("success ...\n");
 
     printf("\nloading kernal rom in main memory ...\n");
 
@@ -331,8 +332,11 @@ void main() {
     unsigned long rom_addr = 0x00000;
 
     while(rom_addr < 0x4000) {
-        bytes = file_load_size(1, 8, 2, ram_addr, 128); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
-        if(bytes) {
+        bytes = fgets(ram_addr, 128, fp); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
+        if(!bytes) {
+            printf("error: rom.bin is incomplete!");
+            return;
+        } else {
 
             if (!(rom_addr % 0x02000)) {
                 printf("\n%06x : ", rom_addr);
@@ -343,9 +347,6 @@ void main() {
             ram_addr += bytes;
             rom_addr += bytes;
 
-        } else {
-            printf("error: rom.bin is incomplete!");
-            return;
         }
     }
 
@@ -354,7 +355,7 @@ void main() {
     bank_set_bram(1); // read from bank 1 in bram.
     ram_addr = (ram_ptr_t)0xA000;
 
-    bytes = file_load_size(1, 8, 2, ram_addr, 128); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
+    bytes = fgets(ram_addr, 128, fp); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
 
     while(bytes && rom_addr < 0x28000) {
 
@@ -368,7 +369,7 @@ void main() {
         if(ram_addr >= 0xC000) {
             ram_addr = ram_addr - 0x2000;
         }
-        bytes = file_load_size(1, 8, 2, ram_addr, 128); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
+        bytes = fgets(ram_addr, 128, fp); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
     }
 
     unsigned long rom_total = rom_addr; 

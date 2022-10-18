@@ -14,6 +14,7 @@
 #include <kernal.h>
 #include <stdlib.h>
 #include <cx16-vera.h>
+#include <cx16-file.h>
 
 /**
  * @brief Load a file to banked ram located between address 0xA000 and 0xBFFF incrementing the banks.
@@ -26,9 +27,14 @@
  *  - 0x0000: Something is wrong! Kernal Error Code (https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf)
  *  - other: OK! The last pointer between 0xA000 and 0xBFFF is returned. Note that the last pointer is indicating the first free byte.
  */
-unsigned char file_open(char channel, char device, char secondary, char* filename)
+FILE* fopen(char channel, char device, char secondary, char* filename)
 {
-    unsigned char status = 0;
+    FILE* fp = &__files[__filecount];
+    fp->status = 0; 
+    fp->channel = channel;
+    fp->device = device;
+    fp->secondary = secondary;
+    strncpy(fp->filename, filename, 16);
 
     #ifdef __DEBUG_FILE
         printf("open file, c=%u, d=%u, s=%u, f=%s", channel, device, secondary, filename);
@@ -37,23 +43,21 @@ unsigned char file_open(char channel, char device, char secondary, char* filenam
     cbm_k_setnam(filename);
     cbm_k_setlfs(channel, device, secondary);
 
-    status = cbm_k_open();
+    fp->status = cbm_k_open();
 
     #ifdef __DEBUG_FILE
-        printf(", open status=%u", status);
+        printf(", open status=%u", fp->status);
     #endif
 
-    status = cbm_k_readst();
-    #ifdef __DEBUG_FILE
-        printf(", open status=%u", status);
-    #endif
-    if(status) return status;
+    if(fp->status) return NULL;
 
-    status = cbm_k_chkin(channel);
-    status = cbm_k_readst();
+    cbm_k_chkin(channel);
+    fp->status = cbm_k_readst();
+
+    if(fp->status) return NULL;
 
     #ifdef __DEBUG_FILE
-        printf(", chkin status=%u\n", status);
+        printf(", chkin status=%u\n", fp->status);
     #endif
 
     #ifdef __DEBUG_FILE
@@ -61,7 +65,9 @@ unsigned char file_open(char channel, char device, char secondary, char* filenam
         // while(!getin());
     #endif
 
-    return status;
+    __filecount++;
+
+    return fp;
 }
 
 
@@ -69,36 +75,26 @@ unsigned char file_open(char channel, char device, char secondary, char* filenam
  * @brief Load a file to ram or (banked ram located between address 0xA000 and 0xBFFF), incrementing the banks.
  * This function uses the new CX16 macptr kernal API at address $FF44.
  *
- * @param channel Input channel.
- * @param device Input device.
- * @param secondary Secondary channel.
- * @param filename Name of the file to be loaded.
- * @param bank The bank in banked ram to where the data of the file needs to be loaded.
  * @param sptr The pointer between 0xA000 and 0xBFFF in banked ram.
- * @return char status
- *  - not 0: Something is wrong! Kernal Error Code (https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf)
- *  - 0: OK!
+ * @param size The amount of bytes to be read.
+ * @param filename Name of the file to be loaded.
+ * @return ptr the pointer advanced to the point where the stream ends.
  */
-unsigned int file_load_size(char channel, char device, char secondary, bram_ptr_t dptr, size_t size) 
+unsigned int fgets(char* ptr, unsigned int size, FILE* fp)
 {
     #ifdef __DEBUG_FILE
-        printf("load file, c=%u, d=%u, s=%u, b=%x, p=%p, si=%u", channel, device, secondary, bank_get_bram(), dptr, size);
+        printf("load file, c=%u, d=%u, s=%u, b=%x, p=%p, si=%u", fp->channel, fp->device, fp->secondary, bank_get_bram(), ptr, size);
     #endif
-
-    unsigned int status = 0;
 
     unsigned int read = 0;
     unsigned int remaining = size;
 
-    status = cbm_k_chkin(channel);
-    status = cbm_k_readst();
+    cbm_k_chkin(fp->channel);
+    fp->status = cbm_k_readst();
     #ifdef __DEBUG_FILE
-        printf(", chkin status=%u", status);
+        printf(", chkin status=%u", fp->status);
     #endif
-    if(status) return 0;
-
-    char* ptr = dptr;
-    if(BYTE1(ptr) == 0xC0) ptr -= 0x2000;
+    if(fp->status) return 0;
 
     unsigned int bytes = 0;
     do {
@@ -121,11 +117,11 @@ unsigned int file_load_size(char channel, char device, char secondary, bram_ptr_
             }
         }
 
-        status = cbm_k_readst();
+        fp->status = cbm_k_readst();
         #ifdef __DEBUG_FILE
-        printf(", macptr status=%u", status);
+        printf(", macptr status=%u", fp->status);
         #endif
-        if(status & 0xBF) {
+        if(fp->status & 0xBF) {
             #ifdef __DEBUG_FILE
             printf("macptr error status=%u", status);
             #endif
@@ -133,12 +129,9 @@ unsigned int file_load_size(char channel, char device, char secondary, bram_ptr_
         }
 
         if(bytes == 0xFFFF) {
-            #ifdef __DEBUG_FILE
-            printf("read error!!!");
-            #endif
-            cbm_k_chkin(0);
-            while(!getin());
-            cbm_k_chkin(channel);
+            // #ifdef __DEBUG_FILE
+            printf("read error in file %s, status=%u", fp->filename, fp->status);
+            // #endif
             return 0;
         }
 
@@ -148,6 +141,7 @@ unsigned int file_load_size(char channel, char device, char secondary, bram_ptr_
 
         read += bytes;
         ptr += bytes;
+
         if(BYTE1(ptr) == 0xC0) ptr -= 0x2000;
         remaining -= bytes;
 
@@ -156,10 +150,10 @@ unsigned int file_load_size(char channel, char device, char secondary, bram_ptr_
         #endif
 
 
-    } while ((status == 0) && ((size && remaining) || !size));
+    } while ((fp->status == 0) && ((size && remaining) || !size));
 
     #ifdef __DEBUG_FILE
-        printf(", read bytes r=%u, status=%u\n", read, status);
+        printf(", read bytes r=%u, status=%u\n", read, fp->status);
     #endif
 
     cbm_k_chkin(0);
@@ -172,28 +166,27 @@ unsigned int file_load_size(char channel, char device, char secondary, bram_ptr_
 }
 
 /**
- * @brief Load a file to banked ram located between address 0xA000 and 0xBFFF incrementing the banks.
+ * @brief Close a file.
  *
- * @param channel Input channel.
- * @param device Input device.
- * @param secondary Secondary channel.
+ * @param fp The FILE pointer.
  * @return 
  *  - 0x0000: Something is wrong! Kernal Error Code (https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf)
  *  - other: OK! The last pointer between 0xA000 and 0xBFFF is returned. Note that the last pointer is indicating the first free byte.
  */
-unsigned char file_close(char channel) 
+int fclose(FILE* fp) 
 {
-    byte status = 0;
-
     #ifdef __DEBUG_FILE
-        printf("close file, c=%u", channel);
+        printf("close file, c=%u", fp->channel);
     #endif
 
-    status = cbm_k_close(channel);
+    fp->status = cbm_k_close(fp->channel);
+    if(fp->status) return -1;
+
+
     cbm_k_clrchn();
 
     #ifdef __DEBUG_FILE
-        printf(", status=%u\n", status);
+        printf(", status=%u\n", fp->status);
     #endif
 
     #ifdef __DEBUG_FILE
@@ -201,7 +194,9 @@ unsigned char file_close(char channel)
         // while(!getin());
     #endif
 
-    return status;
+    __filecount--;
+
+    return 0;
 }
 
 /**
@@ -217,18 +212,22 @@ unsigned char file_close(char channel)
  *  - 0x0000: Something is wrong! Kernal Error Code (https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf)
  *  - other: OK! The last pointer between 0xA000 and 0xBFFF is returned. Note that the last pointer is indicating the first free byte.
  */
-unsigned int file_load_bram(char channel, char device, char secondary, char* filename, bram_bank_t dbank, bram_ptr_t dptr) 
+unsigned int fload_bram(char channel, char device, char secondary, char* filename, bram_bank_t dbank, bram_ptr_t dptr) 
 {
 
     bram_bank_t bank = bank_get_bram();
     bank_set_bram(dbank);
 
     unsigned int read = 0;
-    unsigned char status = file_open(channel, device, secondary, filename);
-    if (!status) {
-        read = file_load_size(channel, device, secondary, dptr, 0);
-        if (read)
-            status = file_close(channel);
+    FILE* fp = fopen(channel, device, secondary, filename);
+    if(fp) {
+        read = fgets(dptr, 0, fp);
+        if(read) {
+            fclose(fp);
+        } else {
+            fclose(fp);
+            read = 0;
+        }
     }
 
     bank_set_bram(bank);
