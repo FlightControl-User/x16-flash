@@ -1,0 +1,191 @@
+\hypertarget{cx16-file_8h}{}\doxysection{inc/cx16-\/file.h File Reference}
+\label{cx16-file_8h}\index{inc/cx16-\/file.h@{inc/cx16-\/file.h}}
+{\ttfamily \#include $<$cx16.\+h$>$}\newline
+{\ttfamily \#include $<$mos6522.\+h$>$}\newline
+Include dependency graph for cx16-\/file.h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=210pt]{cx16-file_8h__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Structures}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{struct_f_i_l_e}{FILE}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{struct_f_i_l_e}{FILE}} $\ast$ \mbox{\hyperlink{cx16-file_8h_ac6b0fadf8c106b7884207c40762bf3d2}{fopen}} (char channel, char device, char secondary, char $\ast$filename)
+\begin{DoxyCompactList}\small\item\em Load a file to banked ram located between address 0x\+A000 and 0x\+BFFF incrementing the banks. \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{cx16-file_8h_aef316c9afac0ddebb7f341bfd0335b0b}{fgets}} (char $\ast$ptr, unsigned int size, \mbox{\hyperlink{struct_f_i_l_e}{FILE}} $\ast$fp)
+\begin{DoxyCompactList}\small\item\em Load a file to ram or (banked ram located between address 0x\+A000 and 0x\+BFFF), incrementing the banks. This function uses the new CX16 macptr kernal API at address \$\+FF44. \end{DoxyCompactList}\item 
+int \mbox{\hyperlink{cx16-file_8h_a3abd78c220b4b49d1b088f0dfe40bf23}{fclose}} (\mbox{\hyperlink{struct_f_i_l_e}{FILE}} $\ast$fp)
+\begin{DoxyCompactList}\small\item\em Close a file. \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{cx16-file_8h_a2ca6269b3916b31bdbfaf5aa20fecd49}{fload\+\_\+bram}} (char channel, char device, char secondary, char $\ast$filename, bram\+\_\+bank\+\_\+t dbank, bram\+\_\+ptr\+\_\+t dptr)
+\begin{DoxyCompactList}\small\item\em Load a file to banked ram located between address 0x\+A000 and 0x\+BFFF incrementing the banks. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{cx16-file_8h_a36a8c4a1109e95bd64b4d0a99573803b}\label{cx16-file_8h_a36a8c4a1109e95bd64b4d0a99573803b}} 
+\mbox{\hyperlink{struct_f_i_l_e}{FILE}} {\bfseries \+\_\+\+\_\+files} \mbox{[}4\mbox{]}
+\item 
+\mbox{\Hypertarget{cx16-file_8h_afd748f4400af0db1414ab88ff9448d0e}\label{cx16-file_8h_afd748f4400af0db1414ab88ff9448d0e}} 
+\+\_\+\+\_\+mem volatile unsigned char {\bfseries \+\_\+\+\_\+filecount} = 0
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\begin{DoxyAuthor}{Author}
+Sven Van de Velde (\href{mailto:sven.van.de.velde@telenet.be}{\texttt{ sven.\+van.\+de.\+velde@telenet.\+be}}) 
+\end{DoxyAuthor}
+\begin{DoxyVersion}{Version}
+0.\+1 
+\end{DoxyVersion}
+\begin{DoxyDate}{Date}
+2022-\/10-\/17
+\end{DoxyDate}
+\begin{DoxyCopyright}{Copyright}
+Copyright (c) 2022 
+\end{DoxyCopyright}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{cx16-file_8h_a3abd78c220b4b49d1b088f0dfe40bf23}\label{cx16-file_8h_a3abd78c220b4b49d1b088f0dfe40bf23}} 
+\index{cx16-\/file.h@{cx16-\/file.h}!fclose@{fclose}}
+\index{fclose@{fclose}!cx16-\/file.h@{cx16-\/file.h}}
+\doxysubsubsection{\texorpdfstring{fclose()}{fclose()}}
+{\footnotesize\ttfamily int fclose (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{struct_f_i_l_e}{FILE}} $\ast$}]{fp }\end{DoxyParamCaption})}
+
+
+
+Close a file. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em fp} & The \mbox{\hyperlink{struct_f_i_l_e}{FILE}} pointer. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+
+\begin{DoxyItemize}
+\item 0x0000\+: Something is wrong! Kernal Error Code (\href{https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf}{\texttt{ https\+://commodore.\+ca/manuals/pdfs/commodore\+\_\+error\+\_\+messages.\+pdf}})
+\item other\+: OK! The last pointer between 0x\+A000 and 0x\+BFFF is returned. Note that the last pointer is indicating the first free byte. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=222pt]{cx16-file_8h_a3abd78c220b4b49d1b088f0dfe40bf23_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-file_8h_aef316c9afac0ddebb7f341bfd0335b0b}\label{cx16-file_8h_aef316c9afac0ddebb7f341bfd0335b0b}} 
+\index{cx16-\/file.h@{cx16-\/file.h}!fgets@{fgets}}
+\index{fgets@{fgets}!cx16-\/file.h@{cx16-\/file.h}}
+\doxysubsubsection{\texorpdfstring{fgets()}{fgets()}}
+{\footnotesize\ttfamily unsigned int fgets (\begin{DoxyParamCaption}\item[{char $\ast$}]{ptr,  }\item[{unsigned int}]{size,  }\item[{\mbox{\hyperlink{struct_f_i_l_e}{FILE}} $\ast$}]{fp }\end{DoxyParamCaption})}
+
+
+
+Load a file to ram or (banked ram located between address 0x\+A000 and 0x\+BFFF), incrementing the banks. This function uses the new CX16 macptr kernal API at address \$\+FF44. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em sptr} & The pointer between 0x\+A000 and 0x\+BFFF in banked ram. \\
+\hline
+{\em size} & The amount of bytes to be read. \\
+\hline
+{\em filename} & Name of the file to be loaded. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+ptr the pointer advanced to the point where the stream ends. 
+\end{DoxyReturn}
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=218pt]{cx16-file_8h_aef316c9afac0ddebb7f341bfd0335b0b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-file_8h_a2ca6269b3916b31bdbfaf5aa20fecd49}\label{cx16-file_8h_a2ca6269b3916b31bdbfaf5aa20fecd49}} 
+\index{cx16-\/file.h@{cx16-\/file.h}!fload\_bram@{fload\_bram}}
+\index{fload\_bram@{fload\_bram}!cx16-\/file.h@{cx16-\/file.h}}
+\doxysubsubsection{\texorpdfstring{fload\_bram()}{fload\_bram()}}
+{\footnotesize\ttfamily unsigned int fload\+\_\+bram (\begin{DoxyParamCaption}\item[{char}]{channel,  }\item[{char}]{device,  }\item[{char}]{secondary,  }\item[{char $\ast$}]{filename,  }\item[{bram\+\_\+bank\+\_\+t}]{dbank,  }\item[{bram\+\_\+ptr\+\_\+t}]{dptr }\end{DoxyParamCaption})}
+
+
+
+Load a file to banked ram located between address 0x\+A000 and 0x\+BFFF incrementing the banks. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em channel} & Input channel. \\
+\hline
+{\em device} & Input device. \\
+\hline
+{\em secondary} & Secondary channel. \\
+\hline
+{\em filename} & Name of the file to be loaded. \\
+\hline
+{\em bank} & The bank in banked ram to where the data of the file needs to be loaded. \\
+\hline
+{\em sptr} & The pointer between 0x\+A000 and 0x\+BFFF in banked ram. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+bram\+\_\+ptr\+\_\+t
+\begin{DoxyItemize}
+\item 0x0000\+: Something is wrong! Kernal Error Code (\href{https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf}{\texttt{ https\+://commodore.\+ca/manuals/pdfs/commodore\+\_\+error\+\_\+messages.\+pdf}})
+\item other\+: OK! The last pointer between 0x\+A000 and 0x\+BFFF is returned. Note that the last pointer is indicating the first free byte. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+Here is the call graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=222pt]{cx16-file_8h_a2ca6269b3916b31bdbfaf5aa20fecd49_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{cx16-file_8h_ac6b0fadf8c106b7884207c40762bf3d2}\label{cx16-file_8h_ac6b0fadf8c106b7884207c40762bf3d2}} 
+\index{cx16-\/file.h@{cx16-\/file.h}!fopen@{fopen}}
+\index{fopen@{fopen}!cx16-\/file.h@{cx16-\/file.h}}
+\doxysubsubsection{\texorpdfstring{fopen()}{fopen()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{struct_f_i_l_e}{FILE}}$\ast$ fopen (\begin{DoxyParamCaption}\item[{char}]{channel,  }\item[{char}]{device,  }\item[{char}]{secondary,  }\item[{char $\ast$}]{filename }\end{DoxyParamCaption})}
+
+
+
+Load a file to banked ram located between address 0x\+A000 and 0x\+BFFF incrementing the banks. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em channel} & Input channel. \\
+\hline
+{\em device} & Input device. \\
+\hline
+{\em secondary} & Secondary channel. \\
+\hline
+{\em filename} & Name of the file to be loaded. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+
+\begin{DoxyItemize}
+\item 0x0000\+: Something is wrong! Kernal Error Code (\href{https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf}{\texttt{ https\+://commodore.\+ca/manuals/pdfs/commodore\+\_\+error\+\_\+messages.\+pdf}})
+\item other\+: OK! The last pointer between 0x\+A000 and 0x\+BFFF is returned. Note that the last pointer is indicating the first free byte. 
+\end{DoxyItemize}
+\end{DoxyReturn}
+Here is the caller graph for this function\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=220pt]{cx16-file_8h_ac6b0fadf8c106b7884207c40762bf3d2_icgraph}
+\end{center}
+\end{figure}
