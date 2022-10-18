@@ -3,29 +3,32 @@
  * @author Sven Van de Velde (sven.van.de.velde@telenet.be)
  * @brief COMMANDER X16 ROM FLASH UTILITY
  * 
+ * Please find below some technical details how this flash ROM utility works, for those who are interested.
+ * 
  * This flash utility can be used to flash a new ROM.BIN into ROM banks of the COMMANDER X16.
  * ROM upgrades for he CX16 will come as ROM.BIN files, and will probably be downloadable from a dedicated location.  
- * Because the ROM.BIN files are a significantly large binaries, ROM flashing will only be possible using the SD CARD.
+ * Because the ROM.BIN files are significantly large binaries, ROM flashing will only be possible from the SD card.
  * Therefore, this utility follows a simple and lean upload and flashing design, keeping it as simple as possible.
- * The utility program is to be place onto a folder of the SD card, together with the ROM.BIN.
+ * The utility program is to be placed onto a folder on the SD card, together with the ROM.BIN file.
  * The user can then simply load the program and run it from the SD card folder to flash the ROM.
  * 
- * Embedded in the source code is the technical documentation how the ROM flash works.
- * The main principles of ROM flashing is to **unlock the ROM** for flashing following pre-defined read/write sequences  
+ * 
+ * The main principles of ROM flashing is to **unlock the ROM** for flashing following pre-defined read/write sequences 
  * defined by the manufacturer of the chip. Once these sequences have been correctly initiated, a byte can be written
- * at the specified ROM address. And this is where it gets tricky and interesting concerning the COMMANDER X16  
- * address bus and architecture.  
+ * at a specified ROM address. And this is where it got tricky and interesting concerning the COMMANDER X16  
+ * address bus and architecture, to develop a COMMANDER X16 program that allows the flashing onto the hardware itself.
+ *   
  * 
  * # ROM Adressing
  * 
- * The address bus of the ROM chips follow 19 bit wide addressing mode.  
- * As you know, the COMMANDER X16 has 32 banks ROM of 16KB each.  
- * The COMMANDER X16 implements a banking solution to address these 19 bits, 
- * where the most significant 5 bits of the 19 bit address are configured through zero page $01, configuring one of the 32 ROM banks, 
- * while the main address bus is used to addresses the remaining 14 bits of the 19 bit ROM address. 
+ * The addressing of the ROM chips follow 19 bit wide addressing mode, and is implemented on the CX16 in a special way.  
+ * The CX16 has 32 banks ROM of 16KB each, so it implements a banking solution to address the 19 bit wide ROM address, 
+ * where the most significant 5 bits of the 19 bit wide ROM address are configured through zero page $01, 
+ * configuring one of the 32 ROM banks, 
+ * while the CX16 main address bus is used to addresses the remaining 14 bits of the 19 bit ROM address. 
  * 
  * This results in the following architecture, where this flashing program uses a combination of setting the ROM bank
- * and the main address bus to select the 19 bit ROM address.
+ * and using the main address bus to select the 19 bit wide ROM addresses.
  * 
  * 
  *                                   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
@@ -39,23 +42,23 @@
  *      ROM_PTR_MASK   0x03FFF       | 0 | 0 | 0 | 0 | 0 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
  *                                   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  
  *
- * There is also one important caveat to keep in mind at all times ... What does the 6502 CPU see?  
- * So, the CPU uses zero page $01 to set the banks, but the lower 14 bit ROM address for the CPU
- * starts at $C000 and ends at $FFFF (16KB), as the CPU has a 16 bit address bus.
- * So the lower 14 bits of the ROM address requires to be added with $C000.
+ * Designing this program, there was also one important caveat to keep in mind ... What does the 6502 CPU see?  
+ * The CPU uses zero page $01 to set the ROM banks, but the lower 14 bits of the 19 bit wide ROM address is visible for the CPU
+ * starting at address $C000 and ending at $FFFF (16KB), as the CPU uses a 16 bit address bus!
+ * So the lower 14 bits of the ROM address requires the addition of $C000 to reach the correct memory in the ROM by the CPU!
  * 
  * # Flasing the ROM
  * 
- * ROM flashing is done by executing specific write sequences at specific addresses with specific bytes into the ROM.
- * Depending on the write sequence, a specific ROM flashing function is selected.  
+ * ROM flashing is done by executing specific write sequences at specific addresses into the ROM, with specific bytes.
+ * Depending on the write sequence, a specific ROM flashing functions are selected.  
  * 
- * This utility uses the following ROM flashing sequences:
+ * This utility uses the following ROM flashing sequences (there are more available):
  * 
  *   - Reading the ROM manufacturer and device ID information.
  *   - Clearing a ROM sector (filling with FF). Each ROM sector is 1KB wide.
- *   - Flashing the cleared ROM sector with the new ROM bytes.
+ *   - Flashing the cleared ROM sector with new ROM bytes.
  * 
- * That's it. However, there is more to that ...
+ * That's it, simple and easy, but there is more to it than this ...
  * 
  * # ROM flashing approach
  * 
@@ -69,8 +72,6 @@
  * 
  * During and after ROM flash (from step 2), there cannot be any user interaction anymore and all interrupts must be disabled!
  * The screen writing that you see during flashing is executed directly from the program into the VERA, as no ROM screen IO functions can be used anymore.
- * 
- * 
  * 
  * 
  * @version 0.1
