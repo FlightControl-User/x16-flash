@@ -1,0 +1,36 @@
+{
+    "configurations": [
+        {
+            "name": "KickC",
+            "includePath": [
+                "${workspaceFolder}/inc",
+                "${env:KICKCDEV}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "byte=unsigned char",
+                "word=unsigned int",
+                "dword=unsigned long",
+                "bool=char",
+                "__mem=",
+                "__ssa=",
+                "__ma=",
+                "__address(size)=",
+                "__interrupt(rom_sys_cx16)=",
+                "__export=",
+                "true=1",
+                "false=0",
+                "__CX16__=1"
+            ],
+            "windowsSdkVersion": "10.0.19041.0",
+            "compilerPath": "",
+            "cStandard": "c99",
+            "forcedInclude": [],
+            "cppStandard": "c++20",
+            "intelliSenseMode": "clang-x86"
+        }
+    ],
+    "version": 4
+}
