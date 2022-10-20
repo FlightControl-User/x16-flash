@@ -26,20 +26,16 @@ var NAVTREE =
 [
   [ "Commander X16 ROM Flash Utility", "index.html", [
     [ "cx16-rom-flash.c", "index.html", [
-      [ "ROM Adressing", "index.html#autotoc_md1", null ],
-      [ "Flasing the ROM", "index.html#autotoc_md2", null ],
-      [ "ROM flashing approach", "index.html#autotoc_md3", null ]
-    ] ],
-    [ "commanderx16_flash", "md__r_e_a_d_m_e.html", null ],
-    [ "Data Structures", "annotated.html", [
-      [ "Data Structures", "annotated.html", "annotated_dup" ],
-      [ "Data Structure Index", "classes.html", null ]
+      [ "ROM Adressing", "index.html#autotoc_md0", null ],
+      [ "Flashing the ROM", "index.html#autotoc_md1", null ],
+      [ "ROM flashing approach", "index.html#autotoc_md2", null ]
     ] ],
     [ "Files", "files.html", [
       [ "File List", "files.html", "files_dup" ],
       [ "Globals", "globals.html", [
         [ "All", "globals.html", null ],
-        [ "Functions", "globals_func.html", null ]
+        [ "Functions", "globals_func.html", null ],
+        [ "Macros", "globals_defs.html", null ]
       ] ]
     ] ]
   ] ]
@@ -47,7 +43,7 @@ var NAVTREE =
 
 var NAVTREEINDEX =
 [
-"annotated.html"
+"cx16-rom-flash_8c.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

@@ -17,7 +17,7 @@
  * defined by the manufacturer of the chip. Once these sequences have been correctly initiated, a byte can be written
  * at a specified ROM address. And this is where it got tricky and interesting concerning the COMMANDER X16  
  * address bus and architecture, to develop a COMMANDER X16 program that allows the flashing onto the hardware itself.
- *   
+ * 
  * 
  * # ROM Adressing
  * 

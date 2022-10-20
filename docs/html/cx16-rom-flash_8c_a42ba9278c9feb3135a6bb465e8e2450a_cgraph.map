@@ -1,5 +1,5 @@
 <map id="rom_write_byte" name="rom_write_byte">
-<area shape="rect" id="node1" title="Write a byte to the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are tra..." alt="" coords="5,31,116,57"/>
-<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#a1fd06ed563d27103c3ea13b94d4de6d5" title="Calculates the 5 bit ROM bank from the ROM 19 bit address. The ROM bank number is calcuated by taking..." alt="" coords="164,5,243,32"/>
-<area shape="rect" id="node3" href="$cx16-rom-flash_8c.html#a45f13cdc8334c213332cdd8edac28015" title="Calcuates the 16 bit ROM pointer from the ROM using the 19 bit address. The 16 bit ROM pointer is cal..." alt="" coords="170,56,237,83"/>
+<area shape="rect" id="node1" title="Write a byte to the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are tra..." alt="" coords="5,31,116,56"/>
+<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#a1fd06ed563d27103c3ea13b94d4de6d5" title="Calculates the 5 bit ROM bank from the ROM 19 bit address. The ROM bank number is calcuated by taking..." alt="" coords="164,5,243,31"/>
+<area shape="rect" id="node3" href="$cx16-rom-flash_8c.html#a45f13cdc8334c213332cdd8edac28015" title="Calcuates the 16 bit ROM pointer from the ROM using the 19 bit address. The 16 bit ROM pointer is cal..." alt="" coords="170,55,237,80"/>
 </map>

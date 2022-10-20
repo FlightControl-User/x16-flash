@@ -1,2 +1,0 @@
-select vdisk file="C:\SDCARD\CX16.vhd"
-detach vdisk

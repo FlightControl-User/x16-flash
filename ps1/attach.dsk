@@ -1,5 +1,0 @@
-select vdisk file="C:\SDCARD\CX16.vhd"
-attach vdisk
-list volume
-select disk 1
-assign letter=X

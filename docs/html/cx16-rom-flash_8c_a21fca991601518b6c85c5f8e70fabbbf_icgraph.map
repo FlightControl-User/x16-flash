@@ -1,0 +1,4 @@
+<map id="rom_sector_erase" name="rom_sector_erase">
+<area shape="rect" id="node1" title="Erases a 1KB sector of the ROM using the 19 bit address. This is required before any new bytes can be..." alt="" coords="104,5,231,31"/>
+<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#acdef7a1fd863a6d3770c1268cb06add3" title=" " alt="" coords="5,5,56,31"/>
+</map>
