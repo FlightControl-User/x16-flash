@@ -1,6 +1,7 @@
 /**
  * @mainpage cx16-rom-flash.c
- * @author Sven Van de Velde (sven.van.de.velde@telenet.be)
+ * @author Sven Van de Velde (https://www.commanderx16.com/forum/index.php?/profile/1249-svenvandevelde/)
+ * @author Wavicle from CX16 forums (https://www.commanderx16.com/forum/index.php?/profile/1585-wavicle/)
  * @brief COMMANDER X16 ROM FLASH UTILITY
  * 
  * Please find below some technical details how this flash ROM utility works, for those who are interested.
