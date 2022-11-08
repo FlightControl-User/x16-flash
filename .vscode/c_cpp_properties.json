@@ -1,9 +1,9 @@
 {
     "configurations": [
         {
-            "name": "KickC",
+            "name": "KICKC",
             "includePath": [
-                "${workspaceFolder}/inc",
+                "${workspaceFolder}/../x16-code/x16-inc",
                 "${env:KICKCDEV}/**"
             ],
             "defines": [
