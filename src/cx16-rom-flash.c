@@ -271,6 +271,10 @@ void main() {
 
     SEI();
 
+    // Set the charset to lower case.
+    cbm_x_charset(3, (char*)0);
+
+    // Clear the screen.
     clrscr();
 
     printf("rom flash utility\n");
@@ -293,6 +297,7 @@ void main() {
     #endif
 
 
+    // Ensure the ROM is set to BASIC.
     bank_set_brom(4);
 
     printf("manufacturer id = %x\n", rom_manufacturer_id);
@@ -319,6 +324,7 @@ void main() {
     bank_set_bram(1);
     bank_set_brom(4);
 
+    // Read the file content.
     printf("\nopening file rom.bin from the sd card ... ");
     FILE* fp = fopen(1, 8, 2, "rom.bin");
     if(!fp) {
@@ -383,6 +389,8 @@ void main() {
     while(!getin());
     clrscr();
 
+    // OK, so the flash file has been loaded into the 512 KBC memory.
+    // We now reflash the rom banks.
     SEI();
 
     printf("\nupgrading kernal rom from main memory ...\n");
