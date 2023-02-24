@@ -182,6 +182,28 @@ void rom_write_byte(unsigned long address, unsigned char value) {
 }
 
 /**
+ * @brief Verify a byte with the flashed ROM using the 22 bit rom address.
+ * The lower 14 bits of the 22 bit ROM address are transformed into the **ptr_rom** 16 bit ROM address.
+ * The higher 5 bits of the 22 bit ROM address are transformed into the **bank_rom** 5 bit bank number.
+ * **bank_ptr* is used to set the bank using ZP $01.  **ptr_rom** is used to write the byte into the ROM.
+ *
+ * @param address The 22 bit ROM address.
+ * @param value The byte value to be written.
+ */
+unsigned char rom_byte_verify(unsigned long address, unsigned char value) {
+    brom_bank_t bank_rom = rom_bank((unsigned long)address);
+    brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
+
+    bank_set_brom(bank_rom);
+
+    unsigned char verified = 1;
+    if(*ptr_rom != value) {
+        verified = 0;
+    }
+    return verified;
+}
+
+/**
  * @brief Wait for the required time to allow the chip to flash the byte into the ROM.
  * This is a core wait routine which is the most important routine in this whole program.
  * Once a byte is flashed into the ROM, it takes time for the chip to actually flash the byte.
@@ -230,6 +252,7 @@ void rom_byte_program(unsigned long address, unsigned char value) {
     rom_wait(ptr_rom);
 }
 
+
 /**
  * @brief Erases a 1KB sector of the ROM using the 19 bit address.
  * This is required before any new bytes can be flashed into the ROM.
@@ -273,6 +296,8 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
     unsigned long flash_size = rom_size(rom_bank_size);
     unsigned long flash_bytes = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
 
+    gotoxy(0, 2 + (rom_bank_start % 32));
+
     while (flash_bytes < flash_size) {
 
         unsigned int read_bytes = fgets(flash_ram_address, 128, fp); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
@@ -305,13 +330,15 @@ unsigned long flash_write(ram_ptr_t flash_ram_address, unsigned char rom_bank_st
     unsigned long flash_rom_address = rom_address(rom_bank_start);
     unsigned long flashed_bytes = 0; /// Holds the amount of bytes actually flashed in the ROM.
 
+    gotoxy(0, 2 + (rom_bank_start % 32));
+
     while (flashed_bytes < flash_size) {
         if (!(flash_rom_address % 0x04000)) {
             printf("\n%06x : ", flash_rom_address);
         }
 
         if (!(flash_rom_address % 0x100))
-            cputc('.');
+            cputc('*');
 
         if (!(flash_rom_address % 0x1000)) {
 #ifdef __FLASH
@@ -340,6 +367,45 @@ unsigned long flash_write(ram_ptr_t flash_ram_address, unsigned char rom_bank_st
     }
 
     return flashed_bytes;
+}
+
+unsigned long flash_verify(ram_ptr_t verify_ram_address, unsigned char rom_bank_start, unsigned long verify_size) {
+
+    unsigned long verify_rom_address = rom_address(rom_bank_start);
+    unsigned long verified_bytes = 0; /// Holds the amount of bytes actually verified between the ROM and the RAM.
+    unsigned long correct_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the ROM.
+
+    gotoxy(0, 2 + (rom_bank_start % 32));
+
+    while (verified_bytes < verify_size) {
+        if (!(verify_rom_address % 0x04000)) {
+            printf("\n%06x : ", verify_rom_address);
+        }
+
+        char flash_ok = '+';
+        for (unsigned int v = 0; v < 0x100; v++) {
+            if( !rom_byte_verify(verify_rom_address, *verify_ram_address) ) {
+                flash_ok = '-';
+            } else {
+                correct_bytes++;
+            }
+            verify_rom_address++;
+            verify_ram_address++;
+            verified_bytes++;
+        }
+        cputc( flash_ok );
+
+        if (verify_ram_address >= 0xC000) {
+            verify_ram_address = verify_ram_address - 0x2000;
+            bank_set_bram(bank_get_bram() + 1);
+        }
+
+        if (verify_ram_address >= 0xC000) {
+            verify_ram_address = verify_ram_address - 0x2000;
+        }
+    }
+
+    return correct_bytes;
 }
 
 void main() {
@@ -397,8 +463,6 @@ void main() {
 
     CLI();
 
-    bank_set_bram(1);
-    bank_set_brom(4);
 
     // printf("\nsearching for a specific romnnn.bin to flash ROM banks between 32 and 255.");
     // printf("\nif such a romnnn.bin file is found, a confirmation will be required before flashing the rom.");
@@ -406,20 +470,33 @@ void main() {
     // printf("\nonce the romnnn.bin file is flashed, the new flashed rom is verified against the file contents.");
     // printf("\nin case of a flash or verify error, the flash program will abort.");
 
-    printf("success ...\n");
+    printf("press any key to start flashing ...\n");
+    while (!getin());
+    clrscr();
 
-    for (unsigned char flash_chip = 1; flash_chip != 255; flash_chip--) {
+    for (unsigned char flash_chip = 7; flash_chip != 255; flash_chip--) {
+
+        bank_set_bram(1);
+        bank_set_brom(4);
+
+        clrscr();
 
         char file[16] = "";
-        sprintf(file, "rom%u.bin", flash_chip);
+        if(flash_chip == 0) {
+            sprintf(file, "rom.bin", flash_chip);
+        } else {
+            sprintf(file, "rom%u.bin", flash_chip);
+        }
 
         unsigned char flash_rom_bank = flash_chip * 32;
 
         // Read the file content.
         FILE *fp = fopen(1, 8, 2, file);
-        printf("\nopening file %s from the sd card ... %p", file, fp);
+        gotoxy(0, 50);
+        printf("opening file %s from the sd card ... (%p)", file, fp);
         if (fp) {
-            printf("\nloading %s in main memory ...\n", file);
+            gotoxy(0, 52);
+            printf("loading %s in main ram ...", file);
 
             unsigned long rom_flash_total = 0;
 
@@ -429,25 +506,24 @@ void main() {
             }
             rom_flash_total += flash_bytes;
 
-            printf("\n\nloading remaining data in banked memory ...\n");
-
             bank_set_bram(1); // read from bank 1 in bram.
             flash_bytes = flash_read(fp, (ram_ptr_t)0xA000, flash_rom_bank + 1, 31);
             rom_flash_total += flash_bytes;
 
-            printf("\n\na total of %06x rom bytes to be upgraded from rom.bin ...", rom_flash_total);
+            gotoxy(0, 54);
+            printf("a total of %06x rom bytes to be upgraded from %s ...", rom_flash_total, file);
 
-            printf("\npress any key to upgrade to the new rom ...\n");
+            fclose(fp);
 
-            while (!getin())
-                ;
-            clrscr();
+            bank_set_bram(1);
+            bank_set_brom(4);
 
             // OK, so the flash file has been loaded into the 512 KBC memory.
             // We now reflash the rom banks.
             SEI();
 
-            printf("\nupgrading kernal rom from main memory ...\n");
+            gotoxy(0, 55);
+            printf("flashing rom chip %u from ram ...", flash_chip);
 
             unsigned long rom_flashed_total = 0;
             unsigned long flashed_bytes = flash_write((ram_ptr_t)0x4000, flash_rom_bank, 0x4000);
@@ -456,23 +532,49 @@ void main() {
                 return;
             }
 
-            printf("\n\nflashing remaining rom from banked memory ...\n");
-
             bank_set_bram(1); // read from bank 1 in bram.
             flashed_bytes = flash_write((ram_ptr_t)0xA000, flash_rom_bank + 1, rom_flash_total - 0x4000);
             rom_flashed_total += flashed_bytes;
 
-            fclose(fp);
+            // OK, so the flash file has been loaded into the 512 KBC memory.
+            // We now reflash the rom banks.
+            SEI();
+
+            bank_set_bram(1); // read from bank 1 in bram.
+            gotoxy(0, 56);
+            printf("verifying rom chip %u from ram ...", flash_chip);
+
+            unsigned long rom_verified_total = 0;
+            unsigned long correct_bytes = flash_verify((ram_ptr_t)0x4000, flash_rom_bank, 0x4000);
+            rom_verified_total += correct_bytes;
+
+            bank_set_bram(1); // read from bank 1 in bram.
+            correct_bytes = flash_verify((ram_ptr_t)0xA000, flash_rom_bank + 1, rom_flash_total - 0x4000);
+            rom_verified_total += correct_bytes;
+
+            bank_set_bram(1);
+            bank_set_brom(4);
+
+            CLI();
+            gotoxy(0, 57);
+            if (rom_verified_total == rom_flashed_total) {
+                printf("flashing of rom chip %u successful! ... press any key ...", flash_chip);
+            } else {
+                printf("flashing of rom chip %u failure!!!! ... press any key ...", flash_chip);
+            }
+            while (!getin());
+
         }
     }
 
-    // printf("\n\nflashing of new rom successful ... resetting commander x16 to new rom...\n");
 
-    // for (unsigned int w = 0; w < 64; w++) {
-    //     for (unsigned int v = 0; v < 256 * 64; v++) {
-    //     }
-    //     cputc('.');
-    // }
+    gotoxy(0,58);
+    printf("resetting commander x16 ...\n");
+    for (unsigned int w = 0; w < 64; w++) {
+        for (unsigned int v = 0; v < 256 * 64; v++) {
+        }
+        cputc('.');
+    }
 
     bank_set_bram(0);
     bank_set_brom(0);

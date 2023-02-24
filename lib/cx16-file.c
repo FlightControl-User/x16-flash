@@ -48,10 +48,10 @@ FILE *fopen(char channel, char device, char secondary, char *filename) {
 #endif
 
     if (fp->status) {
-        cbm_k_clrchn();
-        cbm_k_setlfs(15,device,15);
+    printf(", open status=%u", fp->status);
         
         cbm_k_close(channel);
+        cbm_k_clrchn();
         return NULL;
     }
 
@@ -59,8 +59,9 @@ FILE *fopen(char channel, char device, char secondary, char *filename) {
     fp->status = cbm_k_readst();
 
     if (fp->status) {
-        cbm_k_clrchn();
+    printf(", open status=%u", fp->status);
         cbm_k_close(channel);
+        cbm_k_clrchn();
         return NULL;
     }
 
@@ -226,6 +227,8 @@ unsigned int fload_bram(char channel, char device, char secondary, char *filenam
 
     bram_bank_t bank = bank_get_bram();
     bank_set_bram(dbank);
+
+    printf("open");
 
     unsigned int read = 0;
     FILE *fp = fopen(channel, device, secondary, filename);
