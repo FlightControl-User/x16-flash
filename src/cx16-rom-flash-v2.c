@@ -83,7 +83,7 @@
  */
 
 // Comment this pre-processor directive to disable ROM flashing routines (for emulator development purposes).
-#define __FLASH
+// #define __FLASH
 
 // Ensures the proper character set is used for the COMMANDER X16.
 #pragma encoding(petscii_mixed)
@@ -110,6 +110,94 @@
 #define SST39SF010A ((unsigned char)0xB5)
 #define SST39SF020A ((unsigned char)0xB6)
 #define SST39SF040 ((unsigned char)0xB7)
+
+// To print the graphics on the vera.
+#define VERA_CHR_SPACE 0x20
+#define VERA_CHR_UL 0x7E
+#define VERA_CHR_UR 0x7C
+#define VERA_CHR_BL 0x7B
+#define VERA_CHR_BR 0x6C
+#define VERA_CHR_HL 0x62
+#define VERA_CHR_VL 0x61
+
+#define VERA_REV_SPACE 0xA0
+#define VERA_REV_UL 0xFE
+#define VERA_REV_UR 0xFC
+#define VERA_REV_BL 0xFB
+#define VERA_REV_BR 0xEC
+#define VERA_REV_HL 0xE2
+#define VERA_REV_VL 0xE1
+
+unsigned char wait_key() {
+
+    unsigned ch = 0;
+    bank_set_bram(0);
+    bank_set_brom(4);
+
+    while (!(ch = getin()))
+        ;
+
+    return ch;
+}
+
+void system_reset() {
+
+    bank_set_bram(0);
+    bank_set_brom(0);
+
+    asm {
+        jmp ($FFFC)
+    }
+}
+
+void print_chip_line(char x, char y, char c) {
+
+    gotoxy(x, y);
+
+    textcolor(GREY);
+    bgcolor(LIGHT_GREY);
+    cputc(VERA_CHR_UR);
+
+    textcolor(LIGHT_GREY);
+    bgcolor(BLACK);
+    cputc(VERA_CHR_SPACE);
+    cputc(c);
+    cputc(VERA_CHR_SPACE);
+
+    textcolor(GREY);
+    bgcolor(LIGHT_GREY);
+    cputc(VERA_CHR_UL);
+}
+
+void print_chip_end(char x, char y) {
+
+    gotoxy(x, y);
+
+    textcolor(GREY);
+    bgcolor(LIGHT_GREY);
+    cputc(VERA_CHR_UR);
+
+    textcolor(LIGHT_GREY);
+    bgcolor(BLACK);
+    cputc(VERA_CHR_HL);
+    cputc(VERA_CHR_HL);
+    cputc(VERA_CHR_HL);
+
+    textcolor(GREY);
+    bgcolor(LIGHT_GREY);
+    cputc(VERA_CHR_UL);
+}
+
+void print_chip_led(char r, char tc, char bc) {
+
+    gotoxy(3 + r * 10, 42);
+
+    textcolor(tc);
+    bgcolor(bc);
+    cputc(VERA_REV_SPACE);
+    cputc(VERA_REV_SPACE);
+    cputc(VERA_REV_SPACE);
+}
 
 /**
  * @brief Calculates the 19(22) bit ROM size from the 5(8) bit ROM banks.
@@ -197,7 +285,7 @@ unsigned char rom_byte_verify(unsigned long address, unsigned char value) {
     bank_set_brom(bank_rom);
 
     unsigned char verified = 1;
-    if(*ptr_rom != value) {
+    if (*ptr_rom != value) {
         verified = 0;
     }
     return verified;
@@ -251,7 +339,6 @@ void rom_byte_program(unsigned long address, unsigned char value) {
     rom_write_byte(address, value);
     rom_wait(ptr_rom);
 }
-
 
 /**
  * @brief Erases a 1KB sector of the ROM using the 19 bit address.
@@ -373,7 +460,7 @@ unsigned long flash_verify(ram_ptr_t verify_ram_address, unsigned char rom_bank_
 
     unsigned long verify_rom_address = rom_address(rom_bank_start);
     unsigned long verified_bytes = 0; /// Holds the amount of bytes actually verified between the ROM and the RAM.
-    unsigned long correct_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the ROM.
+    unsigned long correct_bytes = 0;  /// Holds the amount of correct and verified bytes flashed in the ROM.
 
     gotoxy(0, 2 + (rom_bank_start % 32));
 
@@ -384,7 +471,7 @@ unsigned long flash_verify(ram_ptr_t verify_ram_address, unsigned char rom_bank_
 
         char flash_ok = '+';
         for (unsigned int v = 0; v < 0x100; v++) {
-            if( !rom_byte_verify(verify_rom_address, *verify_ram_address) ) {
+            if (!rom_byte_verify(verify_rom_address, *verify_ram_address)) {
                 flash_ok = '-';
             } else {
                 correct_bytes++;
@@ -393,7 +480,7 @@ unsigned long flash_verify(ram_ptr_t verify_ram_address, unsigned char rom_bank_
             verify_ram_address++;
             verified_bytes++;
         }
-        cputc( flash_ok );
+        cputc(flash_ok);
 
         if (verify_ram_address >= 0xC000) {
             verify_ram_address = verify_ram_address - 0x2000;
@@ -417,52 +504,89 @@ void main() {
     // Set the charset to lower case.
     cbm_x_charset(3, (char *)0);
 
-    // Clear the screen.
+    textcolor(GREY);
+    bgcolor(LIGHT_GREY);
     clrscr();
 
+    for (unsigned char r = 0; r < 8; r++) {
+        print_chip_line(2 + r * 10, 44, ' ');
+        print_chip_line(2 + r * 10, 45, 'r');
+        print_chip_line(2 + r * 10, 46, 'o');
+        print_chip_line(2 + r * 10, 47, 'm');
+        print_chip_line(2 + r * 10, 48, '0' + r);
+        print_chip_line(2 + r * 10, 49, ' ');
+        print_chip_line(2 + r * 10, 50, '5');
+        print_chip_line(2 + r * 10, 51, '1');
+        print_chip_line(2 + r * 10, 52, '2');
+        print_chip_end(2 + r * 10, 53);
+
+        print_chip_led(r, BLACK, LIGHT_GREY);
+    }
+
+    gotoxy(0, 0);
     printf("rom flash utility\n");
 
     printf("\nrom chipset device determination:\n\n");
 
-    unsigned char rom_manufacturer_id = 0;
-    unsigned char rom_device_id = 0;
+    unsigned char rom_error = 0;
+    unsigned char r = 0;
+    for (unsigned long rom_address = 0; rom_address < 8 * 0x800000; rom_address += 0x800000) {
+
+        unsigned char rom_manufacturer_id = 0;
+        unsigned char rom_device_id = 0;
 
 #ifdef __FLASH
-    rom_unlock(0x05555, 0x90);
-    rom_manufacturer_id = rom_read_byte(0x00000);
-    rom_device_id = rom_read_byte(0x00001);
-    rom_unlock(0x05555, 0xF0);
-
-    rom_unlock(0x05555, 0x90);
-    rom_manufacturer_id = rom_read_byte(0x00000);
-    rom_device_id = rom_read_byte(0x00001);
-    rom_unlock(0x05555, 0xF0);
+        rom_unlock(0x05555, 0x90);
+        rom_manufacturer_id = rom_read_byte(r);
+        rom_device_id = rom_read_byte(r + 1);
+        rom_unlock(0x05555, 0xF0);
+#else
+        rom_unlock(0x05555, 0x90);
+        rom_manufacturer_id = 0x9f;
+        rom_device_id = SST39SF040;
+        rom_unlock(0x05555, 0xF0);
 #endif
 
-    // Ensure the ROM is set to BASIC.
-    bank_set_brom(4);
+        // Ensure the ROM is set to BASIC.
+        bank_set_brom(4);
 
-    printf("manufacturer id = %x\n", rom_manufacturer_id);
+        char *rom_device = NULL;
+        switch (rom_device_id) {
+        case SST39SF010A:
+            rom_device = "f010a";
+            print_chip_led(r, WHITE, LIGHT_GREY);
+            break;
+        case SST39SF020A:
+            rom_device = "f020a";
+            print_chip_led(r, WHITE, LIGHT_GREY);
+            break;
+        case SST39SF040:
+            rom_device = "f040";
+            print_chip_led(r, WHITE, LIGHT_GREY);
+            break;
+        default:
+            rom_device = "unknown";
+            print_chip_led(r, ORANGE, LIGHT_GREY);
+            rom_error = r;
+            break;
+        }
 
-    char *rom_device = NULL;
-    switch (rom_device_id) {
-    case SST39SF010A:
-        rom_device = "sst39sf010a";
-        break;
-    case SST39SF020A:
-        rom_device = "sst39sf020a";
-        break;
-    case SST39SF040:
-        rom_device = "sst39sf040";
-        break;
-    default:
-        rom_device = "unknown";
-        break;
+        gotoxy(2 + r * 10, 56);
+        printf("%x", rom_manufacturer_id);
+        gotoxy(2 + r * 10, 57);
+        printf("%s", rom_device);
+
+        r++;
     }
-    printf("device id = %s (%x)\n", rom_device, rom_device_id);
+
+    if (rom_error) {
+        printf("there is an unknown rom chip device in your system. cannot proceed with the upgrade process ...\n");
+        printf("press any key for further instructions ...");
+        wait_key();
+        system_reset();
+    }
 
     CLI();
-
 
     // printf("\nsearching for a specific romnnn.bin to flash ROM banks between 32 and 255.");
     // printf("\nif such a romnnn.bin file is found, a confirmation will be required before flashing the rom.");
@@ -471,7 +595,8 @@ void main() {
     // printf("\nin case of a flash or verify error, the flash program will abort.");
 
     printf("press any key to start flashing ...\n");
-    while (!getin());
+    while (!getin())
+        ;
     clrscr();
 
     for (unsigned char flash_chip = 7; flash_chip != 255; flash_chip--) {
@@ -482,7 +607,7 @@ void main() {
         clrscr();
 
         char file[16] = "";
-        if(flash_chip == 0) {
+        if (flash_chip == 0) {
             sprintf(file, "rom.bin", flash_chip);
         } else {
             sprintf(file, "rom%u.bin", flash_chip);
@@ -562,13 +687,11 @@ void main() {
             } else {
                 printf("flashing of rom chip %u failure!!!! ... press any key ...", flash_chip);
             }
-            while (!getin());
-
         }
+        wait_key();
     }
 
-
-    gotoxy(0,58);
+    gotoxy(0, 58);
     printf("resetting commander x16 ...\n");
     for (unsigned int w = 0; w < 64; w++) {
         for (unsigned int v = 0; v < 256 * 64; v++) {
@@ -576,10 +699,5 @@ void main() {
         cputc('.');
     }
 
-    bank_set_bram(0);
-    bank_set_brom(0);
-
-    asm {
-        jmp ($FFFC)
-    }
+    system_reset();
 }
