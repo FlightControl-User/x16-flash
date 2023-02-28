@@ -1,8 +1,4 @@
 *.vs
-*.klog
 *.sym
-*.asm
 *.dbg
-*.prg
-*.bin
 

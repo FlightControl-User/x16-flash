@@ -1,5 +1,0 @@
-<map id="rom_unlock" name="rom_unlock">
-<area shape="rect" id="node1" title="Unlock a byte location for flashing using the 19 bit address. This is a various purpose routine to un..." alt="" coords="279,5,368,31"/>
-<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#acdef7a1fd863a6d3770c1268cb06add3" title=" " alt="" coords="5,5,56,31"/>
-<area shape="rect" id="node3" href="$cx16-rom-flash_8c.html#a21fca991601518b6c85c5f8e70fabbbf" title="Erases a 1KB sector of the ROM using the 19 bit address. This is required before any new bytes can be..." alt="" coords="104,31,231,56"/>
-</map>

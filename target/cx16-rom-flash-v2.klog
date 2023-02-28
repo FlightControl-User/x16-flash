@@ -1,0 +1,24 @@
+Output dir: C:\Users\svenv\OneDrive\Documents\GitHub\x16-flash\target
+parsing
+flex pass 1
+flex pass 2
+flex pass 3
+flex pass 4
+Output pass
+Writing prg file: cx16-rom-flash-v2.prg
+
+Memory Map
+----------
+Program-segment:
+
+Basic-segment:
+  $0801-$080c Basic
+
+Code-segment:
+  $080d-$248f Code
+
+Data-segment:
+  $2490-$26f4 Data
+
+Writing Vice symbol file: cx16-rom-flash-v2.vs
+Writing Symbol file: cx16-rom-flash-v2.sym

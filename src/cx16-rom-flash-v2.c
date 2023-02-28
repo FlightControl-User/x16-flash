@@ -83,7 +83,7 @@
  */
 
 // Comment this pre-processor directive to disable ROM flashing routines (for emulator development purposes).
-#define __FLASH
+// #define __FLASH
 
 // Ensures the proper character set is used for the COMMANDER X16.
 #pragma encoding(petscii_mixed)
@@ -98,7 +98,7 @@
 #include <sprintf.h>
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(zp)
+#pragma var_model(mem)
 
 // Some addressing constants.
 #define ROM_BASE ((unsigned int)0xC000)
@@ -631,9 +631,17 @@ void table_chip_clear(unsigned char rom_bank) {
     }
 }
 
+void print_text(char* text) {
+
+    textcolor(WHITE);
+    gotoxy(2, 41);
+    printf("%76s", text);
+}
+
 void main() {
 
     unsigned int bytes = 0;
+    char buffer[160] = "";
 
     SEI();
 
@@ -734,7 +742,7 @@ void main() {
     CLI();
 
     // printf("\nsearching for a specific romnnn.bin to flash ROM banks between 32 and 255.");
-    // printf("\nif such a romnnn.bin file is found, a confirmation will be required before flashing the rom.");
+    // printf("\nif such a rom[n].bin file is found, a confirmation will be required before flashing the rom.");
     // printf("\nafter confirmation, the romnnn.bin file is first read into ram at address 0x4000.");
     // printf("\nonce the romnnn.bin file is flashed, the new flashed rom is verified against the file contents.");
     // printf("\nin case of a flash or verify error, the flash program will abort.");
@@ -745,6 +753,7 @@ void main() {
     for (unsigned char flash_chip = 7; flash_chip != 255; flash_chip--) {
 
         if (rom_device_ids[flash_chip] != UNKNOWN) {
+
             gotoxy(0, 2);
             bank_set_bram(1);
             bank_set_brom(4);
@@ -770,8 +779,10 @@ void main() {
 
                 print_chip_led(flash_chip, CYAN, BLUE);
 
-                unsigned long rom_flash_total = 0;
+                // sprintf(buffer, "reading %s in ram ...", file);
+                // print_text(buffer);
 
+                unsigned long rom_flash_total = 0;
                 unsigned long flash_bytes = flash_read(fp, (ram_ptr_t)0x4000, flash_rom_bank, 1);
                 if (flash_bytes != rom_size(1)) {
                     return;
@@ -793,6 +804,9 @@ void main() {
 
                 print_chip_led(flash_chip, PURPLE, BLUE);
 
+                // sprintf(buffer, "flashing %s in rom ...", file);
+                // print_text(buffer);
+
                 unsigned long rom_flashed_total = 0;
                 unsigned long flashed_bytes = flash_write((ram_ptr_t)0x4000, flash_rom_bank, 0x4000);
                 rom_flashed_total += flashed_bytes;
@@ -812,6 +826,9 @@ void main() {
 
                 print_chip_led(flash_chip, GREEN, BLUE);
 
+                // sprintf(buffer, "verify %s in ram with flashed rom.", file);
+                // print_text(buffer);
+
                 unsigned long rom_verified_total = 0;
                 unsigned long correct_bytes = flash_verify((ram_ptr_t)0x4000, flash_rom_bank, 0x4000);
                 rom_verified_total += correct_bytes;
@@ -826,8 +843,12 @@ void main() {
                 CLI();
                 gotoxy(0, 57);
                 if (rom_verified_total == rom_flashed_total) {
+                    // sprintf(buffer, "the flashing of %s in rom went perfectly ok. press a key to flash the next chip ...", file);
+                    // print_text(buffer);
                     print_chip_led(flash_chip, GREEN, BLUE);
                 } else {
+                    // sprintf(buffer, "the flashing of %s in rom went wrong. press a key to flash the next chip ...", file);
+                    // print_text(buffer);
                     print_chip_led(flash_chip, RED, BLUE);
                 }
                 wait_key();

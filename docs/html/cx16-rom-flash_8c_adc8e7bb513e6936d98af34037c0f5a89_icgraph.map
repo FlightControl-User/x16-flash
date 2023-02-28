@@ -1,4 +1,0 @@
-<map id="rom_byte_program" name="rom_byte_program">
-<area shape="rect" id="node1" title="Write a byte and wait until the byte has been successfully flashed into the ROM." alt="" coords="104,5,235,31"/>
-<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#acdef7a1fd863a6d3770c1268cb06add3" title=" " alt="" coords="5,5,56,31"/>
-</map>

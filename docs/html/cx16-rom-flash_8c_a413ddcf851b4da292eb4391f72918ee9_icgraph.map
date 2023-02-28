@@ -1,6 +1,0 @@
-<map id="rom_wait" name="rom_wait">
-<area shape="rect" id="node1" title="Wait for the required time to allow the chip to flash the byte into the ROM. This is a core wait rout..." alt="" coords="283,31,357,56"/>
-<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#adc8e7bb513e6936d98af34037c0f5a89" title="Write a byte and wait until the byte has been successfully flashed into the ROM." alt="" coords="104,5,235,31"/>
-<area shape="rect" id="node4" href="$cx16-rom-flash_8c.html#a21fca991601518b6c85c5f8e70fabbbf" title="Erases a 1KB sector of the ROM using the 19 bit address. This is required before any new bytes can be..." alt="" coords="106,55,233,80"/>
-<area shape="rect" id="node3" href="$cx16-rom-flash_8c.html#acdef7a1fd863a6d3770c1268cb06add3" title=" " alt="" coords="5,31,56,56"/>
-</map>

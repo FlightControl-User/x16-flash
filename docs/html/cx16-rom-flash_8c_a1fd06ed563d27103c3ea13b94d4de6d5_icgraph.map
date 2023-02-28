@@ -1,9 +1,0 @@
-<map id="rom_bank" name="rom_bank">
-<area shape="rect" id="node1" title="Calculates the 5 bit ROM bank from the ROM 19 bit address. The ROM bank number is calcuated by taking..." alt="" coords="616,31,695,56"/>
-<area shape="rect" id="node2" href="$cx16-rom-flash_8c.html#a85a543d5bc42e5a467cbdcd519163ab0" title="Read a byte from the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are tr..." alt="" coords="113,5,221,31"/>
-<area shape="rect" id="node4" href="$cx16-rom-flash_8c.html#a42ba9278c9feb3135a6bb465e8e2450a" title="Write a byte to the ROM using the 19 bit address. The lower 14 bits of the 19 bit ROM address are tra..." alt="" coords="457,56,568,81"/>
-<area shape="rect" id="node3" href="$cx16-rom-flash_8c.html#acdef7a1fd863a6d3770c1268cb06add3" title=" " alt="" coords="5,81,56,107"/>
-<area shape="rect" id="node5" href="$cx16-rom-flash_8c.html#adc8e7bb513e6936d98af34037c0f5a89" title="Write a byte and wait until the byte has been successfully flashed into the ROM." alt="" coords="279,56,409,81"/>
-<area shape="rect" id="node6" href="$cx16-rom-flash_8c.html#a5f4369522c0458285f171bda1eade3d9" title="Unlock a byte location for flashing using the 19 bit address. This is a various purpose routine to un..." alt="" coords="299,107,389,132"/>
-<area shape="rect" id="node7" href="$cx16-rom-flash_8c.html#a21fca991601518b6c85c5f8e70fabbbf" title="Erases a 1KB sector of the ROM using the 19 bit address. This is required before any new bytes can be..." alt="" coords="104,157,231,183"/>
-</map>
