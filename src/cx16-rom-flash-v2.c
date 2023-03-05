@@ -98,13 +98,15 @@
 #include <sprintf.h>
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(mem)
+#pragma var_model(zp)
 
 // Some addressing constants.
 #define ROM_BASE ((unsigned int)0xC000)
 #define ROM_SIZE ((unsigned int)0x4000)
 #define ROM_PTR_MASK ((unsigned long)0x003FFF)
 #define ROM_BANK_MASK ((unsigned long)0x3FC000)
+#define ROM_SECTOR ((unsigned int)0x1000)
+
 
 // The different device IDs that can be returned from the manufacturer ID read sequence.
 #define SST39SF010A ((unsigned char)0xB5)
@@ -337,6 +339,7 @@ void rom_unlock(unsigned long address, unsigned char unlock_code) {
 void rom_byte_program(unsigned long address, unsigned char value) {
     brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
 
+
     rom_write_byte(address, value);
     rom_wait(ptr_rom);
 }
@@ -372,10 +375,12 @@ void rom_byte_program(unsigned long address, unsigned char value) {
 void rom_sector_erase(unsigned long address) {
     brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
 
+#ifdef __FLASH
     rom_unlock(0x05555, 0x80);
     rom_unlock(address, 0x30);
 
     rom_wait(ptr_rom);
+#endif
 }
 
 unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned char rom_bank_size) {
@@ -383,6 +388,8 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
     unsigned long flash_rom_address = rom_address(rom_bank_start);
     unsigned long flash_size = rom_size(rom_bank_size);
     unsigned long flash_bytes = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
+
+    textcolor(WHITE);
 
     while (flash_bytes < flash_size) {
 
@@ -398,7 +405,8 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
         }
 
         if (!(flash_rom_address % 0x100))
-            cputc(0xE0);
+            // cputc(0xE0);
+            cputc('.');
 
         flash_ram_address += read_bytes;
         flash_rom_address += read_bytes;
@@ -412,85 +420,38 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
     return flash_bytes;
 }
 
-unsigned long flash_write(ram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned long flash_size) {
+unsigned long flash_write(unsigned char flash_ram_bank, ram_ptr_t flash_ram_address, unsigned long flash_rom_address) {
 
-    unsigned long flash_rom_address = rom_address(rom_bank_start);
     unsigned long flashed_bytes = 0; /// Holds the amount of bytes actually flashed in the ROM.
 
-    while (flashed_bytes < flash_size) {
-
-        if (!(flash_rom_address % 0x04000)) {
-            gotoxy(14, 4 + (rom_bank_start % 32));
-            rom_bank_start++;
-        }
-
-        if (!(flash_rom_address % 0x100))
-            cputc(0xE0);
-
-        if (!(flash_rom_address % 0x1000)) {
+    bank_set_bram(flash_ram_bank);
+    while (flashed_bytes < 0x0100) {
 #ifdef __FLASH
-            rom_sector_erase(flash_rom_address); // clearing rom sector
+        rom_unlock(0x05555, 0xA0);
+        rom_byte_program(flash_rom_address, *flash_ram_address);
 #endif
-        }
-
-        for (unsigned char b = 0; b < 128; b++) {
-#ifdef __FLASH
-            rom_unlock(0x05555, 0xA0);
-            rom_byte_program(flash_rom_address, *flash_ram_address);
-#endif
-            flash_rom_address++;
-            flash_ram_address++;
-            flashed_bytes++;
-        }
-
-        if (flash_ram_address >= 0xC000) {
-            flash_ram_address = flash_ram_address - 0x2000;
-            bank_set_bram(bank_get_bram() + 1);
-        }
-
-        if (flash_ram_address >= 0xC000) {
-            flash_ram_address = flash_ram_address - 0x2000;
-        }
+        flash_rom_address++;
+        flash_ram_address++;
+        flashed_bytes++;
     }
 
     return flashed_bytes;
 }
 
-unsigned long flash_verify(ram_ptr_t verify_ram_address, unsigned char rom_bank_start, unsigned long verify_size) {
+unsigned long flash_verify(bram_bank_t verify_ram_bank, ram_ptr_t verify_ram_address, unsigned long verify_rom_address, unsigned long verify_rom_size) {
 
-    unsigned long verify_rom_address = rom_address(rom_bank_start);
     unsigned long verified_bytes = 0; /// Holds the amount of bytes actually verified between the ROM and the RAM.
     unsigned long correct_bytes = 0;  /// Holds the amount of correct and verified bytes flashed in the ROM.
 
-    while (verified_bytes < verify_size) {
+    bank_set_bram(verify_ram_bank);
+    while (verified_bytes < verify_rom_size) {
 
-        if (!(verify_rom_address % 0x04000)) {
-            gotoxy(14, 4 + (rom_bank_start % 32));
-            rom_bank_start++;
+        if (rom_byte_verify(verify_rom_address, *verify_ram_address)) {
+            correct_bytes++;
         }
-
-        textcolor(GREEN);
-        for (unsigned int v = 0; v < 0x100; v++) {
-            if (!rom_byte_verify(verify_rom_address, *verify_ram_address)) {
-                textcolor(RED);
-            } else {
-                correct_bytes++;
-            }
-            verify_rom_address++;
-            verify_ram_address++;
-            verified_bytes++;
-        }
-
-        cputc(0xE0);
-
-        if (verify_ram_address >= 0xC000) {
-            verify_ram_address = verify_ram_address - 0x2000;
-            bank_set_bram(bank_get_bram() + 1);
-        }
-
-        if (verify_ram_address >= 0xC000) {
-            verify_ram_address = verify_ram_address - 0x2000;
-        }
+        verify_rom_address++;
+        verify_ram_address++;
+        verified_bytes++;
     }
 
     return correct_bytes;
@@ -631,11 +592,11 @@ void table_chip_clear(unsigned char rom_bank) {
     }
 }
 
-void print_text(char* text) {
+void print_text(char *text) {
 
     textcolor(WHITE);
-    gotoxy(2, 41);
-    printf("%76s", text);
+    gotoxy(2, 39);
+    printf("%-76s", text);
 }
 
 void main() {
@@ -677,19 +638,19 @@ void main() {
     unsigned char rom_chip = 0;
     unsigned char rom_device_ids[8] = {0};
     unsigned char rom_manufacturer_ids[8] = {0};
-    for (unsigned long rom_address = 0; rom_address < 8 * 0x80000; rom_address += 0x80000) {
+    for (unsigned long flash_rom_address = 0; flash_rom_address < 8 * 0x80000; flash_rom_address += 0x80000) {
 
         rom_manufacturer_ids[rom_chip] = 0;
         rom_device_ids[rom_chip] = 0;
 
 #ifdef __FLASH
         rom_unlock(0x05555, 0x90);
-        rom_manufacturer_ids[rom_chip] = rom_read_byte(rom_address);
-        rom_device_ids[rom_chip] = rom_read_byte(rom_address + 1);
+        rom_manufacturer_ids[rom_chip] = rom_read_byte(flash_rom_address);
+        rom_device_ids[rom_chip] = rom_read_byte(flash_rom_address + 1);
         rom_unlock(0x05555, 0xF0);
 #else
         // Simulate that there is one chip onboard and 2 chips on the isa card.
-        if (rom_address <= 0x100000) {
+        if (flash_rom_address <= 0x100000) {
             rom_unlock(0x05555, 0x90);
             rom_manufacturer_ids[rom_chip] = 0x9f;
             rom_device_ids[rom_chip] = SST39SF040;
@@ -779,19 +740,19 @@ void main() {
 
                 print_chip_led(flash_chip, CYAN, BLUE);
 
-                // sprintf(buffer, "reading %s in ram ...", file);
-                // print_text(buffer);
+                sprintf(buffer, "reading in ram ...");
+                print_text(buffer);
 
-                unsigned long rom_flash_total = 0;
+                unsigned long flash_rom_address_boundary = rom_address(flash_rom_bank);
                 unsigned long flash_bytes = flash_read(fp, (ram_ptr_t)0x4000, flash_rom_bank, 1);
                 if (flash_bytes != rom_size(1)) {
                     return;
                 }
-                rom_flash_total += flash_bytes;
+                flash_rom_address_boundary += flash_bytes;
 
                 bank_set_bram(1); // read from bank 1 in bram.
                 flash_bytes = flash_read(fp, (ram_ptr_t)0xA000, flash_rom_bank + 1, 31);
-                rom_flash_total += flash_bytes;
+                flash_rom_address_boundary += flash_bytes;
 
                 fclose(fp);
 
@@ -802,70 +763,131 @@ void main() {
                 // We now reflash the rom banks.
                 SEI();
 
+                unsigned long flash_rom_address_sector = rom_address(flash_rom_bank);
+                ram_ptr_t read_ram_address_sector = (ram_ptr_t)0x4000;
+                bram_bank_t read_ram_bank_sector = 1;
+
+                char *pattern;
+
+                textcolor(WHITE);
+
+                unsigned char x_sector = 14;
+                unsigned char y_sector = 4;
+
                 print_chip_led(flash_chip, PURPLE, BLUE);
+                sprintf(buffer, "flashing in rom from ram ... (-) unchanged, (+) flashed, (!) error.");
+                print_text(buffer);
 
-                // sprintf(buffer, "flashing %s in rom ...", file);
-                // print_text(buffer);
+                unsigned int flash_errors_sector = 0;
 
-                unsigned long rom_flashed_total = 0;
-                unsigned long flashed_bytes = flash_write((ram_ptr_t)0x4000, flash_rom_bank, 0x4000);
-                rom_flashed_total += flashed_bytes;
-                if (rom_flashed_total >= rom_flash_total) {
-                    return;
+                while (flash_rom_address_sector < flash_rom_address_boundary) {
+
+                    unsigned long equal_bytes = flash_verify(read_ram_bank_sector, (ram_ptr_t)read_ram_address_sector, flash_rom_address_sector, ROM_SECTOR);
+                    if (equal_bytes != ROM_SECTOR) {
+
+                        unsigned char flash_errors = 0;
+                        unsigned char retries = 0;
+                        
+                        do {
+                        
+                            rom_sector_erase(flash_rom_address_sector);
+
+                            unsigned long flash_rom_address_boundary = flash_rom_address_sector + ROM_SECTOR;
+                            unsigned long flash_rom_address = flash_rom_address_sector;
+                            ram_ptr_t read_ram_address = (ram_ptr_t)read_ram_address_sector;
+                            bram_bank_t read_ram_bank = read_ram_bank_sector;
+                            
+                            unsigned char x = x_sector;
+                            unsigned char y = y_sector;
+                            gotoxy(x, y);
+                            printf("................");
+
+                            while(flash_rom_address < flash_rom_address_boundary) {
+
+                                gotoxy(0,0);
+                                printf("ram = %2x, %4p, rom = %6x ", read_ram_bank_sector, read_ram_address, flash_rom_address);
+
+                                unsigned long written_bytes = flash_write(read_ram_bank_sector, (ram_ptr_t)read_ram_address, flash_rom_address);
+
+                                equal_bytes = flash_verify(read_ram_bank_sector, (ram_ptr_t)read_ram_address, flash_rom_address, 0x0100);
+
+                                if (equal_bytes != ROM_SECTOR) {
+                                    pattern = "!";
+                                    flash_errors++;
+                                } else {
+                                    pattern = "+";
+                                }
+                                read_ram_address += 0x0100;
+                                flash_rom_address += 0x0100;
+
+                                textcolor(WHITE);
+                                gotoxy(x, y);
+                                printf("%s", pattern);
+                                x++; // This should never exceed the 64 char boundary.
+                            }
+
+                            retries++;       
+
+                        } while(flash_errors && retries <= 3);      
+
+                        flash_errors_sector += flash_errors;
+                    
+                    } else {
+                        pattern = "----------------";
+
+                        textcolor(WHITE);
+                        gotoxy(x_sector, y_sector);
+                        printf("%s", pattern);
+                    }
+
+                    read_ram_address_sector += ROM_SECTOR;
+                    flash_rom_address_sector += ROM_SECTOR;
+
+                    if (read_ram_address_sector == 0x8000) {
+                        read_ram_address_sector = (ram_ptr_t)0xA000;
+                        read_ram_bank_sector = 1;
+                    }
+
+                    if (read_ram_address_sector == 0xC000) {
+                        read_ram_address_sector = (ram_ptr_t)0xA000;
+                        read_ram_bank_sector++;
+                    }
+
+                    x_sector += 16;
+                    if (!(flash_rom_address_sector % 0x4000)) {
+                        x_sector = 14;
+                        y_sector++;
+                    }
                 }
-
-                bank_set_bram(1); // read from bank 1 in bram.
-                flashed_bytes = flash_write((ram_ptr_t)0xA000, flash_rom_bank + 1, rom_flash_total - 0x4000);
-                rom_flashed_total += flashed_bytes;
-
-                // OK, so the flash file has been loaded into the 512 KBC memory.
-                // We now reflash the rom banks.
-                SEI();
-
-                bank_set_bram(1); // read from bank 1 in bram.
-
-                print_chip_led(flash_chip, GREEN, BLUE);
-
-                // sprintf(buffer, "verify %s in ram with flashed rom.", file);
-                // print_text(buffer);
-
-                unsigned long rom_verified_total = 0;
-                unsigned long correct_bytes = flash_verify((ram_ptr_t)0x4000, flash_rom_bank, 0x4000);
-                rom_verified_total += correct_bytes;
-
-                bank_set_bram(1); // read from bank 1 in bram.
-                correct_bytes = flash_verify((ram_ptr_t)0xA000, flash_rom_bank + 1, rom_flash_total - 0x4000);
-                rom_verified_total += correct_bytes;
 
                 bank_set_bram(1);
                 bank_set_brom(4);
 
                 CLI();
-                gotoxy(0, 57);
-                if (rom_verified_total == rom_flashed_total) {
-                    // sprintf(buffer, "the flashing of %s in rom went perfectly ok. press a key to flash the next chip ...", file);
-                    // print_text(buffer);
+                if (!flash_errors_sector) {
+                    textcolor(GREEN);
+                    sprintf(buffer, "the flashing went perfectly ok. press a key to flash the next chip ...", file);
+                    print_text(buffer);
                     print_chip_led(flash_chip, GREEN, BLUE);
                 } else {
-                    // sprintf(buffer, "the flashing of %s in rom went wrong. press a key to flash the next chip ...", file);
-                    // print_text(buffer);
+                    textcolor(RED);
+                    sprintf(buffer, "the flashing went wrong, %u errors. press a key to flash the next chip ...", flash_errors_sector);
+                    print_text(buffer);
                     print_chip_led(flash_chip, RED, BLUE);
                 }
-                wait_key();
             } else {
                 textcolor(WHITE);
                 gotoxy(2 + flash_chip * 10, 58);
                 printf("no file");
                 print_chip_led(flash_chip, DARK_GREY, BLUE);
             }
+            wait_key();
         }
     }
 
-    wait_key();
-
-    gotoxy(2, 39);
-    printf("resetting commander x16 ...");
-    gotoxy(2, 40);
+    textcolor(WHITE);
+    sprintf(buffer, "resetting commander x16" );
+    print_text(buffer);
     for (unsigned int w = 0; w < 32; w++) {
         for (unsigned int v = 0; v < 256 * 128; v++) {
         }
