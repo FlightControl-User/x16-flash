@@ -85,8 +85,8 @@
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
-#define __FLASH_CHIP_DETECT
-#define __FLASH_ERROR_DETECT
+// #define __FLASH_CHIP_DETECT
+// #define __FLASH_ERROR_DETECT
 
 // Ensures the proper character set is used for the COMMANDER X16.
 #pragma encoding(petscii_mixed)
@@ -108,6 +108,7 @@
 #define ROM_SIZE ((unsigned int)0x4000)
 #define ROM_PTR_MASK ((unsigned long)0x003FFF)
 #define ROM_BANK_MASK ((unsigned long)0x3FC000)
+#define ROM_CHIP_MASK ((unsigned long)0x380000)
 #define ROM_SECTOR ((unsigned int)0x1000)
 
 
@@ -328,8 +329,9 @@ inline void rom_wait(brom_ptr_t ptr_rom) {
  * @param unlock_code The 3rd write to model the specific unlock sequence.
  */
 inline void rom_unlock(unsigned long address, unsigned char unlock_code) {
-    rom_write_byte(0x05555, 0xAA);
-    rom_write_byte(0x02AAA, 0x55);
+    unsigned long chip_address = address & ROM_CHIP_MASK;
+    rom_write_byte(chip_address + 0x05555, 0xAA);
+    rom_write_byte(chip_address + 0x02AAA, 0x55);
     rom_write_byte(address, unlock_code);
 }
 
@@ -377,9 +379,10 @@ inline void rom_byte_program(unsigned long address, unsigned char value) {
  */
 inline void rom_sector_erase(unsigned long address) {
     brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
+    unsigned long rom_chip_address = address & ROM_CHIP_MASK;
 
 #ifdef __FLASH
-    rom_unlock(0x05555, 0x80);
+    rom_unlock(rom_chip_address + 0x05555, 0x80);
     rom_unlock(address, 0x30);
 
     rom_wait(ptr_rom);
@@ -427,10 +430,12 @@ inline unsigned long flash_write(unsigned char flash_ram_bank, ram_ptr_t flash_r
 
     unsigned long flashed_bytes = 0; /// Holds the amount of bytes actually flashed in the ROM.
 
+    unsigned long rom_chip_address = flash_rom_address & ROM_CHIP_MASK;
+
     bank_set_bram(flash_ram_bank);
     while (flashed_bytes < 0x0100) {
 #ifdef __FLASH
-        rom_unlock(0x05555, 0xA0);
+        rom_unlock(rom_chip_address + 0x05555, 0xA0);
         rom_byte_program(flash_rom_address, *flash_ram_address);
 #endif
         flash_rom_address++;
@@ -647,17 +652,17 @@ void main() {
         rom_device_ids[rom_chip] = 0;
 
 #ifdef __FLASH_CHIP_DETECT
-        rom_unlock(0x05555, 0x90);
+        rom_unlock(flash_rom_address + 0x05555, 0x90);
         rom_manufacturer_ids[rom_chip] = rom_read_byte(flash_rom_address);
         rom_device_ids[rom_chip] = rom_read_byte(flash_rom_address + 1);
-        rom_unlock(0x05555, 0xF0);
+        rom_unlock(flash_rom_address + 0x05555, 0xF0);
 #else
         // Simulate that there is one chip onboard and 2 chips on the isa card.
         if (flash_rom_address <= 0x100000) {
-            rom_unlock(0x05555, 0x90);
+            rom_unlock(flash_rom_address + 0x05555, 0x90);
             rom_manufacturer_ids[rom_chip] = 0x9f;
             rom_device_ids[rom_chip] = SST39SF040;
-            rom_unlock(0x05555, 0xF0);
+            rom_unlock(flash_rom_address + 0x05555, 0xF0);
         }
 #endif
 
