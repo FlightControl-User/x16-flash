@@ -158,9 +158,9 @@ Successful flashed ROMs are highlighted with a GREEN led.
 
 Faulty flashed ROMs are highlighted with a RED led.
 
-### 3.5. Interation of the ROMs
+### 3.5. Each of the identified ROMs will be flashed
 
-Once the ROM has been flashed, the next ROM is considered flashing, which has a lower sequence number than the one flashed. The last ROM that is considered for flashing is the on-board ROM.
+Once the ROM has been flashed, the next identified ROM is considered flashing, which has a lower sequence number than the one flashed. The last ROM that is considered for flashing is the on-board ROM (if identified).
 
 ### End of the flashing process
 
@@ -172,7 +172,6 @@ If there are no more ROMs identified to be flashed, the program will reset autom
 
 Ensure that your ROM has been correctly flashed by testing your program or testing the onboard rom upgrade!
 
-
-If you have an issue with a ROM, you always have the possibility to downgrade the ROM version if needed by reflashing an older version of a ROM.BIN file.
+If you have an issue after a ROM upgrade, you always have the possibility to downgrade the ROM version if needed by reflashing an older version of a ROM.BIN file. However, since ROMs cannot be endlessly re-flashed it is highly recommended to first test your programs using the available emulators.
 
 
