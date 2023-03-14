@@ -38,7 +38,7 @@ Download the latest version of the rom.bin available at the CX16 github page. Co
 
 Ensure that a dip-switch is placed over the J1 jumper, to remove the copy protection of the on-board ROM.
 
-![Onboard Flashing DIP switch](./images/ROM-onboard-dip.jpg)
+![ROM-onboard-dip](https://user-images.githubusercontent.com/13690775/225110062-8081d0a6-079a-405a-b03a-ab2f482fbfff.jpg)
 
 Once you have the dip-switch properly placed, the ROM will be detected by the flashing program. If there is no dip-switche placed, the ROM won't be recognized by the flashing program and your ROM.BIN file will not be flashed!
 
@@ -46,7 +46,7 @@ Once you have the dip-switch properly placed, the ROM will be detected by the fl
 
 First for all clarity, this is the cardridge:
 
-![ROM Cardridge](./images/ROM-cardridge.jpg)
+![ROM-cardridge](https://user-images.githubusercontent.com/13690775/225110167-546596e6-998a-464f-b6a9-53fb598c19b4.jpg)
 
 On the ROM cardridge, 7 extra RAM/ROM chips can be placed for usage, and flashing. The cardridge is placed in one of the 4 CX16 extension slots, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
 
@@ -56,12 +56,11 @@ To ensure that no harmful program can damage your ROMs, dip-switches are to be p
 
 Place a dip-switch over J1 (at the left side of the board) to remove the write-protection for ROM#1 till ROM#6. 
 
-![ROM J1](./images/ROM-cardridge.jpg)
-
+![ROM-DIP-J1](https://user-images.githubusercontent.com/13690775/225111120-56eeaca5-69a6-4812-a854-5cfc1246045a.jpg)
 
 Place a dip-switch over J2 (at the right side of the board) to remove the write-protection for ROM#7. 
 
-![ROM J2](./images/ROM-cardridge.jpg)
+![ROM-DIP-J2](https://user-images.githubusercontent.com/13690775/225111150-c441812c-5331-46b1-805f-f769064507f7.jpg)
 
 Once you have the dip-switches properly placed, the ROMs will be detected by the flashing program. If there are no dip-switches placed, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
 
@@ -75,7 +74,7 @@ Boot/Start your Commander X16 computer.
 
 Your Commander X16 startup screen might look like this ...
 
-![ROM-DOS](images/FLASH-DOS.png)
+<img width="242" alt="FLASH-DOS" src="https://user-images.githubusercontent.com/13690775/225111204-88051585-ecb7-4614-8374-ba4de2623d43.png">
 
 Load the program and run it, follow a small guide as described below.
 
@@ -97,7 +96,7 @@ Please find in more details this sequence explained visually, with an explanatio
 
 Once the flashing program is started, it will first attempt to identify which ROMs are "flashable". You see 8 ROM chips with the left chip the on-board ROM chip and the most right chip the ROM#7, which would be the right most chip on the cardridge.
 
-![ROM-DOS](images/FLASH-START.png)
+<img width="642" alt="FLASH-START" src="https://user-images.githubusercontent.com/13690775/225111270-385066a4-1b71-473f-8647-0c15f8c49da3.png">
 
 Each ROM detected will be highlighted with a WHITE led. The ROM capacity is shown in KB and the manufacturer ID and device ID are shown (for your information).
 
@@ -109,7 +108,7 @@ The user us requested to press a key to start the flashing procedure.
 
 For each flashable ROM, the program will look for a related ROM[N].BIN file. 
 
-![ROM-DOS](images/FLASH-NOFILE.png)
+<img width="642" alt="FLASH-NOFILE" src="https://user-images.githubusercontent.com/13690775/225111329-2528fc22-9e51-4bbd-9cf2-f06931e25dd5.png">
 
 If there is no file found, a message is shown to the user and this ROM will be skipped. The ROM will be highlighted with a GREY led. 
 
@@ -119,7 +118,7 @@ Otherwise, the ROM[N].BIN file will be loaded from the SDcard into low and high 
 
 The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $4000 bytes are loaded in low RAM, while the remainder of the ROM[N].BIN file is loaded in high RAM. This is nothing for you to be concerned about, just explaining how the program works. But note that a ROM[N].BIN file that is 512KB large, will be fully loaded into RAM on the Commander X16!
 
-![ROM-DOS](images/FLASH-LOAD.png)
+<img width="634" alt="FLASH-LOAD" src="https://user-images.githubusercontent.com/13690775/225111367-df29cf5b-eeeb-4c5a-8a2a-1366345086a8.png">
 
 Each $100 bytes loaded will be shown on the screen as a '.' in the memory matrix. Each row in the matrix represents $4000 bytes. There are $40 possible blocks of $100 bytes each in each row. A ROM can have a maximum of 512K, so there are maximum 32 rows possible to be shown in the matrix.
 
@@ -131,7 +130,7 @@ Loading and Comparing in progress is highlighted with a CYAN led on top of the R
 
 Once the ROM[N].BIN file has been loaded into RAM, the program will compare the RAM contents with the ROM contents.
 
-![ROM-DOS](images/FLASH-CHANGES.png)
+<img width="642" alt="FLASH-CHANGES" src="https://user-images.githubusercontent.com/13690775/225111444-a87165cb-891c-4d63-a2a7-f6370c73c94d.png">
 
 Equal blocks are shown with a '.', while different blocks are shown with a '*'. This provides the user a good idea of where the changes are, and more important, in which ROM banks!
 
@@ -143,7 +142,7 @@ Once the user understands the changes and wants to continue with flashing, a key
 
 The flashing is straightforward, but there is something that needs to be explained. The program will only flash the areas that have changes, and tries to do this in the most efficient way. Unfortunately, before flashing a byte in the ROM, the program need to execute an erase process for each byte that has changed in a 4K block. 
 
-![ROM-DOS](images/FLASH-INPROGRESS.png)
+<img width="642" alt="FLASH-INPROGRESS" src="https://user-images.githubusercontent.com/13690775/225111500-4157374a-2e25-4f0d-9574-e7479cee0ae1.png">
 
 So in other words, areas of 4K that are unchanged will be skipped, but if there are areas where 1 bit of a whole 4K block has changed, then this whole 4K block will be reased and re-flashed.
 
@@ -167,7 +166,7 @@ Once the ROM has been flashed, the next ROM is considered flashing, which has a 
 
 If there are no more ROMs identified to be flashed, the program will reset automatically.
 
-![ROM-DOS](images/FLASH-RESET.png)
+<img width="642" alt="FLASH-RESET" src="https://user-images.githubusercontent.com/13690775/225111551-1df63cad-7c16-4aaf-a793-c6d29defeb16.png">
 
 ## Testing and next steps
 
