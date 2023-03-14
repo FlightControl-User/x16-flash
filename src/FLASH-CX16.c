@@ -697,6 +697,10 @@ void main() {
         rom_unlock(flash_rom_address + 0x05555, 0xF0);
 #else
         // Simulate that there is one chip onboard and 2 chips on the isa card.
+        if (flash_rom_address == 0x0) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
         if (flash_rom_address == 0x80000) {
             rom_manufacturer_ids[rom_chip] = 0x9f;
             rom_device_ids[rom_chip] = SST39SF040;
