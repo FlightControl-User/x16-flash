@@ -40,7 +40,7 @@ Ensure that the J1 jumper pins are closed, to remove the write protection of the
 
 ![ROM-onboard-dip](https://user-images.githubusercontent.com/13690775/225110062-8081d0a6-079a-405a-b03a-ab2f482fbfff.jpg)
 
-Once you have the J1 jumper properly closed, the ROM will be detected by the flashing program. If the J1 jumper pins are open, the ROM won't be recognized by the flashing program and your ROM.BIN file will not be flashed!
+Once you have the J1 jumper pins properly closed, the ROM will be detected by the flashing program. If the J1 jumper pins are open, the ROM won't be recognized by the flashing program and your ROM.BIN file will not be flashed!
 
 ### 2.2. Flash multiple ROMs on the external RAM/ROM ISA cardidge.
 
