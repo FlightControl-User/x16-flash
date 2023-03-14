@@ -103,7 +103,7 @@
 #include <sprintf.h>
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(mem)
+#pragma var_model(zp)
 
 // Some addressing constants.
 #define ROM_BASE ((unsigned int)0xC000)
@@ -320,6 +320,16 @@ void print_chip_led(char r, char tc, char bc) {
     cputc(VERA_REV_SPACE);
     cputc(VERA_REV_SPACE);
 }
+
+void print_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned long brom_address) {
+
+    textcolor(WHITE);
+    brom_bank_t brom_bank = rom_bank(brom_address);
+    brom_ptr_t brom_ptr = rom_ptr(brom_address);
+    gotoxy(40, 1);
+    printf("ram = %2x/%4p, rom = %6x,%2x/%4p", bram_bank, bram_ptr, brom_address, brom_bank, brom_ptr);
+}
+
 
 /**
  * @brief Calculates the 22 bit ROM size from the 8 bit ROM banks.
@@ -802,11 +812,9 @@ void main() {
                         read_ram_address += 0x0100;
                         flash_rom_address += 0x0100;
 
+                        print_address(read_ram_bank, read_ram_address, flash_rom_address);
+
                         textcolor(WHITE);
-
-                        gotoxy(50, 1);
-                        printf("ram = %2x, %4p, rom = %6x", read_ram_bank, read_ram_address, flash_rom_address);
-
                         gotoxy(x_sector, y_sector);
                         printf("%s", pattern);
                         x_sector++;
@@ -875,22 +883,18 @@ void main() {
                             unsigned long flash_rom_address = flash_rom_address_sector;
                             ram_ptr_t read_ram_address = (ram_ptr_t)read_ram_address_sector;
                             bram_bank_t read_ram_bank = read_ram_bank_sector;
-                            brom_bank_t bank = rom_bank(flash_rom_address);
-                            brom_ptr_t addr = rom_ptr(flash_rom_address);
 
                             unsigned char x = x_sector;
                             unsigned char y = y_sector;
                             gotoxy(x, y);
                             printf("................");
 
-                            gotoxy(40, 1);
-                            printf("ram = %2x/%4p, rom = %6x %2x/%4p  ", read_ram_bank, read_ram_address, flash_rom_address, bank, addr);
+                            print_address(read_ram_bank, read_ram_address, flash_rom_address);
 
                             while (flash_rom_address < flash_rom_address_boundary) {
 
-                                gotoxy(40, 1);
-                                printf("ram = %2x/%4p, rom = %6x %2x/%4p  ", read_ram_bank, read_ram_address, flash_rom_address, bank, addr);
-    
+                                print_address(read_ram_bank, read_ram_address, flash_rom_address);
+
                                 unsigned long written_bytes = flash_write(read_ram_bank, (ram_ptr_t)read_ram_address, flash_rom_address);
 
                                 equal_bytes = flash_verify(read_ram_bank, (ram_ptr_t)read_ram_address, flash_rom_address, 0x0100);

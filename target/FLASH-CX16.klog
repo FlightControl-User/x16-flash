@@ -3,7 +3,6 @@ parsing
 flex pass 1
 flex pass 2
 flex pass 3
-flex pass 4
 Output pass
 Writing prg file: FLASH-CX16.prg
 
@@ -15,10 +14,10 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$327b Code
+  $080d-$2d6d Code
 
 Data-segment:
-  $327c-$37d3 Data
+  $2d6e-$31ed Data
 
 Writing Vice symbol file: FLASH-CX16.vs
 Writing Symbol file: FLASH-CX16.sym
