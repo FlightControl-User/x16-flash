@@ -158,6 +158,120 @@ void system_reset() {
     }
 }
 
+void frame_draw() {
+
+    textcolor(WHITE);
+    bgcolor(BLUE);
+
+    clrscr();
+    unsigned char y = 0;
+    for (unsigned char x = 0; x < 79; x++) {
+        cputcxy(x, y, 0x40);
+    }
+    cputcxy(0, y, 0x70);
+    cputcxy(79, y, 0x6E);
+
+    y++;
+    cputcxy(0, y, 0x5d);
+    cputcxy(79, y, 0x5d);
+
+    y++;
+    for (unsigned char x = 0; x < 79; x++) {
+        cputcxy(x, y, 0x40);
+    }
+    cputcxy(0, y, 0x6B);
+    cputcxy(79, y, 0x73);
+    cputcxy(12, y, 0x72);
+
+    y++;
+    for (; y < 37; y++) {
+        cputcxy(0, y, 0x5D);
+        cputcxy(12, y, 0x5D);
+        cputcxy(79, y, 0x5D);
+    }
+
+    for (unsigned char x = 0; x < 79; x++) {
+        cputcxy(x, y, 0x40);
+    }
+    cputcxy(0, y, 0x6B);
+    cputcxy(79, y, 0x73);
+    cputcxy(12, y, 0x71);
+
+    y++;
+    for (; y < 41; y++) {
+        cputcxy(0, y, 0x5D);
+        cputcxy(79, y, 0x5D);
+    }
+
+    for (unsigned char x = 0; x < 79; x++) {
+        cputcxy(x, y, 0x40);
+    }
+    cputcxy(0, y, 0x6B);
+    cputcxy(79, y, 0x73);
+    cputcxy(10, y, 0x72);
+    cputcxy(20, y, 0x72);
+    cputcxy(30, y, 0x72);
+    cputcxy(40, y, 0x72);
+    cputcxy(50, y, 0x72);
+    cputcxy(60, y, 0x72);
+    cputcxy(70, y, 0x72);
+    cputcxy(79, y, 0x73);
+
+    y++;
+    for (; y < 55; y++) {
+        cputcxy(0, y, 0x5D);
+        cputcxy(79, y, 0x5D);
+        cputcxy(10, y, 0x5D);
+        cputcxy(20, y, 0x5D);
+        cputcxy(30, y, 0x5D);
+        cputcxy(40, y, 0x5D);
+        cputcxy(50, y, 0x5D);
+        cputcxy(60, y, 0x5D);
+        cputcxy(70, y, 0x5D);
+    }
+
+    for (unsigned char x = 0; x < 79; x++) {
+        cputcxy(x, y, 0x40);
+    }
+    cputcxy(0, y, 0x6B);
+    cputcxy(79, y, 0x73);
+    cputcxy(10, y, 0x5B);
+    cputcxy(20, y, 0x5B);
+    cputcxy(30, y, 0x5B);
+    cputcxy(40, y, 0x5B);
+    cputcxy(50, y, 0x5B);
+    cputcxy(60, y, 0x5B);
+    cputcxy(70, y, 0x5B);
+
+    y++;
+    for (; y < 59; y++) {
+        cputcxy(0, y, 0x5D);
+        cputcxy(79, y, 0x5D);
+        cputcxy(10, y, 0x5D);
+        cputcxy(20, y, 0x5D);
+        cputcxy(30, y, 0x5D);
+        cputcxy(40, y, 0x5D);
+        cputcxy(50, y, 0x5D);
+        cputcxy(60, y, 0x5D);
+        cputcxy(70, y, 0x5D);
+    }
+
+    for (unsigned char x = 0; x < 79; x++) {
+        cputcxy(x, y, 0x40);
+    }
+    cputcxy(0, y, 0x6D);
+    cputcxy(79, y, 0x7D);
+    cputcxy(10, y, 0x71);
+    cputcxy(20, y, 0x71);
+    cputcxy(30, y, 0x71);
+    cputcxy(40, y, 0x71);
+    cputcxy(50, y, 0x71);
+    cputcxy(60, y, 0x71);
+    cputcxy(70, y, 0x71);
+    cputcxy(79, y, 0x7D);
+}
+
+
 void print_chip_line(char x, char y, char c) {
 
     gotoxy(x, y);
@@ -468,118 +582,6 @@ unsigned int flash_verify(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long
     return correct_bytes;
 }
 
-void frame_draw() {
-
-    textcolor(WHITE);
-    bgcolor(BLUE);
-
-    clrscr();
-    unsigned char y = 0;
-    for (unsigned char x = 0; x < 79; x++) {
-        cputcxy(x, y, 0x40);
-    }
-    cputcxy(0, y, 0x70);
-    cputcxy(79, y, 0x6E);
-
-    y++;
-    cputcxy(0, y, 0x5d);
-    cputcxy(79, y, 0x5d);
-
-    y++;
-    for (unsigned char x = 0; x < 79; x++) {
-        cputcxy(x, y, 0x40);
-    }
-    cputcxy(0, y, 0x6B);
-    cputcxy(79, y, 0x73);
-    cputcxy(12, y, 0x72);
-
-    y++;
-    for (; y < 37; y++) {
-        cputcxy(0, y, 0x5D);
-        cputcxy(12, y, 0x5D);
-        cputcxy(79, y, 0x5D);
-    }
-
-    for (unsigned char x = 0; x < 79; x++) {
-        cputcxy(x, y, 0x40);
-    }
-    cputcxy(0, y, 0x6B);
-    cputcxy(79, y, 0x73);
-    cputcxy(12, y, 0x71);
-
-    y++;
-    for (; y < 41; y++) {
-        cputcxy(0, y, 0x5D);
-        cputcxy(79, y, 0x5D);
-    }
-
-    for (unsigned char x = 0; x < 79; x++) {
-        cputcxy(x, y, 0x40);
-    }
-    cputcxy(0, y, 0x6B);
-    cputcxy(79, y, 0x73);
-    cputcxy(10, y, 0x72);
-    cputcxy(20, y, 0x72);
-    cputcxy(30, y, 0x72);
-    cputcxy(40, y, 0x72);
-    cputcxy(50, y, 0x72);
-    cputcxy(60, y, 0x72);
-    cputcxy(70, y, 0x72);
-    cputcxy(79, y, 0x73);
-
-    y++;
-    for (; y < 55; y++) {
-        cputcxy(0, y, 0x5D);
-        cputcxy(79, y, 0x5D);
-        cputcxy(10, y, 0x5D);
-        cputcxy(20, y, 0x5D);
-        cputcxy(30, y, 0x5D);
-        cputcxy(40, y, 0x5D);
-        cputcxy(50, y, 0x5D);
-        cputcxy(60, y, 0x5D);
-        cputcxy(70, y, 0x5D);
-    }
-
-    for (unsigned char x = 0; x < 79; x++) {
-        cputcxy(x, y, 0x40);
-    }
-    cputcxy(0, y, 0x6B);
-    cputcxy(79, y, 0x73);
-    cputcxy(10, y, 0x5B);
-    cputcxy(20, y, 0x5B);
-    cputcxy(30, y, 0x5B);
-    cputcxy(40, y, 0x5B);
-    cputcxy(50, y, 0x5B);
-    cputcxy(60, y, 0x5B);
-    cputcxy(70, y, 0x5B);
-
-    y++;
-    for (; y < 59; y++) {
-        cputcxy(0, y, 0x5D);
-        cputcxy(79, y, 0x5D);
-        cputcxy(10, y, 0x5D);
-        cputcxy(20, y, 0x5D);
-        cputcxy(30, y, 0x5D);
-        cputcxy(40, y, 0x5D);
-        cputcxy(50, y, 0x5D);
-        cputcxy(60, y, 0x5D);
-        cputcxy(70, y, 0x5D);
-    }
-
-    for (unsigned char x = 0; x < 79; x++) {
-        cputcxy(x, y, 0x40);
-    }
-    cputcxy(0, y, 0x6D);
-    cputcxy(79, y, 0x7D);
-    cputcxy(10, y, 0x71);
-    cputcxy(20, y, 0x71);
-    cputcxy(30, y, 0x71);
-    cputcxy(40, y, 0x71);
-    cputcxy(50, y, 0x71);
-    cputcxy(60, y, 0x71);
-    cputcxy(70, y, 0x71);
-    cputcxy(79, y, 0x7D);
-}
 
 void table_chip_clear(unsigned char rom_bank) {
 
@@ -702,22 +704,7 @@ void main() {
         rom_chip++;
     }
 
-    // gotoxy(0, 40);
-
-    // if (rom_error) {
-    //     printf("there is an unknown rom chip device in your system. cannot proceed with the upgrade process ...\n");
-    //     printf("press any key for further instructions ...");
-    //     wait_key();
-    //     system_reset();
-    // }
-
     CLI();
-
-    // printf("\nsearching for a specific romnnn.bin to flash ROM banks between 32 and 255.");
-    // printf("\nif such a rom[n].bin file is found, a confirmation will be required before flashing the rom.");
-    // printf("\nafter confirmation, the romnnn.bin file is first read into ram at address 0x4000.");
-    // printf("\nonce the romnnn.bin file is flashed, the new flashed rom is verified against the file contents.");
-    // printf("\nin case of a flash or verify error, the flash program will abort.");
 
     // printf("press any key to start flashing ...\n");
     sprintf(buffer, "press a key to start flashing.");
