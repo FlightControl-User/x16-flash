@@ -108,7 +108,7 @@
 // Some addressing constants.
 #define ROM_BASE ((unsigned int)0xC000)
 #define ROM_SIZE ((unsigned int)0x4000)
-#define ROM_PTR_MASK ((unsigned long)0x003FFF)
+#define ROM_PTR_MASK ((unsigned int)0x003FFF)
 #define ROM_BANK_MASK ((unsigned long)0x3FC000)
 #define ROM_CHIP_MASK ((unsigned long)0x380000)
 #define ROM_SECTOR ((unsigned int)0x1000)
@@ -350,7 +350,7 @@ void print_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned long bro
     textcolor(WHITE);
     brom_bank_t brom_bank = rom_bank(brom_address);
     brom_ptr_t brom_ptr = rom_ptr(brom_address);
-    gotoxy(40, 1);
+    gotoxy(43, 1);
     printf("ram = %2x/%4p, rom = %6x,%2x/%4p", bram_bank, bram_ptr, brom_address, brom_bank, brom_ptr);
 }
 
@@ -380,7 +380,15 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
  * @param address The 22 bit ROM address.
  * @return unsigned char The ROM bank number for usage in ZP $01.
  */
-/* inline */ unsigned char rom_bank(unsigned long address) { return (char)((unsigned long)(address & ROM_BANK_MASK) >> 14); }
+inline unsigned char rom_bank(unsigned long address) { 
+
+    // address = address & ROM_BANK_MASK; // not needed.s
+
+    unsigned int bank_unshifted = MAKEWORD(BYTE2(address),BYTE1(address)) << 2;
+    unsigned char bank = BYTE1(bank_unshifted); 
+    return bank; 
+    
+}
 
 /**
  * @brief Calcuates the 16 bit ROM pointer from the ROM using the 22 bit address.
@@ -389,7 +397,9 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
  * @param address The 22 bit ROM address.
  * @return brom_ptr_t The 16 bit ROM pointer for the main CPU addressing.
  */
-/* inline */ brom_ptr_t rom_ptr(unsigned long address) { return (brom_ptr_t)((unsigned int)(address & ROM_PTR_MASK) + ROM_BASE); }
+inline brom_ptr_t rom_ptr(unsigned long address) { 
+    return (brom_ptr_t)(((unsigned int)(address) & ROM_PTR_MASK) + ROM_BASE); 
+}
 
 /**
  * @brief Read a byte from the ROM using the 22 bit address.
@@ -400,7 +410,7 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
  * @param address The 22 bit ROM address.
  * @return unsigned char The byte read from the ROM.
  */
-/* inline */ unsigned char rom_read_byte(unsigned long address) {
+unsigned char rom_read_byte(unsigned long address) {
     brom_bank_t bank_rom = rom_bank((unsigned long)address);
     brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
 
@@ -417,7 +427,7 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
  * @param address The 22 bit ROM address.
  * @param value The byte value to be written.
  */
-/* inline */ void rom_write_byte(unsigned long address, unsigned char value) {
+void rom_write_byte(unsigned long address, unsigned char value) {
     brom_bank_t bank_rom = rom_bank((unsigned long)address);
     brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
 
@@ -434,7 +444,7 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
  * @param address The 22 bit ROM address.
  * @param value The byte value to be written.
  */
-/* inline */ unsigned char rom_byte_verify(brom_ptr_t ptr_rom, unsigned char value) {
+unsigned char rom_byte_verify(brom_ptr_t ptr_rom, unsigned char value) {
 
     unsigned char verified = 1;
     if (*ptr_rom != value) {
@@ -533,15 +543,14 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
 #endif
 }
 
-unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned char rom_bank_size) {
+unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned long read_size) {
 
     unsigned long flash_rom_address = rom_address(rom_bank_start);
-    unsigned long flash_size = rom_size(rom_bank_size);
     unsigned long flash_bytes = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
 
     textcolor(WHITE);
 
-    while (flash_bytes < flash_size) {
+    while (flash_bytes < read_size) {
 
         if (!(flash_rom_address % 0x04000)) {
             gotoxy(14, 4 + (rom_bank_start % 32));
@@ -566,6 +575,8 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
             flash_ram_address = flash_ram_address - 0x2000;
         }
     }
+
+    // Implement test for EOF ...    
 
     return flash_bytes;
 }
@@ -672,6 +683,8 @@ void main() {
     unsigned char rom_chip = 0;
     unsigned char rom_device_ids[8] = {0};
     unsigned char rom_manufacturer_ids[8] = {0};
+    unsigned long rom_sizes[8] = {0};
+
     for (unsigned long flash_rom_address = 0; flash_rom_address < 8 * 0x80000; flash_rom_address += 0x80000) {
 
         rom_manufacturer_ids[rom_chip] = 0;
@@ -684,11 +697,21 @@ void main() {
         rom_unlock(flash_rom_address + 0x05555, 0xF0);
 #else
         // Simulate that there is one chip onboard and 2 chips on the isa card.
-        if (flash_rom_address <= 0x100000) {
-            rom_unlock(flash_rom_address + 0x05555, 0x90);
+        if (flash_rom_address == 0x80000) {
             rom_manufacturer_ids[rom_chip] = 0x9f;
             rom_device_ids[rom_chip] = SST39SF040;
-            rom_unlock(flash_rom_address + 0x05555, 0xF0);
+        }
+        if (flash_rom_address == 0x100000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF020A;
+        }
+        if (flash_rom_address == 0x180000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF010A;
+        }
+        if (flash_rom_address == 0x200000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
         }
 #endif
 
@@ -701,16 +724,19 @@ void main() {
             rom_device = "f010a";
             print_chip_KB(rom_chip, "128");
             print_chip_led(rom_chip, WHITE, BLUE);
+            rom_sizes[rom_chip] = 128 * 1024;
             break;
         case SST39SF020A:
             rom_device = "f020a";
             print_chip_KB(rom_chip, "256");
             print_chip_led(rom_chip, WHITE, BLUE);
+            rom_sizes[rom_chip] = 256 * 1024;
             break;
         case SST39SF040:
             rom_device = "f040";
             print_chip_KB(rom_chip, "512");
             print_chip_led(rom_chip, WHITE, BLUE);
+            rom_sizes[rom_chip] = 512 * 1024;
             break;
         default:
             rom_device = "----";
@@ -768,14 +794,18 @@ void main() {
                 print_text(buffer);
 
                 unsigned long flash_rom_address_boundary = rom_address(flash_rom_bank);
-                unsigned long flash_bytes = flash_read(fp, (ram_ptr_t)0x4000, flash_rom_bank, 1);
+
+                unsigned long size = 0x4000;
+                unsigned long flash_bytes = flash_read(fp, (ram_ptr_t)0x4000, flash_rom_bank, size);
                 if (flash_bytes != rom_size(1)) {
                     return;
                 }
                 flash_rom_address_boundary += flash_bytes;
 
                 bank_set_bram(1); // read from bank 1 in bram.
-                flash_bytes = flash_read(fp, (ram_ptr_t)0xA000, flash_rom_bank + 1, 31);
+                size = rom_sizes[flash_chip];
+                size -= 0x4000;
+                flash_bytes = flash_read(fp, (ram_ptr_t)0xA000, flash_rom_bank + 1, size);
                 flash_rom_address_boundary += flash_bytes;
 
                 fclose(fp);
