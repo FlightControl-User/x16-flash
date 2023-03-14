@@ -14,10 +14,10 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$2d6d Code
+  $080d-$2de3 Code
 
 Data-segment:
-  $2d6e-$31ed Data
+  $2de4-$326e Data
 
 Writing Vice symbol file: FLASH-CX16.vs
 Writing Symbol file: FLASH-CX16.sym

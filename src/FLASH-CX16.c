@@ -310,6 +310,24 @@ void print_chip_end(char x, char y) {
     cputc(VERA_CHR_UL);
 }
 
+void print_chips() {
+
+    for (unsigned char r = 0; r < 8; r++) {
+        print_chip_line(3 + r * 10, 45, ' ');
+        print_chip_line(3 + r * 10, 46, 'r');
+        print_chip_line(3 + r * 10, 47, 'o');
+        print_chip_line(3 + r * 10, 48, 'm');
+        print_chip_line(3 + r * 10, 49, '0' + r);
+        print_chip_line(3 + r * 10, 50, ' ');
+        print_chip_line(3 + r * 10, 51, ' ');
+        print_chip_line(3 + r * 10, 52, ' ');
+        print_chip_line(3 + r * 10, 53, ' ');
+        print_chip_end(3 + r * 10, 54);
+
+        print_chip_led(r, BLACK, BLUE);
+    }
+}
+
 void print_chip_led(char r, char tc, char bc) {
 
     gotoxy(4 + r * 10, 43);
@@ -319,6 +337,12 @@ void print_chip_led(char r, char tc, char bc) {
     cputc(VERA_REV_SPACE);
     cputc(VERA_REV_SPACE);
     cputc(VERA_REV_SPACE);
+}
+
+void print_chip_KB(unsigned char rom_chip, unsigned char* kb) {
+    print_chip_line(3 + rom_chip * 10, 51, kb[0]);
+    print_chip_line(3 + rom_chip * 10, 52, kb[1]);
+    print_chip_line(3 + rom_chip * 10, 53, kb[2]);
 }
 
 void print_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned long brom_address) {
@@ -642,20 +666,7 @@ void main() {
     gotoxy(2, 1);
     printf("commander x16 rom flash utility");
 
-    for (unsigned char r = 0; r < 8; r++) {
-        print_chip_line(3 + r * 10, 45, ' ');
-        print_chip_line(3 + r * 10, 46, 'r');
-        print_chip_line(3 + r * 10, 47, 'o');
-        print_chip_line(3 + r * 10, 48, 'm');
-        print_chip_line(3 + r * 10, 49, '0' + r);
-        print_chip_line(3 + r * 10, 50, ' ');
-        print_chip_line(3 + r * 10, 51, '5');
-        print_chip_line(3 + r * 10, 52, '1');
-        print_chip_line(3 + r * 10, 53, '2');
-        print_chip_end(3 + r * 10, 54);
-
-        print_chip_led(r, BLACK, BLUE);
-    }
+    print_chips();
 
     unsigned char rom_error = 0;
     unsigned char rom_chip = 0;
@@ -688,14 +699,17 @@ void main() {
         switch (rom_device_ids[rom_chip]) {
         case SST39SF010A:
             rom_device = "f010a";
+            print_chip_KB(rom_chip, "128");
             print_chip_led(rom_chip, WHITE, BLUE);
             break;
         case SST39SF020A:
             rom_device = "f020a";
+            print_chip_KB(rom_chip, "256");
             print_chip_led(rom_chip, WHITE, BLUE);
             break;
         case SST39SF040:
             rom_device = "f040";
+            print_chip_KB(rom_chip, "512");
             print_chip_led(rom_chip, WHITE, BLUE);
             break;
         default:
