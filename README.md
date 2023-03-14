@@ -36,13 +36,13 @@ There are two scenarios for rom flashing: flashing the on-board rom or flashing 
 
 Download the latest version of the rom.bin available at the CX16 github page. Copy the bin file at the same location where your FLASH-CX16.PRG file is located. Ensure the file is copied onto the SDcard with the file name in CAPITAL letters.
 
-Ensure that a dip-switch is placed over the J1 jumper, to remove the copy protection of the on-board ROM.
+Ensure that the J1 jumper pins are closed, to remove the write protection of the on-board ROM.
 
 ![ROM-onboard-dip](https://user-images.githubusercontent.com/13690775/225110062-8081d0a6-079a-405a-b03a-ab2f482fbfff.jpg)
 
-Once you have the dip-switch properly placed, the ROM will be detected by the flashing program. If there is no dip-switche placed, the ROM won't be recognized by the flashing program and your ROM.BIN file will not be flashed!
+Once you have the J1 jumper properly closed, the ROM will be detected by the flashing program. If the J1 jumper pins are open, the ROM won't be recognized by the flashing program and your ROM.BIN file will not be flashed!
 
-### 2.2. Flash multiple ROMs on the external RAM/ROM cardidge.
+### 2.2. Flash multiple ROMs on the external RAM/ROM ISA cardidge.
 
 First for all clarity, this is the cardridge:
 
@@ -52,23 +52,23 @@ On the ROM cardridge, 7 extra RAM/ROM chips can be placed for usage, and flashin
 
 Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM[N].BIN file(s), where N must be a number between 1 and 7! For example, ROM1.BIN will flash ROM#1 on the cardridge. ROM5.BIN will flash ROM#5. ROM devices are to be placed and counted, from left to right!
 
-To ensure that no harmful program can damage your ROMs, dip-switches are to be placed on the cardridge jumpers J1 and J2.
+To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on the cardridge are to be remained open. However, in order to flash the ROMs, close the relevant jumper pins.
 
-Place a dip-switch over J1 (at the left side of the board) to remove the write-protection for ROM#1 till ROM#6. 
+Close the J1 jumper pins (at the left side of the board) to remove the write-protection for ROM#1 till ROM#6. 
 
 ![ROM-DIP-J1](https://user-images.githubusercontent.com/13690775/225111120-56eeaca5-69a6-4812-a854-5cfc1246045a.jpg)
 
-Place a dip-switch over J2 (at the right side of the board) to remove the write-protection for ROM#7. 
+Close the J2 jumper pins (at the right side of the board) to remove the write-protection for ROM#7. 
 
 ![ROM-DIP-J2](https://user-images.githubusercontent.com/13690775/225111150-c441812c-5331-46b1-805f-f769064507f7.jpg)
 
-Once you have the dip-switches properly placed, the ROMs will be detected by the flashing program. If there are no dip-switches placed, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
+Once you have the J1 and/or J2 jumper pins properly closed, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
 
 ## 3. Flashing the ROMs
 
 Once you've copied the FLASH-CX16.PRG and the relevant ROM[N].BIN files onto the SDcard, you are ready for ROM flashing!
 
-Place the SDcard in the foreseen VERA slot, and verify that all dip-switches are placed properly.
+Place the SDcard in the foreseen VERA slot, and verify that all indicated jumper pins are closed properly.
 
 Boot/Start your Commander X16 computer.
 
@@ -102,7 +102,7 @@ Each ROM detected will be highlighted with a WHITE led. The ROM capacity is show
 
 Other ROM slots that could not be detected are highlighed with a BLACH led. These ROMs won't be considered for flashing.
 
-Note that ROMs that can be flashed, but which don't have the dip-switch set correctly, won't be detected and will be skipped!
+Note that ROMs that can be flashed, but which don't have the jumper pins closed, won't be detected and will be skipped!
 
 The user us requested to press a key to start the flashing procedure.
 
