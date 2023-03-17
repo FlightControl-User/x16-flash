@@ -82,28 +82,32 @@
  *
  */
 
+// #define __DEBUG_FILE
+#define __STDIO_FILECOUNT 2
+
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
-#define __FLASH_CHIP_DETECT
-#define __FLASH_ERROR_DETECT
+// #define __FLASH_CHIP_DETECT
+// #define __FLASH_ERROR_DETECT
 
 // #define __DEBUG_FILE
 
 // Ensures the proper character set is used for the COMMANDER X16.
 #pragma encoding(petscii_mixed)
 
+// Uses all parameters to be passed using zero pages (fast).
+#pragma var_model(mem)
+
 // Main includes.
 #include <6502.h>
-#include <conio.h>
-#include <cx16-file.h>
 #include <cx16.h>
+#include <conio.h>
 #include <kernal.h>
 #include <printf.h>
 #include <sprintf.h>
+#include <stdio.h>
 
-// Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(zp)
 
 // Some addressing constants.
 #define ROM_BASE ((unsigned int)0xC000)
@@ -136,11 +140,14 @@
 #define VERA_REV_HL 0xE2
 #define VERA_REV_VL 0xE1
 
+
+char file[16];
+
 unsigned char wait_key() {
 
     unsigned ch = 0;
     bank_set_bram(0);
-    bank_set_brom(4);
+    bank_set_brom(0);
 
     while (!(ch = getin()))
         ;
@@ -650,17 +657,17 @@ void table_chip_clear(unsigned char rom_bank) {
     }
 }
 
-void print_text(char *text) {
+void print_clear() {
 
     textcolor(WHITE);
     gotoxy(2, 39);
-    printf("%-76s", text);
+    printf("%76s", " ");
+    gotoxy(2, 39);
 }
 
 void main() {
 
     unsigned int bytes = 0;
-    char buffer[160] = "";
 
     SEI();
 
@@ -759,11 +766,14 @@ void main() {
     }
 
     CLI();
+    print_clear();
+    printf("%s", "press a key to start flashing.");
 
-    // printf("press any key to start flashing ...\n");
-    sprintf(buffer, "press a key to start flashing.");
-    print_text(buffer);
+    // Ensure the ROM is set to BASIC.
     wait_key();
+
+    print_clear();
+
 
     for (unsigned char flash_chip = 7; flash_chip != 255; flash_chip--) {
 
@@ -771,19 +781,25 @@ void main() {
 
             gotoxy(0, 2);
             bank_set_bram(1);
-            bank_set_brom(4);
+            bank_set_brom(0);
 
-            char file[16] = "";
-            if (flash_chip == 0) {
-                sprintf(file, "rom.bin", flash_chip);
-            } else {
-                sprintf(file, "rom%u.bin", flash_chip);
+
+            strcpy(file, "rom");
+            if (flash_chip != 0) {
+                size_t len = strlen(file);
+                file[len] = 0x30 + flash_chip;
+                file[len+1] = '\0';
             }
+            strcat(file, ".bin");
+
+            print_clear();
+            printf("opening %s.", file);
 
             unsigned char flash_rom_bank = flash_chip * 32;
 
             // Read the file content.
             FILE *fp = fopen(1, 8, 2, file);
+
             if (fp) {
 
                 table_chip_clear(flash_chip * 32);
@@ -794,8 +810,8 @@ void main() {
 
                 print_chip_led(flash_chip, CYAN, BLUE);
 
-                sprintf(buffer, "reading file for rom%u in ram ...", flash_chip);
-                print_text(buffer);
+                print_clear();
+                printf("reading file for rom%u in ram ...", flash_chip);
 
                 unsigned long flash_rom_address_boundary = rom_address(flash_rom_bank);
 
@@ -819,8 +835,8 @@ void main() {
 
                 // Now we compare the RAM with the actual ROM contents.
 
-                sprintf(buffer, "verifying rom%u with file ... (.) same, (*) different.", flash_chip);
-                print_text(buffer);
+                print_clear();
+                printf("verifying rom%u with file ... (.) same, (*) different.", flash_chip);
 
                 unsigned long flash_rom_address_sector = rom_address(flash_rom_bank);
                 ram_ptr_t read_ram_address_sector = (ram_ptr_t)0x4000;
@@ -883,8 +899,8 @@ void main() {
                         }
                     }
 
-                    sprintf(buffer, "verified rom%u ... (.) same, (*) different. press a key to flash ...", flash_chip);
-                    print_text(buffer);
+                    print_clear();
+                    printf("verified rom%u ... (.) same, (*) different. press a key to flash ...", flash_chip);
                 }
 
                 bank_set_brom(4);
@@ -906,8 +922,8 @@ void main() {
                 unsigned char y_sector = 4;
 
                 print_chip_led(flash_chip, PURPLE, BLUE);
-                sprintf(buffer, "flashing rom%u from ram ... (-) unchanged, (+) flashed, (!) error.", flash_chip);
-                print_text(buffer);
+                print_clear();
+                printf("flashing rom%u from ram ... (-) unchanged, (+) flashed, (!) error.", flash_chip);
 
                 char *pattern;
 
@@ -1006,22 +1022,21 @@ void main() {
 
                 if (!flash_errors_sector) {
                     textcolor(GREEN);
-                    sprintf(buffer, "the flashing of rom%u went perfectly ok. press a key ...", flash_chip);
-                    print_text(buffer);
                     print_chip_led(flash_chip, GREEN, BLUE);
+                    print_clear();
+                    printf("the flashing of rom%u went perfectly ok. press a key ...", flash_chip);
                 } else {
                     textcolor(RED);
-                    sprintf(buffer, "the flashing of rom%u went wrong, %u errors. press a key ...", flash_chip, flash_errors_sector);
-                    print_text(buffer);
                     print_chip_led(flash_chip, RED, BLUE);
+                    print_clear();
+                    printf("the flashing of rom%u went wrong, %u errors. press a key ...", flash_chip, flash_errors_sector);
                 }
             } else {
-                textcolor(WHITE);
-                sprintf(buffer, "there is no file on the sdcard to flash rom%u. press a key ...", flash_chip);
-                print_text(buffer);
+                print_chip_led(flash_chip, DARK_GREY, BLUE);
+                print_clear();
+                printf("there is no %s file on the sdcard to flash rom%u. press a key ...", file, flash_chip);
                 gotoxy(2 + flash_chip * 10, 58);
                 printf("no file");
-                print_chip_led(flash_chip, DARK_GREY, BLUE);
             }
 
             if (flash_chip != 0) {
@@ -1032,15 +1047,17 @@ void main() {
             }
         }
     }
+    
 
     bank_set_brom(0);
     textcolor(WHITE);
     for (int w = 128; w >= 0; w--) {
         for (unsigned int v = 0; v < 256 * 128; v++) {
         }
-        sprintf(buffer, "resetting commander x16 (%i)", w);
-        print_text(buffer);
+        print_clear();
+        printf("resetting commander x16 (%i)", w);
     }
 
     system_reset();
+
 }
