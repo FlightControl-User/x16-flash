@@ -88,8 +88,8 @@
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
-// #define __FLASH_CHIP_DETECT
-// #define __FLASH_ERROR_DETECT
+#define __FLASH_CHIP_DETECT
+#define __FLASH_ERROR_DETECT
 
 // #define __DEBUG_FILE
 
