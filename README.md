@@ -1,9 +1,10 @@
 # Commander X16 Flashing Utility
 
-Contains the source code of the commander x16 rom flashing utility.
-The artefact of this source code is a small program that allows to upgrade (or downgrade) your CX16 on-board ROM, or, to flash external ROMs etched on an ISA cardridge board.
+The artefact of this repository is a small program that allows to upgrade (or downgrade) your CX16 on-board ROM, or, to flash external ROMs etched on an ISA cardridge board.
 
-Please find here a short user manual of this program.
+Refer to the releases page for the latest version of the cx16 flasher. The program is actively maintained and forms part of the cx16 release management process.
+
+Please find below a short user manual of this program.
 
 ## Notice of caution
 
