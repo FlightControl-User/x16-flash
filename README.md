@@ -14,7 +14,7 @@ Further steps to mitigate and recover from such situations are pending to be doc
 
 # User Manual
 
-Please consider this draft user manual as a first guide how to use the flashing tool.
+Consider this user manual how to use the flashing tool.
 
 ## 0. What you need
 
