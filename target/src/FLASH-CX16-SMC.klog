@@ -1,0 +1,23 @@
+Output dir: C:\Users\svenv\OneDrive\Documents\GitHub\x16-flash\target\src
+parsing
+flex pass 1
+flex pass 2
+flex pass 3
+Output pass
+Writing prg file: FLASH-CX16-SMC.prg
+
+Memory Map
+----------
+Program-segment:
+
+Basic-segment:
+  $0801-$080c Basic
+
+Code-segment:
+  $080d-$1cb2 Code
+
+Data-segment:
+  $1cb3-$1fec Data
+
+Writing Vice symbol file: FLASH-CX16-SMC.vs
+Writing Symbol file: FLASH-CX16-SMC.sym

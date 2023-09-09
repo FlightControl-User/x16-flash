@@ -88,8 +88,8 @@
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
-// #define __FLASH_CHIP_DETECT
-// #define __FLASH_ERROR_DETECT
+#define __FLASH_CHIP_DETECT
+#define __FLASH_ERROR_DETECT
 
 // #define __DEBUG_FILE
 
@@ -103,12 +103,11 @@
 // Main includes.
 #include <6502.h>
 #include <cx16.h>
-#include <cx16-conio.h>
+#include <conio.h>
 #include <kernal.h>
 #include <printf.h>
 #include <sprintf.h>
 #include <stdio.h>
-#include "cx16-vera.h"
 
 
 // Some addressing constants.
@@ -679,7 +678,6 @@ void main() {
     textcolor(WHITE);
     bgcolor(BLUE);
     scroll(0);
-    
     clrscr();
 
     frame_draw();

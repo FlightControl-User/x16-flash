@@ -386,7 +386,7 @@ void main() {
 
     printf("\npress any key to upgrade to the new rom ...\n");
 
-    while(!getin());
+    while(!kbhit());
     clrscr();
 
     // OK, so the flash file has been loaded into the 512 KBC memory.
