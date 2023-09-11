@@ -28,10 +28,10 @@
 #define FLASH_I2C_SMC_DEVICE 0x42
 
 // Ensures the proper character set is used for the COMMANDER X16.
-#pragma encoding(petscii_mixed)
+#pragma encoding(screencode_mixed)
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(zp)
+#pragma var_model(mem)
 
 
 // Main includes.
@@ -84,13 +84,40 @@
 #define CHIP_SMC_W 5
 #define CHIP_VERA_X 9
 #define CHIP_VERA_Y 3
-#define CHIP_VERA_W 7
+#define CHIP_VERA_W 8
 #define CHIP_ROM_X 20
 #define CHIP_ROM_Y 3
 #define CHIP_ROM_W 3
 
+#define PROGRESS_X 2
+#define PROGRESS_Y 31
+#define PROGRESS_W 64
+#define PROGRESS_H 16
+
+#define INFO_X 2
+#define INFO_Y 17
+#define INFO_W 64
+#define INFO_H 10
 
 char file[32];
+
+__mem unsigned char rom_device_ids[8] = {0};
+__mem unsigned char* rom_device_names[8] = {0};
+__mem unsigned char* rom_size_strings[8] = {0};
+__mem unsigned char rom_manufacturer_ids[8] = {0};
+__mem unsigned long rom_sizes[8] = {0};
+
+__mem unsigned int smc_bootloader;
+
+#define STATUS_DETECTED     0
+#define STATUS_NONE         1
+#define STATUS_CHECKING     2
+#define STATUS_FLASHING     3
+#define STATUS_UPDATED      4
+#define STATUS_ERROR        5
+__mem unsigned char* status_text[6];
+
+
 
 unsigned char wait_key() {
 
@@ -254,6 +281,8 @@ void frame_draw() {
     frame(49, 2, 55, 13);
     frame(55, 2, 61, 13);
     frame(61, 2, 67, 13);
+    frame(0, 13, 67, 29);
+    frame(0, 29, 67, 49);
 
     // cputsxy(2, 3, "led colors");
     // cputsxy(2, 5, "    no chip"); print_chip_led(2, 5, DARK_GREY, BLUE);
@@ -267,9 +296,8 @@ void frame_draw() {
 }
 
 void frame_init() {
-    screenlayer1();
     // Set the charset to lower case.
-    cx16_k_screen_set_charset(3, (char *)0);
+    // screenlayer1();
     textcolor(WHITE);
     bgcolor(BLUE);
     scroll(0);
@@ -278,6 +306,7 @@ void frame_init() {
     vera_display_set_hstop(147);
     vera_display_set_vstart(19);
     vera_display_set_vstop(219);
+    cx16_k_screen_set_charset(3, (char *)0);
 }
 
 
@@ -374,8 +403,11 @@ void print_rom_led(unsigned char chip, unsigned char c) {
 
 void print_rom_chips() {
 
-    char rom[9] = "rom0 000";
+    char rom[16];
     for (unsigned char r = 0; r < 8; r++) {
+        strcpy(rom, "rom0 ");
+        strcat(rom, rom_size_strings[r]);
+
         *(rom+3) = r+'0';
         print_rom_led(r, GREY);
         print_chip(CHIP_ROM_X+r*6, CHIP_ROM_Y+1, CHIP_ROM_W, rom);
@@ -404,24 +436,101 @@ void print_clear() {
 
 /**
  * @brief Clean the progress area for the flashing.
- * 
- * @param y y start position
- * @param w width of the progress area
- * @param h height of the progress area
  */
-void progress_chip_clear(unsigned char y, unsigned char w, unsigned char h) {
+void progress_clear() {
 
     textcolor(WHITE);
     bgcolor(BLUE);
 
-    h += y;
+    unsigned char h = PROGRESS_Y + PROGRESS_H;
+    unsigned char y = PROGRESS_Y;
+    unsigned char w = PROGRESS_W;
     while (y < h) {
-        gotoxy(0, y);
+        unsigned char x = PROGRESS_X;
         for(unsigned char i = 0; i < w; i++) {
-            cputc('.');
+            cputcxy(x, y, '.');
+            x++;
         }
         y++;
     }
+}
+
+void status_init() {
+    status_text[STATUS_DETECTED] = "Detected";
+    status_text[STATUS_NONE] = "None";
+    status_text[STATUS_CHECKING] = "Checking";
+    status_text[STATUS_FLASHING] = "Flashing";
+    status_text[STATUS_UPDATED] = "Updated";
+    status_text[STATUS_ERROR] = "Error";
+}
+
+void info_clear(char l) {
+    unsigned char h = INFO_Y + INFO_H;
+    unsigned char y = INFO_Y+l;
+    unsigned char w = INFO_W;
+    unsigned char x = PROGRESS_X;
+    for(unsigned char i = 0; i < w; i++) {
+        cputcxy(x, y, ' ');
+        x++;
+    }
+
+    gotoxy(PROGRESS_X, y);
+}
+
+/**
+ * @brief Clean the information area.
+ * 
+ */
+void info_clear_all() {
+
+    textcolor(WHITE);
+    bgcolor(BLUE);
+
+    unsigned char l = 0;
+    while (l < INFO_H) {
+        info_clear(l);
+        l++;
+    }
+}
+
+
+/**
+ * @brief Print the SMC status.
+ * 
+ * @param status The STATUS_ 
+ * 
+ * @remark The smc_booloader is a global variable. 
+ */
+void info_smc(unsigned char info_status) {
+    info_clear(0); printf("SMC  - CX16 - %-8s - Bootloader version %u.", status_text[info_status], smc_bootloader);
+}
+
+/**
+ * @brief Print the VERA status.
+ * 
+ * @param info_status The STATUS_ 
+ */
+void info_vera(unsigned char info_status) {
+    info_clear(1); printf("VERA - CX16 - %-8s", status_text[info_status]);
+}
+
+void info_rom(unsigned char info_rom, unsigned char info_status) {
+    char rom_name[16];
+    char rom_detected[16];
+
+    if(info_rom) {
+        sprintf(rom_name, "ROM%u - CARD", info_rom);
+    } else {
+        sprintf(rom_name, "ROM%u - CX16", info_rom);
+    }
+    if(rom_manufacturer_ids[info_rom]) {
+        strcpy(rom_detected, status_text[info_status]);
+        print_rom_led(info_rom, WHITE);
+    } else {
+        strcpy(rom_detected, status_text[STATUS_NONE]);
+        print_rom_led(info_rom, BLACK);
+    }
+    info_clear(2+info_rom); printf("%s - %-8s - %-8s - %-4s", rom_name, rom_detected, rom_device_names[info_rom], rom_size_strings[info_rom] );
 }
 
 unsigned long flash_read(unsigned char y, unsigned char w, unsigned char b, unsigned int r, FILE *fp, ram_ptr_t flash_ram_address) {
@@ -484,6 +593,79 @@ unsigned int smc_flash(ram_ptr_t flash_ram_address, unsigned char b) {
     return smc_checksum;
 }
 
+void rom_detect() {
+
+    unsigned char rom_chip = 0;
+    unsigned char rom_error = 0;
+
+    for (unsigned long rom_detect_address = 0; rom_detect_address < 8 * 0x80000; rom_detect_address += 0x80000) {
+
+        rom_manufacturer_ids[rom_chip] = 0;
+        rom_device_ids[rom_chip] = 0;
+        rom_size_strings[rom_chip];
+        rom_sizes[rom_chip] = 0;
+        rom_device_names[rom_chip];
+
+#ifdef __FLASH_CHIP_DETECT
+        rom_unlock(flash_rom_address + 0x05555, 0x90);
+        rom_manufacturer_ids[rom_chip] = rom_read_byte(flash_rom_address);
+        rom_device_ids[rom_chip] = rom_read_byte(flash_rom_address + 1);
+        rom_unlock(flash_rom_address + 0x05555, 0xF0);
+#else
+        // Simulate that there is one chip onboard and 2 chips on the isa card.
+        if (rom_detect_address == 0x0) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
+        if (rom_detect_address == 0x80000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
+        if (rom_detect_address == 0x100000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF020A;
+        }
+        if (rom_detect_address == 0x180000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF010A;
+        }
+        if (rom_detect_address == 0x200000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
+#endif
+
+        // Ensure the ROM is set to BASIC.
+        bank_set_brom(4);
+
+        switch (rom_device_ids[rom_chip]) {
+        case SST39SF010A:
+            rom_device_names[rom_chip] = "f010a";
+            rom_size_strings[rom_chip] = "128";
+            rom_sizes[rom_chip] = 128 * 1024;
+            break;
+        case SST39SF020A:
+            rom_device_names[rom_chip] = "f020a";
+            rom_size_strings[rom_chip] = "256";
+            rom_sizes[rom_chip] = 256 * 1024;
+            break;
+        case SST39SF040:
+            rom_device_names[rom_chip] = "f040";
+            rom_size_strings[rom_chip] = "512";
+            rom_sizes[rom_chip] = 512 * 1024;
+            break;
+        default:
+            rom_device_names[rom_chip] = "----";
+            rom_size_strings[rom_chip] = "000";
+            rom_sizes[rom_chip] = 0;
+            rom_device_ids[rom_chip] = UNKNOWN;
+            break;
+        }
+
+        rom_chip++;
+    }
+}
+
 /*
 unsigned long flash_smc_verify(unsigned char y, unsigned char w, unsigned char b, unsigned int r, ram_ptr_t flash_ram_address, unsigned int flash_size) {
 
@@ -523,24 +705,25 @@ unsigned long flash_smc_verify(unsigned char y, unsigned char w, unsigned char b
 
 void main() {
 
-    unsigned int bytes = 0;
-
     CLI();
+
+    cx16_k_screen_set_charset(3, (char *)0);
+    status_init();
+
+    unsigned int bytes = 0;
 
     frame_init();
     frame_draw();
 
-    // wait_key();
-
     gotoxy(2, 1);
     printf("commander x16 flash utility");
 
-    CLI();
-    print_smc_chip();
-    print_vera_chip();
-    print_rom_chips();
-    progress_chip_clear(17, 64, 32);
+    progress_clear();
+    info_clear_all();
     print_clear(); printf("%s", "Detecting rom chipset and bootloader presence.");
+    // info_print(0, "The SMC chip on the X16 board controls the power on/off, keyboard and mouse pheripherals.");
+    // info_print(1, "It is essential that the SMC chip gets updated together with the latest ROM on the X16 board.");
+    // info_print(2, "On the X16 board, near the SMC chip are two jumpers");
 
     gotoxy(0, 2);
     bank_set_bram(1);
@@ -548,20 +731,36 @@ void main() {
 
     // Detect the SMC bootloader and turn the SMC chip GREY if there is a bootloader present.
     // Otherwise, stop flashing and display next steps.
-    unsigned int smc_bootloader = flash_smc_detect();
-    if(smc_bootloader == 0x0100) {
-        print_clear(); printf("there is no smc bootloader on this x16 board. exiting ...");
-        wait_key();
-        return;
+    smc_bootloader = flash_smc_detect();
+    // if(smc_bootloader == 0x0100) {
+    //     print_clear(); printf("there is no smc bootloader on this x16 board. exiting ...");
+    //     wait_key();
+    //     return;
+    // }
+
+    // if(smc_bootloader == 0x0200) {
+    //     print_clear(); printf("there was an error reading the i2c api. exiting ...");
+    //     wait_key();
+    //     return;
+    // }
+    print_smc_led(WHITE);
+
+    // Detecting ROM chips
+    rom_detect();
+
+    print_smc_chip();
+    print_vera_chip();
+    print_rom_chips();
+
+    print_clear(); printf("This x16 board has an SMC chip bootloader, version %u", smc_bootloader);
+    info_smc(STATUS_DETECTED); // Set the info for the SMC to Detected.
+    info_vera(STATUS_DETECTED); // Set the info for the VERA to Detected.
+    for(char rom_chip = 0; rom_chip < 8; rom_chip++) {
+        info_rom(rom_chip, STATUS_DETECTED); // Set the info for the ROMs to Detected or None.
     }
 
-    if(smc_bootloader == 0x0200) {
-        print_clear(); printf("there was an error reading the i2c api. exiting ...");
-        wait_key();
-        return;
-    }
 
-    print_clear(); printf("this x16 board has an smc bootloader version %u", smc_bootloader);
+    wait_key();
 
     print_clear(); printf("opening %s.", file);
 
@@ -570,7 +769,7 @@ void main() {
     FILE *fp = fopen(file,"r");
     if (fp) {
 
-        progress_chip_clear(17, 64, 32);
+        progress_clear();
 
         textcolor(WHITE);
 
