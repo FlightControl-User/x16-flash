@@ -115,7 +115,18 @@ __mem unsigned int smc_bootloader;
 #define STATUS_FLASHING     3
 #define STATUS_UPDATED      4
 #define STATUS_ERROR        5
-__mem unsigned char* status_text[6];
+
+__mem unsigned char* status_text[6] = {"Detected", "None", "Checking", "Flashing", "Updated", "Error"};
+
+#define STATUS_COLOR_DETECTED     WHITE
+#define STATUS_COLOR_NONE         BLACK
+#define STATUS_COLOR_CHECKING     PURPLE
+#define STATUS_COLOR_FLASHING     YELLOW
+#define STATUS_COLOR_UPDATED      GREEN
+#define STATUS_COLOR_ERROR        RED
+
+__mem unsigned char status_color[6] = {STATUS_COLOR_DETECTED, STATUS_COLOR_NONE, STATUS_COLOR_CHECKING, STATUS_COLOR_FLASHING, STATUS_COLOR_UPDATED, STATUS_COLOR_ERROR};
+
 
 
 
@@ -455,15 +466,6 @@ void progress_clear() {
     }
 }
 
-void status_init() {
-    status_text[STATUS_DETECTED] = "Detected";
-    status_text[STATUS_NONE] = "None";
-    status_text[STATUS_CHECKING] = "Checking";
-    status_text[STATUS_FLASHING] = "Flashing";
-    status_text[STATUS_UPDATED] = "Updated";
-    status_text[STATUS_ERROR] = "Error";
-}
-
 void info_clear(char l) {
     unsigned char h = INFO_Y + INFO_H;
     unsigned char y = INFO_Y+l;
@@ -502,6 +504,7 @@ void info_clear_all() {
  * @remark The smc_booloader is a global variable. 
  */
 void info_smc(unsigned char info_status) {
+    print_smc_led(status_color[info_status]);
     info_clear(0); printf("SMC  - CX16 - %-8s - Bootloader version %u.", status_text[info_status], smc_bootloader);
 }
 
@@ -511,6 +514,7 @@ void info_smc(unsigned char info_status) {
  * @param info_status The STATUS_ 
  */
 void info_vera(unsigned char info_status) {
+    print_vera_led(status_color[info_status]);
     info_clear(1); printf("VERA - CX16 - %-8s", status_text[info_status]);
 }
 
@@ -523,13 +527,8 @@ void info_rom(unsigned char info_rom, unsigned char info_status) {
     } else {
         sprintf(rom_name, "ROM%u - CX16", info_rom);
     }
-    if(rom_manufacturer_ids[info_rom]) {
-        strcpy(rom_detected, status_text[info_status]);
-        print_rom_led(info_rom, WHITE);
-    } else {
-        strcpy(rom_detected, status_text[STATUS_NONE]);
-        print_rom_led(info_rom, BLACK);
-    }
+    strcpy(rom_detected, status_text[info_status]);
+    print_rom_led(info_rom, status_color[info_status]);
     info_clear(2+info_rom); printf("%s - %-8s - %-8s - %-4s", rom_name, rom_detected, rom_device_names[info_rom], rom_size_strings[info_rom] );
 }
 
@@ -705,12 +704,11 @@ unsigned long flash_smc_verify(unsigned char y, unsigned char w, unsigned char b
 
 void main() {
 
+    unsigned int bytes = 0;
+
     CLI();
 
     cx16_k_screen_set_charset(3, (char *)0);
-    status_init();
-
-    unsigned int bytes = 0;
 
     frame_init();
     frame_draw();
@@ -732,18 +730,21 @@ void main() {
     // Detect the SMC bootloader and turn the SMC chip GREY if there is a bootloader present.
     // Otherwise, stop flashing and display next steps.
     smc_bootloader = flash_smc_detect();
-    // if(smc_bootloader == 0x0100) {
-    //     print_clear(); printf("there is no smc bootloader on this x16 board. exiting ...");
-    //     wait_key();
-    //     return;
-    // }
 
-    // if(smc_bootloader == 0x0200) {
-    //     print_clear(); printf("there was an error reading the i2c api. exiting ...");
-    //     wait_key();
-    //     return;
-    // }
-    print_smc_led(WHITE);
+// This conditional compiler ensures that only the compilation of the 
+#ifdef __FLASH_CHIP_DETECT
+    if(smc_bootloader == 0x0100) {
+        print_clear(); printf("there is no smc bootloader on this x16 board. exiting ...");
+        wait_key();
+        return;
+    }
+
+    if(smc_bootloader == 0x0200) {
+        print_clear(); printf("there was an error reading the i2c api. exiting ...");
+        wait_key();
+        return;
+    }
+#endif
 
     // Detecting ROM chips
     rom_detect();
@@ -756,9 +757,12 @@ void main() {
     info_smc(STATUS_DETECTED); // Set the info for the SMC to Detected.
     info_vera(STATUS_DETECTED); // Set the info for the VERA to Detected.
     for(char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        info_rom(rom_chip, STATUS_DETECTED); // Set the info for the ROMs to Detected or None.
+        if(rom_manufacturer_ids[rom_chip]) {
+            info_rom(rom_chip, STATUS_DETECTED); // Set the info for the ROMs to Detected.
+        } else {
+            info_rom(rom_chip, STATUS_NONE); // Set the info for the ROMs to None.
+        }
     }
-
 
     wait_key();
 
