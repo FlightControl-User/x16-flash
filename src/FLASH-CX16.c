@@ -88,8 +88,8 @@
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
-// #define __FLASH_CHIP_DETECT
-// #define __FLASH_ERROR_DETECT
+#define __FLASH_CHIP_DETECT
+#define __FLASH_ERROR_DETECT
 
 // #define __DEBUG_FILE
 
@@ -659,7 +659,7 @@ void table_chip_clear(unsigned char rom_bank) {
     }
 }
 
-void print_clear() {
+void info_line_clear() {
 
     textcolor(WHITE);
     gotoxy(2, 39);
@@ -769,13 +769,13 @@ void main() {
     }
 
     CLI();
-    print_clear();
+    info_line_clear();
     printf("%s", "press a key to start flashing.");
 
     // Ensure the ROM is set to BASIC.
     wait_key();
 
-    print_clear();
+    info_line_clear();
 
 
     for (unsigned char flash_chip = 7; flash_chip != 255; flash_chip--) {
@@ -795,7 +795,7 @@ void main() {
             }
             strcat(file, ".bin");
 
-            print_clear();
+            info_line_clear();
             printf("opening %s.", file);
 
             unsigned char flash_rom_bank = flash_chip * 32;
@@ -813,7 +813,7 @@ void main() {
 
                 print_chip_led(flash_chip, CYAN, BLUE);
 
-                print_clear();
+                info_line_clear();
                 printf("reading file for rom%u in ram ...", flash_chip);
 
                 unsigned long flash_rom_address_boundary = rom_address(flash_rom_bank);
@@ -838,7 +838,7 @@ void main() {
 
                 // Now we compare the RAM with the actual ROM contents.
 
-                print_clear();
+                info_line_clear();
                 printf("verifying rom%u with file ... (.) same, (*) different.", flash_chip);
 
                 unsigned long flash_rom_address_sector = rom_address(flash_rom_bank);
@@ -902,7 +902,7 @@ void main() {
                         }
                     }
 
-                    print_clear();
+                    info_line_clear();
                     printf("verified rom%u ... (.) same, (*) different. press a key to flash ...", flash_chip);
                 }
 
@@ -925,7 +925,7 @@ void main() {
                 unsigned char y_sector = 4;
 
                 print_chip_led(flash_chip, PURPLE, BLUE);
-                print_clear();
+                info_line_clear();
                 printf("flashing rom%u from ram ... (-) unchanged, (+) flashed, (!) error.", flash_chip);
 
                 char *pattern;
@@ -1026,17 +1026,17 @@ void main() {
                 if (!flash_errors_sector) {
                     textcolor(GREEN);
                     print_chip_led(flash_chip, GREEN, BLUE);
-                    print_clear();
+                    info_line_clear();
                     printf("the flashing of rom%u went perfectly ok. press a key ...", flash_chip);
                 } else {
                     textcolor(RED);
                     print_chip_led(flash_chip, RED, BLUE);
-                    print_clear();
+                    info_line_clear();
                     printf("the flashing of rom%u went wrong, %u errors. press a key ...", flash_chip, flash_errors_sector);
                 }
             } else {
                 print_chip_led(flash_chip, DARK_GREY, BLUE);
-                print_clear();
+                info_line_clear();
                 printf("there is no %s file on the sdcard to flash rom%u. press a key ...", file, flash_chip);
                 gotoxy(2 + flash_chip * 10, 58);
                 printf("no file");
@@ -1057,7 +1057,7 @@ void main() {
     for (int w = 128; w >= 0; w--) {
         for (unsigned int v = 0; v < 256 * 128; v++) {
         }
-        print_clear();
+        info_line_clear();
         printf("resetting commander x16 (%i)", w);
     }
 

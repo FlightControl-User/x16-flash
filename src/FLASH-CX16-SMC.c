@@ -19,19 +19,24 @@
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
-// #define __FLASH_CHIP_DETECT
-// #define __FLASH_ERROR_DETECT
+#define __ROM_CHIP_DETECT
+#define __SMC_CHIP_DETECT
+#define __FLASH_ERROR_DETECT
 
 // #define __DEBUG_FILE
 
 #define FLASH_I2C_SMC_OFFSET 0x8E
+#define FLASH_I2C_SMC_BOOTLOADER_RESET 0x8F
+#define FLASH_I2C_SMC_UPLOAD 0x80
+#define FLASH_I2C_SMC_COMMIT 0x81
+#define FLASH_I2C_SMC_REBOOT 0x82
 #define FLASH_I2C_SMC_DEVICE 0x42
 
 // Ensures the proper character set is used for the COMMANDER X16.
 #pragma encoding(screencode_mixed)
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(mem)
+#pragma var_model(zp)
 
 
 // Main includes.
@@ -44,7 +49,6 @@
 #include <stdio.h>
 #include "cx16-vera.h"
 #include "cx16-veralib.h"
-
 
 // Some addressing constants.
 #define ROM_BASE ((unsigned int)0xC000)
@@ -101,11 +105,11 @@
 
 char file[32];
 
-__mem unsigned char rom_device_ids[8] = {0};
-__mem unsigned char* rom_device_names[8] = {0};
-__mem unsigned char* rom_size_strings[8] = {0};
-__mem unsigned char rom_manufacturer_ids[8] = {0};
-__mem unsigned long rom_sizes[8] = {0};
+unsigned char rom_device_ids[8] = {0};
+unsigned char* rom_device_names[8] = {0};
+unsigned char* rom_size_strings[8] = {0};
+unsigned char rom_manufacturer_ids[8] = {0};
+unsigned long rom_sizes[8] = {0};
 
 __mem unsigned int smc_bootloader;
 
@@ -120,7 +124,7 @@ __mem unsigned char* status_text[6] = {"Detected", "None", "Checking", "Flashing
 
 #define STATUS_COLOR_DETECTED     WHITE
 #define STATUS_COLOR_NONE         BLACK
-#define STATUS_COLOR_CHECKING     PURPLE
+#define STATUS_COLOR_CHECKING     CYAN
 #define STATUS_COLOR_FLASHING     YELLOW
 #define STATUS_COLOR_UPDATED      GREEN
 #define STATUS_COLOR_ERROR        RED
@@ -394,7 +398,7 @@ void print_smc_led(unsigned char c) {
     print_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c, BLUE);
 }
 
-void print_smc_chip() {
+void chip_smc() {
     print_smc_led(GREY);
     print_chip(CHIP_SMC_X, CHIP_SMC_Y+1, CHIP_SMC_W, "smc     ");
 }
@@ -403,7 +407,7 @@ void print_vera_led(unsigned char c) {
     print_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c, BLUE);
 }
 
-void print_vera_chip() {
+void chip_vera() {
     print_vera_led(GREY);
     print_chip(CHIP_VERA_X, CHIP_VERA_Y+1, CHIP_VERA_W, "vera     ");
 }
@@ -412,7 +416,7 @@ void print_rom_led(unsigned char chip, unsigned char c) {
     print_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c, BLUE);
 }
 
-void print_rom_chips() {
+void chip_rom() {
 
     char rom[16];
     for (unsigned char r = 0; r < 8; r++) {
@@ -438,12 +442,6 @@ void print_i2c_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned int 
     printf("ram = %2x/%4p, i2c = %4x", bram_bank, bram_ptr, i2c_address);
 }
 
-void print_clear() {
-    textcolor(WHITE);
-    gotoxy(2, 14);
-    printf("%60s", " ");
-    gotoxy(2, 14);
-}
 
 /**
  * @brief Clean the progress area for the flashing.
@@ -464,6 +462,19 @@ void progress_clear() {
         }
         y++;
     }
+}
+
+void info_line(unsigned char* info_text) {
+    unsigned char x = wherex();
+    unsigned char y = wherey();
+    gotoxy(2, 14);
+    printf("%-60s", info_text);
+    gotoxy(x, y);
+}
+
+void info_title(unsigned char* info_text) {
+    gotoxy(2, 1);
+    printf("%-60s", info_text);
 }
 
 void info_clear(char l) {
@@ -494,6 +505,7 @@ void info_clear_all() {
         l++;
     }
 }
+
 
 
 /**
@@ -529,17 +541,98 @@ void info_rom(unsigned char info_rom, unsigned char info_status) {
     }
     strcpy(rom_detected, status_text[info_status]);
     print_rom_led(info_rom, status_color[info_status]);
-    info_clear(2+info_rom); printf("%s - %-8s - %-8s - %-4s", rom_name, rom_detected, rom_device_names[info_rom], rom_size_strings[info_rom] );
+    info_clear(2+info_rom); printf("%s - %-8s - %02x - %-8s - %-4s", rom_name, rom_detected, rom_device_ids[info_rom], rom_device_names[info_rom], rom_size_strings[info_rom] );
 }
 
-unsigned long flash_read(unsigned char y, unsigned char w, unsigned char b, unsigned int r, FILE *fp, ram_ptr_t flash_ram_address) {
+/**
+ * @brief Calcuates the 16 bit ROM pointer from the ROM using the 22 bit address.
+ * The 16 bit ROM pointer is calculated by masking the lower 14 bits (bit 13-0), and then adding $C000 to it.
+ * The 16 bit ROM pointer is returned as a char* (brom_ptr_t).
+ * @param address The 22 bit ROM address.
+ * @return brom_ptr_t The 16 bit ROM pointer for the main CPU addressing.
+ */
+inline brom_ptr_t rom_ptr(unsigned long address) { 
+    return (brom_ptr_t)(((unsigned int)(address) & ROM_PTR_MASK) + ROM_BASE); 
+}
+
+
+/**
+ * @brief Calculates the 8 bit ROM bank from the 22 bit ROM address.
+ * The ROM bank number is calcuated by taking the upper 8 bits (bit 18-14) and shifing those 14 bits to the right.
+ *
+ * @param address The 22 bit ROM address.
+ * @return unsigned char The ROM bank number for usage in ZP $01.
+ */
+inline unsigned char rom_bank(unsigned long address) { 
+
+    // address = address & ROM_BANK_MASK; // not needed.s
+
+    unsigned int bank_unshifted = MAKEWORD(BYTE2(address),BYTE1(address)) << 2;
+    unsigned char bank = BYTE1(bank_unshifted); 
+    return bank; 
+    
+}
+
+
+/**
+ * @brief Read a byte from the ROM using the 22 bit address.
+ * The lower 14 bits of the 22 bit ROM address are transformed into the **ptr_rom** 16 bit ROM address.
+ * The higher 8 bits of the 22 bit ROM address are transformed into the **bank_rom** 8 bit bank number.
+ * **bank_ptr* is used to set the bank using ZP $01.  **ptr_rom** is used to read the byte.
+ *
+ * @param address The 22 bit ROM address.
+ * @return unsigned char The byte read from the ROM.
+ */
+unsigned char rom_read_byte(unsigned long address) {
+    brom_bank_t bank_rom = rom_bank((unsigned long)address);
+    brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
+
+    bank_set_brom(bank_rom);
+    return *ptr_rom;
+}
+
+
+/**
+ * @brief Write a byte to the ROM using the 22 bit address.
+ * The lower 14 bits of the 22 bit ROM address are transformed into the **ptr_rom** 16 bit ROM address.
+ * The higher 8 bits of the 22 bit ROM address are transformed into the **bank_rom** 8 bit bank number.
+ * **bank_ptr* is used to set the bank using ZP $01.  **ptr_rom** is used to write the byte into the ROM.
+ *
+ * @param address The 22 bit ROM address.
+ * @param value The byte value to be written.
+ */
+void rom_write_byte(unsigned long address, unsigned char value) {
+    brom_bank_t bank_rom = rom_bank((unsigned long)address);
+    brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
+
+    bank_set_brom(bank_rom);
+    *ptr_rom = value;
+}
+
+
+/**
+ * @brief Unlock a byte location for flashing using the 22 bit address.
+ * This is a various purpose routine to unlock the ROM for flashing a byte.
+ * The 3rd byte can be variable, depending on the write sequence used, so this byte is a parameter into the routine.
+ *
+ * @param address The 3rd write to model the specific unlock sequence.
+ * @param unlock_code The 3rd write to model the specific unlock sequence.
+ */
+/* inline */ void rom_unlock(unsigned long address, unsigned char unlock_code) {
+    unsigned long chip_address = address & ROM_CHIP_MASK; // This is a very important operation...
+    rom_write_byte(chip_address + 0x05555, 0xAA);
+    rom_write_byte(chip_address + 0x02AAA, 0x55);
+    rom_write_byte(address, unlock_code);
+}
+
+unsigned long flash_read(unsigned char x, unsigned char y, unsigned char w, unsigned char b, unsigned int r, FILE *fp, ram_ptr_t flash_ram_address) {
 
     unsigned int flash_address = 0;
     unsigned long flash_bytes = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
     unsigned int flash_row_total = 0;
 
     textcolor(WHITE);
-    gotoxy(0, y);
+    gotoxy(x, y);
 
     unsigned int read_bytes = 0;
 
@@ -548,11 +641,11 @@ unsigned long flash_read(unsigned char y, unsigned char w, unsigned char b, unsi
     while (read_bytes = fgets(flash_ram_address, b, fp)) {
 
         if (flash_row_total == r) {
-            gotoxy(0, ++y);
+            gotoxy(x, ++y);
             flash_row_total = 0;
         }
 
-        cputc('.');
+        cputc('+');
 
         flash_ram_address += read_bytes;
         flash_address += read_bytes;
@@ -564,7 +657,157 @@ unsigned long flash_read(unsigned char y, unsigned char w, unsigned char b, unsi
     return flash_bytes;
 }
 
-unsigned int flash_smc_detect() {
+unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsigned int smc_bytes_total, unsigned char b, unsigned int smc_row_total, ram_ptr_t smc_ram_ptr) {
+
+    unsigned int flash_address = 0;
+    unsigned int smc_row_bytes = 0;
+    unsigned long flash_bytes = 0;
+
+
+
+/*
+   ; Send start bootloader command
+    ldx #I2C_ADDR
+    ldy #$8f
+    lda #$31
+    jsr I2C_WRITE
+
+    ; Prompt the user to activate bootloader within 20 seconds, and check if activated
+    print str_activate_countdown
+    ldx #20
+:   jsr util_stepdown
+    cpx #0
+    beq :+
+    
+    ldx #I2C_ADDR
+    ldy #$8e
+    jsr I2C_READ
+    cmp #0
+    beq :+
+    jsr util_delay
+    ldx #0
+    bra :-
+
+    ; Wait another 5 seconds to ensure bootloader is ready
+:   print str_activate_wait
+    ldx #5
+    jsr util_countdown
+
+    ; Check if bootloader activated
+    ldx #I2C_ADDR
+    ldy #$8e
+    jsr I2C_READ
+    cmp #0
+    beq :+
+
+    print str_bootloader_not_activated
+    cli
+    rts
+*/
+
+    unsigned char info_text[80];
+
+    unsigned char smc_bootloader_start = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_BOOTLOADER_RESET, 0x31);
+    if(smc_bootloader_start) {
+        sprintf(info_text, "There was a problem starting the SMC bootloader: %x", smc_bootloader_start);
+        info_line(info_text);
+        // Reboot the SMC.
+        cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0);
+        return 0;
+    }
+
+    unsigned char smc_bootloader_activation_countdown = 20;
+    unsigned int smc_bootloader_not_activated = 0xFF;
+    while(smc_bootloader_activation_countdown) {
+        unsigned int smc_bootloader_not_activated = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
+        if(smc_bootloader_not_activated) {
+            for(unsigned long x=65536*6; x>0; x--);
+            sprintf(info_text, "Press POWER and RESET on the CX16 within %u seconds!", smc_bootloader_activation_countdown);
+            info_line(info_text);
+        } else {
+            break;
+        }
+        smc_bootloader_activation_countdown--;
+    }
+
+    // Wait an other 5 seconds to ensure the bootloader is activated.
+    smc_bootloader_activation_countdown = 5;
+    while(smc_bootloader_activation_countdown) {
+        for(unsigned long x=65536*1; x>0; x--);
+        sprintf(info_text, "Waiting an other %u seconds before flashing the SMC!", smc_bootloader_activation_countdown);
+        info_line(info_text);
+        smc_bootloader_activation_countdown--;
+    }
+
+    smc_bootloader_not_activated = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
+    if(smc_bootloader_not_activated) {
+        sprintf(info_text, "There was a problem activating the SMC bootloader: %x", smc_bootloader_not_activated);
+        info_line(info_text);
+        return 0;
+    }
+
+
+    textcolor(WHITE);
+    gotoxy(x, y);
+
+    unsigned int smc_bytes_flashed = 0;
+    unsigned int smc_attempts_total = 0;
+
+    while(smc_bytes_flashed < smc_bytes_total) {
+        unsigned char smc_attempts_flashed = 0;
+        unsigned char smc_package_committed = 0;
+        while(!smc_package_committed && smc_attempts_flashed < 10) {
+            unsigned char smc_bytes_checksum = 0;
+            unsigned int smc_package_flashed = 0;
+            while(smc_package_flashed < 8) {
+                unsigned char smc_byte_upload = *smc_ram_ptr;
+                smc_ram_ptr++;
+                smc_bytes_checksum += smc_byte_upload;
+                // Upload byte
+                unsigned char smc_upload_result = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_UPLOAD, smc_byte_upload);
+                smc_package_flashed++;
+            }
+            // 8 bytes have been uploaded, now send the checksum byte, in 1 complement.
+            unsigned char smc_checksum_result = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_UPLOAD, (smc_bytes_checksum ^ 0xFF)+1);
+
+            // Now send the commit command.
+            unsigned int smc_commit_result = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_COMMIT);
+            if(smc_commit_result == 1) {
+                if (smc_row_bytes == smc_row_total) {
+                    gotoxy(x, ++y);
+                    smc_row_bytes = 0;
+                }
+
+                cputc('*');
+
+                smc_bytes_flashed += 8;
+                smc_row_bytes += 8;
+                smc_attempts_total += smc_attempts_flashed;
+
+                sprintf(info_text, "Flashed %05u of %05u bytes in the SMC, with %02u retries ...", smc_bytes_flashed, smc_bytes_total, smc_attempts_total);
+                info_line(info_text);
+
+                smc_package_committed = 1;
+            } else {
+                smc_ram_ptr -= 8;
+                smc_attempts_flashed++; // We retry uploading the package ...
+            }
+        }
+        if(smc_attempts_flashed >= 10) {
+            sprintf(info_text, "There were too many attempts trying to flash the SMC at location %04x", smc_bytes_flashed);
+            info_line(info_text);
+            return 0;
+        }
+    }
+
+    // Reboot the SMC.
+    cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0);
+    
+
+    return smc_bytes_flashed;
+}
+
+unsigned int smc_detect() {
 
     unsigned int smc_bootloader_version = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
     if(!BYTE1(smc_bootloader_version)) {
@@ -595,21 +838,21 @@ unsigned int smc_flash(ram_ptr_t flash_ram_address, unsigned char b) {
 void rom_detect() {
 
     unsigned char rom_chip = 0;
-    unsigned char rom_error = 0;
+
+    // Ensure the ROM is set to BASIC.
+    // bank_set_brom(4);
+
 
     for (unsigned long rom_detect_address = 0; rom_detect_address < 8 * 0x80000; rom_detect_address += 0x80000) {
 
         rom_manufacturer_ids[rom_chip] = 0;
         rom_device_ids[rom_chip] = 0;
-        rom_size_strings[rom_chip];
-        rom_sizes[rom_chip] = 0;
-        rom_device_names[rom_chip];
 
-#ifdef __FLASH_CHIP_DETECT
-        rom_unlock(flash_rom_address + 0x05555, 0x90);
-        rom_manufacturer_ids[rom_chip] = rom_read_byte(flash_rom_address);
-        rom_device_ids[rom_chip] = rom_read_byte(flash_rom_address + 1);
-        rom_unlock(flash_rom_address + 0x05555, 0xF0);
+#ifdef __ROM_CHIP_DETECT
+        rom_unlock(rom_detect_address + 0x05555, 0x90);
+        rom_manufacturer_ids[rom_chip] = rom_read_byte(rom_detect_address);
+        rom_device_ids[rom_chip] = rom_read_byte(rom_detect_address + 1);
+        rom_unlock(rom_detect_address + 0x05555, 0xF0);
 #else
         // Simulate that there is one chip onboard and 2 chips on the isa card.
         if (rom_detect_address == 0x0) {
@@ -654,6 +897,7 @@ void rom_detect() {
             rom_sizes[rom_chip] = 512 * 1024;
             break;
         default:
+            rom_manufacturer_ids[rom_chip] = 0;
             rom_device_names[rom_chip] = "----";
             rom_size_strings[rom_chip] = "000";
             rom_sizes[rom_chip] = 0;
@@ -661,8 +905,12 @@ void rom_detect() {
             break;
         }
 
+        gotoxy(rom_chip*3+40, 1);
+        printf("%02x", rom_device_ids[rom_chip]);
+
         rom_chip++;
     }
+
 }
 
 /*
@@ -706,41 +954,50 @@ void main() {
 
     unsigned int bytes = 0;
 
-    CLI();
+    SEI();
+    bank_set_bram(1);
+    bank_set_brom(0);
 
     cx16_k_screen_set_charset(3, (char *)0);
 
     frame_init();
     frame_draw();
 
-    gotoxy(2, 1);
-    printf("commander x16 flash utility");
+    info_title("Commander X16 Flash Utility!");
 
     progress_clear();
     info_clear_all();
-    print_clear(); printf("%s", "Detecting rom chipset and bootloader presence.");
+
     // info_print(0, "The SMC chip on the X16 board controls the power on/off, keyboard and mouse pheripherals.");
     // info_print(1, "It is essential that the SMC chip gets updated together with the latest ROM on the X16 board.");
     // info_print(2, "On the X16 board, near the SMC chip are two jumpers");
 
-    gotoxy(0, 2);
-    bank_set_bram(1);
-    bank_set_brom(0);
+    info_line("Detecting SMC, VERA and ROM chipsets ...");
 
-    // Detect the SMC bootloader and turn the SMC chip GREY if there is a bootloader present.
-    // Otherwise, stop flashing and display next steps.
-    smc_bootloader = flash_smc_detect();
 
-// This conditional compiler ensures that only the compilation of the 
-#ifdef __FLASH_CHIP_DETECT
+    // Detect the SMC bootloader and turn the SMC chip led WHITE if there is a bootloader present.
+    // Otherwise, stop flashing and exit after explaining next steps.
+    smc_bootloader = smc_detect();
+
+// This conditional compiler ensures that only the compilation of the detection interpretation happens if it is switched on.
+#ifdef __SMC_CHIP_DETECT
     if(smc_bootloader == 0x0100) {
-        print_clear(); printf("there is no smc bootloader on this x16 board. exiting ...");
+        // TODO: explain next steps ...
+        info_line("There is no SMC bootloader on this CX16 board. Press a key to exit ...");
         wait_key();
         return;
     }
 
     if(smc_bootloader == 0x0200) {
-        print_clear(); printf("there was an error reading the i2c api. exiting ...");
+        // TODO: explain next steps ...
+        info_line("The SMC chip seems to be unreachable! Press a key to exit ...");
+        wait_key();
+        return;
+    }
+
+    if(smc_bootloader != 0x1) {
+        // TODO: explain next steps ...
+        info_line("The current SMC bootloader version is not supported! Press a key to exit ...");
         wait_key();
         return;
     }
@@ -749,48 +1006,37 @@ void main() {
     // Detecting ROM chips
     rom_detect();
 
-    print_smc_chip();
-    print_vera_chip();
-    print_rom_chips();
+    chip_smc();
+    chip_vera();
+    chip_rom();
 
-    print_clear(); printf("This x16 board has an SMC chip bootloader, version %u", smc_bootloader);
     info_smc(STATUS_DETECTED); // Set the info for the SMC to Detected.
     info_vera(STATUS_DETECTED); // Set the info for the VERA to Detected.
-    for(char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        if(rom_manufacturer_ids[rom_chip]) {
+    for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
+        if(rom_device_ids[rom_chip] != UNKNOWN) {
             info_rom(rom_chip, STATUS_DETECTED); // Set the info for the ROMs to Detected.
         } else {
             info_rom(rom_chip, STATUS_NONE); // Set the info for the ROMs to None.
         }
     }
 
+    bank_set_brom(4);
+    CLI();
+
+    info_smc(STATUS_CHECKING);
+    info_line("Opening SMC flash file from SD card ...");
+
     wait_key();
 
-    print_clear(); printf("opening %s.", file);
-
-    strcpy(file, "smc.bin");
+    strcpy(file, "SMC.BIN");
     // Read the smc file content.
     FILE *fp = fopen(file,"r");
     if (fp) {
 
-        progress_clear();
-
-        textcolor(WHITE);
-
-        // We first detect if there is a bootloader routine present on the SMC.
-        // In the case there isn't a bootloader, the X16 board update process cannot continue
-        // and a manual update process needs to be conducted. 
-        
-
-
-
-
-        print_smc_led(CYAN);
-
-        print_clear(); printf("reading data for smc update in ram ...");
+        info_line("Reading SMC flash file smc.bin into CX16 RAM ...");
 
         unsigned long size = 0x4000;
-        unsigned long flash_bytes = flash_read(17, 64, 4, 256, fp, (ram_ptr_t)0x4000);
+        unsigned int flash_bytes = (unsigned int)flash_read(PROGRESS_X, PROGRESS_Y, PROGRESS_W, 8, 512, fp, (ram_ptr_t)0x4000);
         if (flash_bytes == 0) {
             printf("error reading file.");
             return;
@@ -798,17 +1044,10 @@ void main() {
 
         fclose(fp);
 
-        // Now we compare the smc update data with the actual smc contents before flashing.
-        // If everything is the same, we don't flash.
-
-        print_clear(); printf("comparing smc with update ... (.) same, (*) different.");
-
+        // SEI();
+        unsigned long flashed_bytes = flash_smc(PROGRESS_X, PROGRESS_Y, PROGRESS_W, flash_bytes, 8, 512, (ram_ptr_t)0x4000);
+        // CLI();
 /*
-        unsigned long flash_bytes_different = flash_smc_verify(17, 64, 4, 256, (ram_ptr_t)0x4000, flash_bytes);
-        if (flash_bytes_different == 0) {
-            print_clear(); printf("the smc does not need to be flashed.");
-            return;
-        }
         {
             unsigned long flash_i2c_address = flash_rom_address_sector;
             ram_ptr_t read_ram_address = (ram_ptr_t)read_ram_address_sector;
@@ -1000,17 +1239,15 @@ void main() {
         }
     */
     } else {
-        print_clear();
-        printf("there is no smc.bin file on the sdcard to flash the smc chip. press a key ...");
-        gotoxy(2, 58);
-        printf("no file");
+        info_line("There is no SMC flash file smc.bin on the SD card. press a key to exit ...");
     }
 
 
     bank_set_brom(4);
     CLI();
     wait_key();
-    SEI();
+
+    system_reset();
 
     return;
 }
