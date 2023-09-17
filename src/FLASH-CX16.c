@@ -380,7 +380,7 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
  * @param rom_bank The 8 bit ROM address.
  * @return unsigned long The 22 bit ROM address.
  */
-/* inline */ unsigned long rom_address(unsigned char rom_bank) { return ((unsigned long)(rom_bank)) << 14; }
+/* inline */ unsigned long rom_address_from_bank(unsigned char rom_bank) { return ((unsigned long)(rom_bank)) << 14; }
 
 /**
  * @brief Calculates the 8 bit ROM bank from the 22 bit ROM address.
@@ -453,7 +453,7 @@ void rom_write_byte(unsigned long address, unsigned char value) {
  * @param address The 22 bit ROM address.
  * @param value The byte value to be written.
  */
-unsigned char rom_byte_verify(brom_ptr_t ptr_rom, unsigned char value) {
+unsigned char rom_byte_compare(brom_ptr_t ptr_rom, unsigned char value) {
 
     unsigned char verified = 1;
     if (*ptr_rom != value) {
@@ -554,7 +554,7 @@ unsigned char rom_byte_verify(brom_ptr_t ptr_rom, unsigned char value) {
 
 unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned long read_size) {
 
-    unsigned long flash_rom_address = rom_address(rom_bank_start);
+    unsigned long flash_rom_address = rom_address_from_bank(rom_bank_start);
     unsigned long flash_bytes = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
 
     textcolor(WHITE);
@@ -625,7 +625,7 @@ unsigned int flash_verify(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long
 
     while (verified_bytes < verify_rom_size) {
 
-        if (rom_byte_verify(ptr_rom, *ptr_ram)) {
+        if (rom_byte_compare(ptr_rom, *ptr_ram)) {
             correct_bytes++;
         }
         ptr_rom++;
@@ -644,7 +644,7 @@ void table_chip_clear(unsigned char rom_bank) {
 
     for (unsigned char y = 4; y < 36; y++) {
 
-        unsigned long flash_rom_address = rom_address(rom_bank);
+        unsigned long flash_rom_address = rom_address_from_bank(rom_bank);
 
         gotoxy(2, y);
         printf("%02x", rom_bank);
@@ -816,7 +816,7 @@ void main() {
                 info_line_clear();
                 printf("reading file for rom%u in ram ...", flash_chip);
 
-                unsigned long flash_rom_address_boundary = rom_address(flash_rom_bank);
+                unsigned long flash_rom_address_boundary = rom_address_from_bank(flash_rom_bank);
 
                 unsigned long size = 0x4000;
                 unsigned long flash_bytes = flash_read(fp, (ram_ptr_t)0x4000, flash_rom_bank, size);
@@ -841,7 +841,7 @@ void main() {
                 info_line_clear();
                 printf("verifying rom%u with file ... (.) same, (*) different.", flash_chip);
 
-                unsigned long flash_rom_address_sector = rom_address(flash_rom_bank);
+                unsigned long flash_rom_address_sector = rom_address_from_bank(flash_rom_bank);
                 ram_ptr_t read_ram_address_sector = (ram_ptr_t)0x4000;
                 bram_bank_t read_ram_bank_sector = 0;
 
@@ -915,7 +915,7 @@ void main() {
                 // We now reflash the rom banks.
                 SEI();
 
-                flash_rom_address_sector = rom_address(flash_rom_bank);
+                flash_rom_address_sector = rom_address_from_bank(flash_rom_bank);
                 read_ram_address_sector = (ram_ptr_t)0x4000;
                 read_ram_bank_sector = 0;
 
