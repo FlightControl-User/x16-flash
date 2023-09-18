@@ -105,10 +105,10 @@
 #define CHIP_ROM_Y 3
 #define CHIP_ROM_W 3
 
-#define PROGRESS_X 2
-#define PROGRESS_Y 31
-#define PROGRESS_W 64
-#define PROGRESS_H 16
+const char PROGRESS_X = 2;
+const char PROGRESS_Y = 32;
+const char PROGRESS_W = 64;
+const char PROGRESS_H = 16;
 
 #define INFO_X 2
 #define INFO_Y 17
@@ -125,7 +125,8 @@ unsigned char rom_manufacturer_ids[8] = {0};
 unsigned long rom_sizes[8] = {0};
 unsigned long file_sizes[8] = {0};
 
-__mem unsigned int smc_bootloader;
+__mem unsigned int smc_bootloader = 0;
+__mem unsigned int smc_file_size = 0;
 
 #define STATUS_DETECTED     0
 #define STATUS_NONE         1
@@ -134,7 +135,7 @@ __mem unsigned int smc_bootloader;
 #define STATUS_EQUATING     4
 #define STATUS_EQUATED      5
 #define STATUS_FLASHING     6
-#define STATUS_UPDATED      7
+#define STATUS_FLASHED      7
 #define STATUS_ERROR        8
 
 __mem unsigned char* status_text[9] = {
@@ -342,7 +343,8 @@ void frame_draw() {
     frame(55, 2, 61, 13);
     frame(61, 2, 67, 13);
     frame(0, 13, 67, 29);
-    frame(0, 29, 67, 49);
+    frame(0, PROGRESS_Y-3, 67, PROGRESS_Y-1);
+    frame(0, PROGRESS_Y-1, 67, 49);
 
     // cputsxy(2, 3, "led colors");
     // cputsxy(2, 5, "    no chip"); print_chip_led(2, 5, DARK_GREY, BLUE);
@@ -509,11 +511,19 @@ void progress_clear() {
     }
 }
 
+void info_progress(unsigned char* info_text) {
+    unsigned char x = wherex();
+    unsigned char y = wherey();
+    gotoxy(2, PROGRESS_Y-3);
+    printf("%-64s", info_text);
+    gotoxy(x, y);
+}
+
 void info_line(unsigned char* info_text) {
     unsigned char x = wherex();
     unsigned char y = wherey();
     gotoxy(2, 14);
-    printf("%-60s", info_text);
+    printf("%-64s", info_text);
     gotoxy(x, y);
 }
 
@@ -525,14 +535,14 @@ void info_title(unsigned char* info_text) {
 void info_clear(char l) {
     unsigned char h = INFO_Y + INFO_H;
     unsigned char y = INFO_Y+l;
-    unsigned char w = INFO_W;
-    unsigned char x = PROGRESS_X;
+    unsigned char w = INFO_W+1;
+    unsigned char x = INFO_X;
     for(unsigned char i = 0; i < w; i++) {
         cputcxy(x, y, ' ');
         x++;
     }
 
-    gotoxy(PROGRESS_X, y);
+    gotoxy(INFO_X, y);
 }
 
 /**
@@ -562,7 +572,7 @@ void info_clear_all() {
  */
 void info_smc(unsigned char info_status, unsigned char* info_text) {
     print_smc_led(status_color[info_status]);
-    info_clear(0); printf("SMC  - %-8s - %s", status_text[info_status], info_text);
+    info_clear(0); printf("SMC  - %-8s - ATTiny - %05x / 01E00 - %s", status_text[info_status], smc_file_size, info_text);
 }
 
 /**
@@ -572,12 +582,12 @@ void info_smc(unsigned char info_status, unsigned char* info_text) {
  */
 void info_vera(unsigned char info_status, unsigned char* info_text) {
     print_vera_led(status_color[info_status]);
-    info_clear(1); printf("VERA - %-8s - %s", status_text[info_status], info_text);
+    info_clear(1); printf("VERA - %-8s - FPGA   - 1a000 / 1a000 - %s", status_text[info_status], info_text);
 }
 
 void info_rom(unsigned char rom_chip, unsigned char info_status, unsigned char* info_text) {
     print_rom_led(rom_chip, status_color[info_status]);
-    info_clear(2+rom_chip); printf("ROM%u - %-8s - %-5s - %-3s - %s", rom_chip, status_text[info_status], rom_device_names[rom_chip], rom_size_strings[rom_chip], info_text );
+    info_clear(2+rom_chip); printf("ROM%u - %-8s - %-6s - %05x / %05x - %s", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip], info_text );
 }
 
 /**
@@ -699,6 +709,46 @@ unsigned char rom_byte_compare(brom_ptr_t ptr_rom, unsigned char value) {
     rom_write_byte(chip_address + 0x05555, 0xAA);
     rom_write_byte(chip_address + 0x02AAA, 0x55);
     rom_write_byte(address, unlock_code);
+}
+
+/**
+ * @brief Erases a 1KB sector of the ROM using the 22 bit address.
+ * This is required before any new bytes can be flashed into the ROM.
+ * Erasing a sector of the ROM requires an erase sector sequence to be initiated, which has the following steps:
+ *
+ *   1. Write byte $AA into ROM address $005555.
+ *   2. Write byte $55 into ROM address $002AAA.
+ *   3. Write byte $80 into ROM address $005555.
+ *   4. Write byte $AA into ROM address $005555.
+ *   5. Write byte $55 into ROM address $002AAA.
+ *
+ * Once this write sequence is finished, the ROM sector is erased by writing byte $30 into the 22 bit ROM sector address.
+ * Then it waits until the chip has correctly flashed the ROM erasure.
+ *
+ * Note that a ROM sector is 1KB (not 4KB), so the most 7 significant bits (18-12) are used.
+ * The remainder 12 low bits are ignored.
+ *
+ *                                   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *                                   | 2 | 2 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+ *                                   | 1 | 0 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+ *                                   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *      SECTOR          0x37F000     | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+ *                                   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *      IGNORED         0x000FFF     | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+ *                                   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *
+ * @param address The 22 bit ROM address.
+ */
+/* inline */ void rom_sector_erase(unsigned long address) {
+    brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
+    unsigned long rom_chip_address = address & ROM_CHIP_MASK;
+
+#ifdef __FLASH
+    rom_unlock(rom_chip_address + 0x05555, 0x80);
+    rom_unlock(address, 0x30);
+
+    rom_wait(ptr_rom);
+#endif
 }
 
 unsigned int smc_read(unsigned char x, unsigned char y, unsigned char w, unsigned char b, unsigned int progress_row_size, ram_ptr_t flash_ram_address) {
@@ -998,8 +1048,8 @@ void rom_detect() {
             break;
         }
 
-        gotoxy(rom_chip*3+40, 1);
-        printf("%02x", rom_device_ids[rom_chip]);
+        // gotoxy(rom_chip*3+40, 1);
+        // printf("%02x", rom_device_ids[rom_chip]);
 
         rom_chip++;
     }
@@ -1046,8 +1096,8 @@ unsigned long rom_read(
     if (fp) {
         while (rom_file_read < rom_size) {
 
-            sprintf(info_text, "Reading %s ROM %05x of %05x in RAM %02x:%04p ...", fp->filename, rom_file_read, rom_size, bram_bank, ram_address);
-            info_line(info_text);
+            // sprintf(info_text, "Reading %s ROM %05x of %05x in RAM %02x:%04p ...", fp->filename, rom_file_read, rom_size, bram_bank, ram_address);
+            // info_line(info_text);
 
             if (!(rom_address % 0x04000)) {
                 rom_bank_start++;
@@ -1094,7 +1144,7 @@ unsigned long rom_read(
 unsigned int rom_compare(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long rom_compare_address, unsigned int rom_compare_size) {
 
     unsigned int compared_bytes = 0; /// Holds the amount of bytes actually verified between the ROM and the RAM.
-    unsigned int difference_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the ROM.
+    unsigned int equal_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the ROM.
 
     bank_set_bram(bank_ram);
 
@@ -1105,15 +1155,15 @@ unsigned int rom_compare(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long 
 
     while (compared_bytes < rom_compare_size) {
 
-        if (!rom_byte_compare(ptr_rom, *ptr_ram)) {
-            difference_bytes++;
+        if (rom_byte_compare(ptr_rom, *ptr_ram)) {
+            equal_bytes++;
         }
         ptr_rom++;
         ptr_ram++;
         compared_bytes++;
     }
 
-    return difference_bytes;
+    return equal_bytes;
 }
 
 
@@ -1129,13 +1179,13 @@ unsigned long rom_verify(
     ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
 
     // Now we compare the RAM with the actual ROM contents.
-    info_line("Comparing with existing ROM ... (.) same, (*) different.");
+    info_progress("Comparing ... (.) same, (*) different.");
 
     unsigned long rom_address = rom_address_from_bank(rom_bank_start);
     unsigned long rom_boundary = rom_address + file_size;
 
     unsigned int progress_row_current = 0;
-    unsigned long rom_difference_bytes = 0;
+    unsigned long rom_different_bytes = 0;
 
     info_rom(rom_chip, STATUS_EQUATING, "Comparing ...");
 
@@ -1145,14 +1195,14 @@ unsigned long rom_verify(
 
         // {asm{.byte $db}}
 
-        unsigned int difference_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
+        unsigned int equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
 
         if (progress_row_current == PROGRESS_ROW) {
             gotoxy(x, ++y);
             progress_row_current = 0;
         }
 
-        if (difference_bytes) {
+        if (equal_bytes != PROGRESS_CELL) {
             cputc('*');
         } else {
             cputc('=');
@@ -1173,16 +1223,168 @@ unsigned long rom_verify(
             bram_bank = 1;
         }
 
-        rom_difference_bytes += difference_bytes;
+        rom_different_bytes += (PROGRESS_CELL - equal_bytes);
 
-        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", rom_difference_bytes, bram_bank, ram_address, rom_address);
+        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", rom_different_bytes, bram_bank, ram_address, rom_address);
         info_line(info_text);
     }
 
     info_rom(rom_chip, STATUS_EQUATED, "Compared.");
 
-    return rom_difference_bytes;
+    return rom_different_bytes;
 }
+
+/**
+ * @brief Write a byte and wait until the byte has been successfully flashed into the ROM.
+ *
+ * @param address The 22 bit ROM address.
+ * @param value The byte value to be written.
+ */
+/* inline */ void rom_byte_program(unsigned long address, unsigned char value) {
+    brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
+
+    rom_write_byte(address, value);
+    rom_wait(ptr_rom);
+}
+
+
+/* inline */ unsigned long rom_write(unsigned char flash_ram_bank, ram_ptr_t flash_ram_address, unsigned long flash_rom_address, unsigned int flash_rom_size) {
+
+    unsigned long flashed_bytes = 0; /// Holds the amount of bytes actually flashed in the ROM.
+
+    unsigned long rom_chip_address = flash_rom_address & ROM_CHIP_MASK;
+
+    bank_set_bram(flash_ram_bank);
+
+    while (flashed_bytes < flash_rom_size) {
+#ifdef __FLASH
+        rom_unlock(rom_chip_address + 0x05555, 0xA0);
+        rom_byte_program(flash_rom_address, *flash_ram_address);
+#endif
+        flash_rom_address++;
+        flash_ram_address++;
+        flashed_bytes++;
+    }
+
+    return flashed_bytes;
+}
+
+unsigned long rom_flash(
+        unsigned char rom_chip, 
+        unsigned char rom_bank_start, unsigned long file_size) {
+
+    unsigned char x_sector = PROGRESS_X;
+    unsigned char y_sector = PROGRESS_Y;
+    unsigned char w_sector = PROGRESS_W;
+
+    bram_bank_t bram_bank_sector = 0;
+    ram_ptr_t ram_address_sector = (ram_ptr_t)RAM_BASE;
+
+    // Now we compare the RAM with the actual ROM contents.
+    info_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
+
+    unsigned long rom_address_sector = rom_address_from_bank(rom_bank_start);
+    unsigned long rom_boundary = rom_address_sector + file_size;
+
+    unsigned int progress_row_current = 0;
+    unsigned long rom_flash_errors = 0;
+
+    info_rom(rom_chip, STATUS_FLASHING, "Flashing ...");
+
+    unsigned long flash_errors = 0;
+
+    while (rom_address_sector < rom_boundary) {
+
+        // {asm{.byte $db}}
+
+        unsigned int equal_bytes = rom_compare(bram_bank_sector, (ram_ptr_t)ram_address_sector, rom_address_sector, ROM_SECTOR);
+
+        if (equal_bytes != ROM_SECTOR) {
+
+            unsigned int flash_errors_sector = 0;
+            unsigned char retries = 0;
+
+            do {
+
+                rom_sector_erase(rom_address_sector);
+
+                unsigned long rom_sector_boundary = rom_address_sector + ROM_SECTOR;
+                unsigned long rom_address = rom_address_sector;
+                ram_ptr_t ram_address = (ram_ptr_t)ram_address_sector;
+                bram_bank_t bram_bank = bram_bank_sector;
+
+                unsigned char x = x_sector;
+                unsigned char y = y_sector;
+                gotoxy(x, y);
+                printf("........");
+
+                while (rom_address < rom_sector_boundary) {
+
+                    sprintf(info_text, "Flashing ... RAM:%02x:%04p -> ROM:%05x ... %05x errors ...", bram_bank_sector, ram_address_sector, rom_address_sector, flash_errors_sector + flash_errors);
+                    info_line(info_text);
+
+                    unsigned long written_bytes = rom_write(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
+
+                    equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
+
+                    gotoxy(x, y);
+
+#ifdef __FLASH_ERROR_DETECT
+                    if (equal_bytes != PROGRESS_CELL)
+#else
+                    if (0)
+#endif
+                    {
+                        cputcxy(x,y,'!');
+                        flash_errors_sector++;
+                    } else {
+                        cputcxy(x,y,'+');
+                    }
+                    ram_address += PROGRESS_CELL;
+                    rom_address += PROGRESS_CELL;
+
+                    x++; // This should never exceed the 64 char boundary.
+                }
+
+                retries++;
+
+            } while (flash_errors_sector && retries <= 3);
+
+            flash_errors += flash_errors_sector;
+
+        } else {
+            cputsxy(x_sector, y_sector, "--------");
+        }
+
+        ram_address_sector += ROM_SECTOR;
+        rom_address_sector += ROM_SECTOR;
+
+        if (ram_address_sector == BRAM_HIGH) {
+            ram_address_sector = (ram_ptr_t)BRAM_LOW;
+            bram_bank_sector++;
+            // {asm{.byte $db}}
+        }
+
+        if (ram_address_sector == RAM_HIGH) {
+            ram_address_sector = (ram_ptr_t)BRAM_LOW;
+            bram_bank_sector = 1;
+        }
+
+        x_sector += 8;
+        if (!(rom_address_sector % PROGRESS_ROW)) {
+            x_sector = PROGRESS_X;
+            y_sector++;
+        }
+
+        sprintf(info_text, "%05x errors ...", flash_errors);
+        info_rom(rom_chip, STATUS_FLASHING, info_text);
+    }
+
+    info_line("Flashed ...");
+
+    return flash_errors;
+}
+
 
 void main() {
 
@@ -1209,7 +1411,7 @@ void main() {
     // info_print(1, "It is essential that the SMC chip gets updated together with the latest ROM on the X16 board.");
     // info_print(2, "On the X16 board, near the SMC chip are two jumpers");
 
-    info_line("Detecting SMC, VERA and ROM chipsets ...");
+    info_progress("Detecting SMC, VERA and ROM chipsets ...");
 
 
 #ifdef __SMC_CHIP_PROCESS
@@ -1224,25 +1426,23 @@ void main() {
 
     if(smc_bootloader == 0x0100) {
         // TODO: explain next steps ...
-        info_smc(STATUS_ERROR, "SMC bootloader not found!");
+        info_smc(STATUS_ERROR, "No Bootloader!");
         smc_error = 1;
     } else {
         if(smc_bootloader == 0x0200) {
             // TODO: explain next steps ...
-            info_smc(STATUS_ERROR, "SMC seems to be unreachable!");
+            info_smc(STATUS_ERROR, "Unreachable!");
             smc_error = 1;
         } else {
             if(smc_bootloader != 0x1) {
                 // TODO: explain next steps ...
-                sprintf(info_text, "SMC bootloader not supported: v%02x", smc_bootloader);
+                sprintf(info_text, "Bootloader: v%02x, Unsupported!", smc_bootloader);
                 info_smc(STATUS_ERROR, info_text);
                 smc_error = 1;
             } else {
-                // Set the info for the SMC to Detected and show the bootloader version.
-                sprintf(info_text, "SMC installed, bootloader v%02x", smc_bootloader);
+                sprintf(info_text, "Bootloader v%02x", smc_bootloader);
                 info_smc(STATUS_DETECTED, info_text);
             }
-
         }
     } 
 
@@ -1265,15 +1465,15 @@ void main() {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
         if(rom_device_ids[rom_chip] != UNKNOWN) {
             if(rom_chip != 0) {
-                info_rom(rom_chip, STATUS_DETECTED, "CARD ROM installed, OK!"); // Set the info for the ROMs to Detected.
+                info_rom(rom_chip, STATUS_DETECTED, "OK!"); // Set the info for the ROMs to Detected.
             } else {
-                info_rom(rom_chip, STATUS_DETECTED, "CX16 ROM installed, OK!"); // Set the info for the ROMs to Detected.
+                info_rom(rom_chip, STATUS_DETECTED, "OK!"); // Set the info for the ROMs to Detected.
             }
         } else {
             if(rom_chip != 0) {
-                info_rom(rom_chip, STATUS_NONE, "CARD ROM not installed!"); // Set the info for the ROMs to None.
+                info_rom(rom_chip, STATUS_NONE, ""); // Set the info for the ROMs to None.
             } else {
-                info_rom(rom_chip, STATUS_ERROR, "CX16 ROM not installed!"); // The ROM chip on the CX16 should be installed!
+                info_rom(rom_chip, STATUS_ERROR, "CX16 ROM not found!"); // The ROM chip on the CX16 should be installed!
                 rom_error = 1;
             }
         }
@@ -1291,7 +1491,7 @@ void main() {
     }
 
 
-    info_line("Checking update files SMC.BIN, VERA.BIN, ROM(x).BIN ...");
+    info_progress("Checking files SMC.BIN, VERA.BIN, ROM(x).BIN: (.) data, ( ) empty");
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_CHECK
@@ -1301,20 +1501,19 @@ void main() {
     // Read the smc file content.
     info_smc(STATUS_CHECKING, "Checking SMC.BIN file contents ...");
 
-    unsigned int smc_file_size = smc_read(PROGRESS_X, PROGRESS_Y, PROGRESS_W, 8, 512, (ram_ptr_t)RAM_BASE);
+    smc_file_size = smc_read(PROGRESS_X, PROGRESS_Y, PROGRESS_W, 8, 512, (ram_ptr_t)RAM_BASE);
 
     // In case no file was found, set the status to error and skip to the next, else, mention the amount of bytes read.
     if (!smc_file_size) {
-        info_smc(STATUS_ERROR, "SMC.BIN empty or not found!");
+        info_smc(STATUS_ERROR, "No SMC.BIN or empty!");
         smc_error = 1;
     } else {
         // If the smc.bin file size is larger than 0x1E00 then there is an error!
         if(smc_file_size > 0x1E00) {
-            sprintf(info_text, "SMC.BIN size %04x, too large!", smc_file_size);
-            info_smc(STATUS_ERROR, info_text);
+            info_smc(STATUS_ERROR, "SMC.BIN too large!");
             smc_error = 1;
         } else {
-            sprintf(info_text, "SMC.BIN size %04x, OK!", smc_file_size);
+            sprintf(info_text, "Bootloader v%02x", smc_bootloader);
             info_smc(STATUS_CHECKED, info_text);
         }
     }
@@ -1333,50 +1532,42 @@ void main() {
     // Any error identified gets reported and this chip will not be flashed.
     // In case of ROM0.BIN in error, no flashing will be done!
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
+
+        bank_set_brom(0);
+        strcpy(file, "ROM .BIN");
+        file[3] = 48+rom_chip;
+        sprintf(info_text, "Checking ROM file %s ...", file);
+        info_line(info_text);
+
         if(rom_device_ids[rom_chip] != UNKNOWN) {
 
-            // Read the smc file content.
             info_rom(rom_chip, STATUS_CHECKING, ""); // Set the info for the ROMs to Checking.
 
             progress_clear();
 
-            bank_set_brom(0);
-            strcpy(file, "ROM .BIN");
-            file[3] = 48+rom_chip;
-
-            sprintf(info_text, "Opening %s flash file from SD card ...", file);
-            info_line(info_text);
+            // sprintf(info_text, "Opening %s flash file from SD card ...", file);
+            // info_line(info_text);
 
             unsigned char rom_bank = rom_chip * 32;
             unsigned long rom_bytes_read = rom_read(rom_bank, rom_sizes[rom_chip]);
 
             // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
             if (!rom_bytes_read) {
-                sprintf(info_text, "File %s empty or not found!", file);
+                sprintf(info_text, "File %s error!", file);
                 info_rom(rom_chip, STATUS_NONE, info_text);
             } else {
                 // If the rom size is not a factor or 0x4000 bytes, then there is an error.
                 unsigned long rom_file_modulo = rom_bytes_read % 0x4000;
                 if(rom_file_modulo) {
-                    sprintf(info_text, "File %s size %05x, %05x off!", file, rom_bytes_read, 0x4000UL - rom_file_modulo);
+                    sprintf(info_text, "File %s size error!", file);
                     info_rom(rom_chip, STATUS_ERROR, info_text);
                     rom_error = 1;
                 } else {
-                    sprintf(info_text, "File %s size %05x, OK!", file, rom_bytes_read);
+                    sprintf(info_text, "OK!", file, rom_bytes_read);
                     info_rom(rom_chip, STATUS_CHECKED, info_text);
 
                     file_sizes[rom_chip] = rom_bytes_read;
 
-                    // Verify the ROM...
-                    unsigned long rom_differences = rom_verify(
-                        rom_chip, rom_bank, file_sizes[rom_chip]);
-                    
-                    if (rom_differences) {
-                        sprintf(info_text, "%05x differences found!", rom_differences);
-                        info_rom(rom_chip, STATUS_EQUATED, info_text);
-                    } else {
-                        info_rom(rom_chip, STATUS_NONE, "No flashing required!");
-                    }
                 }
             }
         }
@@ -1398,28 +1589,102 @@ void main() {
     // If all detection, checks and verifications are done, the flashing can commence!
     if (!smc_error && !rom_error && !flash_error && !vera_error) {
 
-    SEI();
+        SEI();
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_FLASH
 
+        // Flash the SMC chip.
+
         info_line("Flashing SMC chip ...");
         if (!smc_file_size) {    
-            info_smc(STATUS_FLASHING, "Press POWER/RESET on CX16 board!");
+            info_line("To flash the SMC chip, press both POWER/RESET buttons on the CX16 board!");
+            info_smc(STATUS_FLASHING, "Press POWER/RESET!");
             unsigned long flashed_bytes = flash_smc(PROGRESS_X, PROGRESS_Y, PROGRESS_W, smc_file_size, 8, 512, (ram_ptr_t)RAM_BASE);
-            info_smc(STATUS_UPDATED, "OK");
+            info_smc(STATUS_FLASHED, "OK!");
         }
 
 #endif
 #endif
 
+#ifdef __ROM_CHIP_PROCESS
+#ifdef __ROM_CHIP_FLASH
+
+        // Flash the ROM chips. 
+        // We loop first all the ROM chips and read the file contents.
+        // Then we verify the file contents and flash the ROM only for the differences.
+        // If the file contents are the same as the ROM contents, then no flashing is required.
+        
+        for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
+
+            bank_set_brom(0);
+
+            if(rom_device_ids[rom_chip] != UNKNOWN) {
+
+                strcpy(file, "ROM .BIN");
+                file[3] = 48+rom_chip;
+                sprintf(info_text, "Reading ROM file %s ...", file);
+                info_line(info_text);
+
+                progress_clear();
+
+                unsigned char rom_bank = rom_chip * 32;
+                unsigned long rom_bytes_read = rom_read(rom_bank, rom_sizes[rom_chip]);
+
+                // If the ROM file was correctly read, verify the file ...
+                if(rom_bytes_read) {
+
+                    info_rom(rom_chip, STATUS_EQUATING, ""); // Set the info for the ROMs to Equating.
+
+                    // Verify the ROM...
+                    unsigned long rom_differences = rom_verify(
+                        rom_chip, rom_bank, file_sizes[rom_chip]);
+                    
+                    if (!rom_differences) {
+                        info_rom(rom_chip, STATUS_EQUATED, "No flashing required!");
+                    } else {
+                        sprintf(info_text, "%05x differences found!", rom_differences);
+                        info_rom(rom_chip, STATUS_EQUATED, info_text);
+                        // Now we can flash the ROM ...
+
+                        unsigned long rom_flash_errors = rom_flash(
+                            rom_chip, rom_bank, file_sizes[rom_chip]);
+                        if(rom_flash_errors) {
+                            sprintf(info_text, "%05x flashing errors!", rom_flash_errors);
+                            info_rom(rom_chip, STATUS_ERROR, info_text);
+                            flash_error = 1;
+                        } else {
+                            info_rom(rom_chip, STATUS_FLASHED, "OK!");
+                        }
+                    }
+                }
+            }
+        }
     }
+
+#endif
+#endif
+
 
     bank_set_brom(4);
     CLI();
-    wait_key("Press any key ...", NULL);
 
-    // system_reset();
+    if(smc_error || rom_error || vera_error || flash_error) {
+        vera_display_set_border_color(RED);
+        info_line("FLASH ERRORS! Your CX16 may be bricked! Take a foto of your screen!");
+        while(1);
+    } else {
+        wait_key("Flashing success, press any key to reset your CX16 ...", NULL);
+    }
+
+    for(unsigned char flash_reset=0; flash_reset<120; flash_reset++) {
+        for(unsigned int reset_wait=0; reset_wait<0xFFFF; reset_wait++) {
+        }
+        sprintf(info_text, "Resetting your CX16 ... (%u)", flash_reset);
+        info_line(info_text);
+    }
+
+    system_reset();
 
     return;
 }
