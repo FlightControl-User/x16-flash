@@ -568,7 +568,7 @@ void info_smc(unsigned char info_status, unsigned char* info_text) {
     gotoxy(INFO_X, INFO_Y);
     printf("SMC  - %-9s - ATTiny - %05x / 01E00 - ", status_text[info_status], smc_file_size);
     if(info_text) {
-        printf("%20s", info_text);
+        printf("%-20s", info_text);
     }
 }
 
@@ -587,7 +587,7 @@ void info_vera(unsigned char info_status, unsigned char* info_text) {
     gotoxy(INFO_X, INFO_Y+1);
     printf("VERA - %-9s - FPGA   - 1a000 / 1a000 - ", status_text[info_status]);
     if(info_text) {
-        printf("%20s", info_text);
+        printf("%-20s", info_text);
     }
 }
 
@@ -601,7 +601,7 @@ void info_rom(unsigned char rom_chip, unsigned char info_status, unsigned char* 
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
     printf("ROM%u - %-9s - %-6s - %05x / %05x - ", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip]);
     if(info_text) {
-        printf("%20s", info_text);
+        printf("%-20s", info_text);
     }
 }
 
@@ -1666,7 +1666,7 @@ void main() {
     // Then we verify the file contents and flash the ROM only for the differences.
     // If the file contents are the same as the ROM contents, then no flashing is required.
         
-    for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
+    for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--) {
 
         if(check_rom(rom_chip, STATUS_FLASH)) {
 

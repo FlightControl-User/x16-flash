@@ -15,10 +15,10 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$4557 Code
+  $080d-$452c Code
 
 Data-segment:
-  $4558-$5158 Data
+  $452d-$50ef Data
 
 Writing Vice symbol file: FLASH-CX16-SMC.vs
 Writing Symbol file: FLASH-CX16-SMC.sym
