@@ -6,8 +6,8 @@
  *
  *
  *
- * @version 1.1
- * @date 2023-02-27
+ * @version 2.0
+ * @date 2023-09-21
  *
  * @copyright Copyright (c) 2023
  *
@@ -16,11 +16,12 @@
 #define __DEBUG  {asm{.byte $db}};
 // #define __DEBUG_FILE
 
-#define __STDIO_FILECOUNT 8
+#define __STDIO_FILECOUNT 2
 
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
 #define __FLASH
+#define __INTRO
 #define __SMC_CHIP_PROCESS
 #define __ROM_CHIP_PROCESS
 #define __ROM_CHIP_DETECT
@@ -110,7 +111,7 @@ const char PROGRESS_Y = 32;
 const char PROGRESS_W = 64;
 const char PROGRESS_H = 16;
 
-#define INFO_X 2
+#define INFO_X 4
 #define INFO_Y 17
 #define INFO_W 64
 #define INFO_H 10
@@ -121,6 +122,8 @@ char info_text[80];
 unsigned char rom_device_ids[8] = {0};
 unsigned char* rom_device_names[8] = {0};
 unsigned char* rom_size_strings[8] = {0};
+unsigned char rom_github[8][8];
+unsigned char rom_release[8];
 unsigned char rom_manufacturer_ids[8] = {0};
 unsigned long rom_sizes[8] = {0};
 unsigned long file_sizes[8] = {0};
@@ -132,30 +135,32 @@ const char STATUS_NONE  = 0;
 const char STATUS_SKIP  = 1;
 const char STATUS_DETECTED  = 2;
 const char STATUS_CHECKING  = 3;
-const char STATUS_COMPARING  = 4;
-const char STATUS_FLASH  = 5;
-const char STATUS_FLASHING  = 6;
-const char STATUS_FLASHED  = 7;
-const char STATUS_ISSUE  = 8;
-const char STATUS_ERROR  = 9;
+const char STATUS_READING  = 4;
+const char STATUS_COMPARING  = 5;
+const char STATUS_FLASH  = 6;
+const char STATUS_FLASHING  = 7;
+const char STATUS_FLASHED  = 8;
+const char STATUS_ISSUE  = 9;
+const char STATUS_ERROR  = 10;
 
-__mem unsigned char* status_text[10] = {
-    "None", "Skip", "Detected", "Checking", "Comparing", 
-    "Flash", "Flashing", "Flashed", "Issue", "Error"};
+__mem unsigned char* status_text[11] = {
+    "None", "Skip", "Detected", "Checking", "Reading", "Comparing", 
+    "Update", "Updating", "Updated", "Issue", "Error"};
 
 const unsigned char STATUS_COLOR_NONE           = BLACK;
 const unsigned char STATUS_COLOR_SKIP           = GREY;
 const unsigned char STATUS_COLOR_DETECTED       = WHITE;
 const unsigned char STATUS_COLOR_CHECKING       = CYAN;
+const unsigned char STATUS_COLOR_READING        = PURPLE;
 const unsigned char STATUS_COLOR_COMPARING      = CYAN;
-const unsigned char STATUS_COLOR_FLASH          = CYAN;
+const unsigned char STATUS_COLOR_FLASH          = PURPLE;
 const unsigned char STATUS_COLOR_FLASHING       = PURPLE;
 const unsigned char STATUS_COLOR_FLASHED        = GREEN;
 const unsigned char STATUS_COLOR_ISSUE          = YELLOW;
 const unsigned char STATUS_COLOR_ERROR          = RED;
 
-__mem unsigned char status_color[10] = {
-    STATUS_COLOR_NONE, STATUS_COLOR_SKIP, STATUS_COLOR_DETECTED, STATUS_COLOR_CHECKING, STATUS_COLOR_COMPARING, 
+__mem unsigned char status_color[11] = {
+    STATUS_COLOR_NONE, STATUS_COLOR_SKIP, STATUS_COLOR_DETECTED, STATUS_COLOR_CHECKING, STATUS_COLOR_READING, STATUS_COLOR_COMPARING, 
     STATUS_COLOR_FLASH, STATUS_COLOR_FLASHING, STATUS_COLOR_FLASHED, STATUS_COLOR_ISSUE, STATUS_COLOR_ERROR};
 
 
@@ -191,6 +196,10 @@ unsigned char wait_key(unsigned char* info_text, unsigned char* filter) {
     bank_set_brom(brom);
 
     return ch;
+}
+
+void wait_moment() {
+    for(unsigned int i=65535; i>0; i--);
 }
 
 void system_reset() {
@@ -325,26 +334,32 @@ void frame(unsigned char x0, unsigned char y0, unsigned char x1, unsigned char y
 }
 
 void frame_draw() {
-    textcolor(WHITE);
+    textcolor(LIGHT_BLUE);
     bgcolor(BLUE);
 
     clrscr();
-    frame(0, 0, 67, 13);
+    frame(0, 0, 67, 14);
     frame(0, 0, 67, 2);
-    frame(0, 2, 67, 13);
-    frame(0, 2, 8, 13);
-    frame(8, 2, 19, 13);
-    frame(19, 2, 25, 13);
-    frame(25, 2, 31, 13);
-    frame(31, 2, 37, 13);
-    frame(37, 2, 43, 13);
-    frame(43, 2, 49, 13);
-    frame(49, 2, 55, 13);
-    frame(55, 2, 61, 13);
-    frame(61, 2, 67, 13);
-    frame(0, 13, 67, PROGRESS_Y-5);
+    frame(0, 2, 67, 14);
+
+    // Chipset areas
+    frame(0, 2, 8, 14);
+    frame(8, 2, 19, 14);
+    frame(19, 2, 25, 14);
+    frame(25, 2, 31, 14);
+    frame(31, 2, 37, 14);
+    frame(37, 2, 43, 14);
+    frame(43, 2, 49, 14);
+    frame(49, 2, 55, 14);
+    frame(55, 2, 61, 14);
+    frame(61, 2, 67, 14);
+
+    // Progress area
+    frame(0, 14, 67, PROGRESS_Y-5);
     frame(0, PROGRESS_Y-5, 67, PROGRESS_Y-2);
     frame(0, PROGRESS_Y-2, 67, 49);
+
+    textcolor(WHITE);
 }
 
 void frame_init() {
@@ -361,6 +376,10 @@ void frame_init() {
     cx16_k_screen_set_charset(3, (char *)0);
 }
 
+void print_title(unsigned char* title_text) {
+    gotoxy(2, 1);
+    printf("%-65s", title_text);
+}
 
 void print_chip_line(char x, char y, char w, char c) {
 
@@ -406,20 +425,26 @@ void print_chip_end(char x, char y, char w) {
 
 void print_chip_led(char x, char y, char w, char tc, char bc) {
 
-    gotoxy(x, y);
-
     textcolor(tc);
     bgcolor(bc);
-    for(char i=0; i<w; i++) {
-        cputc(0xE2);
-    }
+
+    do {
+        cputcxy(x, y, 0x6F);
+        cputcxy(x, y+1, 0x77);
+        x++;
+    } while(--w);
 
     textcolor(WHITE);
     bgcolor(BLUE);
 }
 
-void print_chip(unsigned char x, unsigned char y, unsigned char w, unsigned char* text) {
+void print_info_led(char x, char y, char tc, char bc) {
+    textcolor(tc); bgcolor(bc);
+    cputcxy(x, y, VERA_CHR_UR);
+    textcolor(WHITE);
+}
 
+void print_chip(unsigned char x, unsigned char y, unsigned char w, unsigned char* text) {
     print_chip_line(x, y++, w, *text++);
     print_chip_line(x, y++, w, *text++);
     print_chip_line(x, y++, w, *text++);
@@ -433,36 +458,40 @@ void print_chip(unsigned char x, unsigned char y, unsigned char w, unsigned char
 
 void print_smc_led(unsigned char c) {
     print_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c, BLUE);
+    print_info_led(INFO_X-2, INFO_Y, c, BLUE);
 }
 
 void chip_smc() {
     print_smc_led(GREY);
-    print_chip(CHIP_SMC_X, CHIP_SMC_Y+1, CHIP_SMC_W, "smc     ");
+    print_chip(CHIP_SMC_X, CHIP_SMC_Y+2, CHIP_SMC_W, "SMC     ");
 }
 
 void print_vera_led(unsigned char c) {
     print_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c, BLUE);
+    print_info_led(INFO_X-2, INFO_Y+1, c, BLUE);
 }
 
 void chip_vera() {
     print_vera_led(GREY);
-    print_chip(CHIP_VERA_X, CHIP_VERA_Y+1, CHIP_VERA_W, "vera     ");
+    print_chip(CHIP_VERA_X, CHIP_VERA_Y+2, CHIP_VERA_W, "VERA     ");
 }
 
 void print_rom_led(unsigned char chip, unsigned char c) {
     print_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c, BLUE);
+    print_info_led(INFO_X-2, INFO_Y+chip+2, c, BLUE);
 }
 
 void chip_rom() {
 
     char rom[16];
     for (unsigned char r = 0; r < 8; r++) {
-        strcpy(rom, "rom0 ");
+        strcpy(rom, "ROM  ");
         strcat(rom, rom_size_strings[r]);
-
-        *(rom+3) = r+'0';
+        if(r) {
+            *(rom+3) = r+'0';
+        }
         print_rom_led(r, GREY);
-        print_chip(CHIP_ROM_X+r*6, CHIP_ROM_Y+1, CHIP_ROM_W, rom);
+        print_chip(CHIP_ROM_X+r*6, CHIP_ROM_Y+2, CHIP_ROM_W, rom);
     }
 }
 
@@ -478,7 +507,6 @@ void print_i2c_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned int 
     gotoxy(43, 1);
     printf("ram = %2x/%4p, i2c = %4x", bram_bank, bram_ptr, i2c_address);
 }
-
 
 /**
  * @brief Clean the progress area for the flashing.
@@ -501,6 +529,10 @@ void progress_clear() {
     }
 }
 
+void progress_text(unsigned char line, unsigned char* text) {
+    cputsxy(PROGRESS_X, PROGRESS_Y+line, text);
+}
+
 void info_progress(unsigned char* info_text) {
     unsigned char x = wherex();
     unsigned char y = wherey();
@@ -517,39 +549,27 @@ void info_line(unsigned char* info_text) {
     gotoxy(x, y);
 }
 
-void info_title(unsigned char* info_text) {
-    gotoxy(2, 1);
-    printf("%-65s", info_text);
+inline void print_info_title() {
+    cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   File  / Total Information");
+    cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ----- / ----- --------------------");
 }
 
-void info_clear(char l) {
-    unsigned char h = INFO_Y + INFO_H;
-    unsigned char y = INFO_Y+l;
-    unsigned char w = INFO_W+1;
-    unsigned char x = INFO_X;
-    for(unsigned char i = 0; i < w-16; i++) {
-        cputcxy(x, y, ' ');
-        x++;
-    }
-
-    gotoxy(INFO_X, y);
-}
 
 /**
  * @brief Clean the information area.
  * 
  */
-void info_clear_all() {
+// void info_clear_all() {
 
-    textcolor(WHITE);
-    bgcolor(BLUE);
+//     textcolor(WHITE);
+//     bgcolor(BLUE);
 
-    unsigned char l = 0;
-    while (l < INFO_H) {
-        info_clear(l);
-        l++;
-    }
-}
+//     unsigned char l = 0;
+//     while (l < INFO_H) {
+//         info_clear(l);
+//         l++;
+//     }
+// }
 
 unsigned char status_smc = 0;
 unsigned char status_vera = 0;
@@ -563,13 +583,15 @@ unsigned char status_rom[8] = {0};
  * @remark The smc_booloader is a global variable. 
  */
 void info_smc(unsigned char info_status, unsigned char* info_text) {
+    unsigned char x = wherex(); unsigned char y = wherey();
     status_smc = info_status;
     print_smc_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y);
-    printf("SMC  - %-9s - ATTiny - %05x / 01E00 - ", status_text[info_status], smc_file_size);
+    printf("SMC  %-9s ATTiny %05x / 01E00 ", status_text[info_status], smc_file_size);
     if(info_text) {
         printf("%-20s", info_text);
     }
+    gotoxy(x, y);
 }
 
 inline unsigned char check_smc(unsigned char status) {
@@ -582,13 +604,15 @@ inline unsigned char check_smc(unsigned char status) {
  * @param info_status The STATUS_ 
  */
 void info_vera(unsigned char info_status, unsigned char* info_text) {
+    unsigned char x = wherex(); unsigned char y = wherey();
     status_vera = info_status;
     print_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
-    printf("VERA - %-9s - FPGA   - 1a000 / 1a000 - ", status_text[info_status]);
+    printf("VERA %-9s FPGA   1a000 / 1a000 ", status_text[info_status]);
     if(info_text) {
         printf("%-20s", info_text);
     }
+    gotoxy(x, y);
 }
 
 inline unsigned char check_vera(unsigned char status) {
@@ -596,13 +620,15 @@ inline unsigned char check_vera(unsigned char status) {
 }
 
 void info_rom(unsigned char rom_chip, unsigned char info_status, unsigned char* info_text) {
+    unsigned char x = wherex(); unsigned char y = wherey();
     status_rom[rom_chip] = info_status;
     print_rom_led(rom_chip, status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
-    printf("ROM%u - %-9s - %-6s - %05x / %05x - ", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip]);
+    printf("ROM%u %-9s %-6s %05x / %05x ", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip]);
     if(info_text) {
         printf("%-20s", info_text);
     }
+    gotoxy(x,y);
 }
 
 void info_cx16_rom(unsigned char info_status, unsigned char* info_text) {
@@ -633,6 +659,15 @@ inline unsigned char check_roms(unsigned char status) {
         }        
     }
     return STATUS_NONE;
+}
+
+inline unsigned char check_roms_all(unsigned char status) {
+    for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
+        if(check_rom(rom_chip, status) != status) {
+            return 0;
+        }        
+    }
+    return 1;
 }
 
 
@@ -831,7 +866,7 @@ unsigned int smc_read(unsigned char b, unsigned int progress_row_size) {
                 progress_row_bytes = 0;
             }
 
-            cputc('+');
+            cputc('.');
 
             ram_address += smc_file_read;
             smc_file_size += smc_file_read;
@@ -893,6 +928,8 @@ unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsign
     rts
 */
 
+    info_progress("To start the SMC update, do the below action ...");
+
     unsigned char smc_bootloader_start = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_BOOTLOADER_RESET, 0x31);
     if(smc_bootloader_start) {
         sprintf(info_text, "There was a problem starting the SMC bootloader: %x", smc_bootloader_start);
@@ -902,13 +939,13 @@ unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsign
         return 0;
     }
 
-    unsigned char smc_bootloader_activation_countdown = 20;
+    unsigned char smc_bootloader_activation_countdown = 60;
     unsigned int smc_bootloader_not_activated = 0xFF;
     while(smc_bootloader_activation_countdown) {
         unsigned int smc_bootloader_not_activated = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
         if(smc_bootloader_not_activated) {
-            for(unsigned long x=65536*6; x>0; x--);
-            sprintf(info_text, "Press POWER and RESET on the CX16 within %u seconds!", smc_bootloader_activation_countdown);
+            wait_moment();
+            sprintf(info_text, "Press POWER and RESET on the CX16 to start the SMC update (%u)!", smc_bootloader_activation_countdown);
             info_line(info_text);
         } else {
             break;
@@ -916,11 +953,11 @@ unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsign
         smc_bootloader_activation_countdown--;
     }
 
-    // Wait an other 5 seconds to ensure the bootloader is activated.
-    smc_bootloader_activation_countdown = 5;
+    // Waiting a bit to ensure the bootloader is activated.
+    smc_bootloader_activation_countdown = 10;
     while(smc_bootloader_activation_countdown) {
-        for(unsigned long x=65536*1; x>0; x--);
-        sprintf(info_text, "Waiting an other %u seconds before flashing the SMC!", smc_bootloader_activation_countdown);
+        wait_moment();
+        sprintf(info_text, "Updating SMC in %u ...", smc_bootloader_activation_countdown);
         info_line(info_text);
         smc_bootloader_activation_countdown--;
     }
@@ -932,6 +969,7 @@ unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsign
         return 0;
     }
 
+    info_progress("Updating SMC firmware ... (+) Updated");
 
     textcolor(WHITE);
     gotoxy(x, y);
@@ -964,7 +1002,7 @@ unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsign
                     smc_row_bytes = 0;
                 }
 
-                cputc('*');
+                cputc('+');
 
                 smc_bytes_flashed += 8;
                 smc_row_bytes += 8;
@@ -1132,14 +1170,20 @@ unsigned long rom_size(unsigned char rom_banks) { return ((unsigned long)(rom_ba
 
 
 unsigned char* rom_file(unsigned char rom_chip) {
-    static char file[12];
-    strcpy(file, "ROM .BIN");
-    file[3] = 48+rom_chip;
-    return file;
+    static char* file_rom_cx16 = "ROM.BIN";
+    static char* file_rom_card = "ROMn.BIN";
+    if(rom_chip) {
+        file_rom_card[3] = '0'+rom_chip;
+        return file_rom_card;
+    } else {
+        return file_rom_cx16;
+    }
+    return NULL;
 }
 
 unsigned long rom_read(
         unsigned char rom_chip, unsigned char* file,
+        unsigned char info_status,
         unsigned char brom_bank_start, unsigned long rom_size) {
 
     unsigned char x = PROGRESS_X;
@@ -1150,12 +1194,14 @@ unsigned long rom_read(
     ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
 
     unsigned long rom_address = rom_address_from_bank(brom_bank_start);
-    unsigned long rom_file_read = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
+    unsigned long rom_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
 
     bank_set_bram(bram_bank);
     bank_set_brom(0);
 
     unsigned int rom_row_current = 0;
+    unsigned char rom_release;
+    unsigned char rom_github[6];
 
     sprintf(info_text, "Opening %s from SD card ...", file);
     info_line(info_text);
@@ -1164,9 +1210,9 @@ unsigned long rom_read(
     if (fp) {
 
         gotoxy(x, y);
-        while (rom_file_read < rom_size) {
+        while (rom_file_size < rom_size) {
 
-            sprintf(info_text, "Reading %s:%05x/%05x -> RAM:%02x:%04p ...", file, rom_file_read, rom_size, bram_bank, ram_address);
+            sprintf(info_text, "Reading %s:%05x/%05x -> RAM:%02x:%04p ...", file, rom_file_size, rom_size, bram_bank, ram_address);
             info_line(info_text);
 
             if (!(rom_address % 0x04000)) {
@@ -1191,7 +1237,7 @@ unsigned long rom_read(
 
             ram_address += rom_package_read;
             rom_address += rom_package_read;
-            rom_file_read += rom_package_read;
+            rom_file_size += rom_package_read;
             rom_row_current += rom_package_read;
 
             if (ram_address == (ram_ptr_t)BRAM_HIGH) {
@@ -1207,7 +1253,7 @@ unsigned long rom_read(
         fclose(fp);
     }
 
-    return rom_file_read;
+    return rom_file_size;
 }
 
 unsigned int rom_compare(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long rom_compare_address, unsigned int rom_compare_size) {
@@ -1462,10 +1508,10 @@ void main() {
     frame_init();
     frame_draw();
 
-    info_title("Commander X16 Flash Utility!");
+    print_title("Commander X16 Flash Utility!");
+    print_info_title();
 
     progress_clear();
-    info_clear_all();
 
     // info_print(0, "The SMC chip on the X16 board controls the power on/off, keyboard and mouse pheripherals.");
     // info_print(1, "It is essential that the SMC chip gets updated together with the latest ROM on the X16 board.");
@@ -1531,6 +1577,63 @@ void main() {
 
 #endif
 
+#ifdef __INTRO
+
+    const char intro_briefing_count = 16;
+    const char* into_briefing_text[16] = {
+        "Welcome to the CX16 update tool! This program will update the",
+        "chipsets on your CX16 board and on your ROM expansion cardridge.",
+        "",
+        "Depending on the type of files placed on your SDCard,",
+        "different chipsets will be updated of the CX16:",
+        "- The mandatory SMC.BIN file updates the SMC firmware.",
+        "- The mandatory ROM.BIN file updates the main ROM.",
+        "- An optional VERA.BIN file updates your VERA firmware.",
+        "- Any optional ROMn.BIN file found on your SDCard ",
+        "  updates the relevant ROMs on your ROM expansion cardridge.",
+        "  Ensure your J1 jumpers are properly enabled on the CX16!",
+        "",
+        "Please read carefully the step by step instructions at ",
+        "https://flightcontrol-user.github.io/x16-flash",
+    };
+
+    for(unsigned char intro_line=0; intro_line<intro_briefing_count; intro_line++) {
+        progress_text(intro_line, into_briefing_text[intro_line]);
+    }
+    wait_key("Please read carefully the below, and press [SPACE] ...", " ");
+    progress_clear();
+
+    const char intro_colors_count = 16;
+    const char* into_colors_text[16] = {
+        "The panels above indicate the update progress of your chipsets,",
+        "using status indicators and colors as specified below:",
+        "",
+        " -   None       Not detected, no action.",
+        " -   Skipped    Detected, but no action, eg. no file.",
+        " -   Detected   Detected, verification pending.",
+        " -   Checking   Verifying size of the update file.",
+        " -   Reading    Reading the update file into RAM.",
+        " -   Comparing  Comparing the RAM with the ROM.",
+        " -   Update     Ready to update the firmware.",
+        " -   Updating   Updating the firmware.",
+        " -   Updated    Updated the firmware succesfully.",
+        " -   Issue      Problem identified during update.",
+        " -   Error      Error found during update.",
+        "",
+        "Errors indicate your J1 jumpers are not properly set!",
+    };
+
+    for(unsigned char intro_line=0; intro_line<intro_colors_count; intro_line++) {
+        progress_text(intro_line, into_colors_text[intro_line]);
+    }
+    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
+        print_info_led(PROGRESS_X + 3, PROGRESS_Y + 4 + intro_status, status_color[intro_status], BLUE);
+    }
+    wait_key("If understood, press [SPACE] to start the update ...", " ");
+    progress_clear();
+
+#endif
+
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_CHECK
 
@@ -1575,8 +1678,6 @@ void main() {
 
         if(rom_device_ids[rom_chip] != UNKNOWN) {
 
-            info_rom(rom_chip, STATUS_CHECKING, ""); // Set the info for the ROMs to Checking.
-
             progress_clear();
 
             unsigned char rom_bank = rom_chip * 32;
@@ -1585,7 +1686,7 @@ void main() {
             info_progress(info_text);
 
 
-            unsigned long rom_bytes_read = rom_read(rom_chip, file, rom_bank, rom_sizes[rom_chip]);
+            unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_CHECKING, rom_bank, rom_sizes[rom_chip]);
 
             // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
             if (!rom_bytes_read) {
@@ -1598,9 +1699,18 @@ void main() {
                     sprintf(info_text, "File %s size error!", file);
                     info_rom(rom_chip, STATUS_ERROR, info_text);
                 } else {
-                    info_rom(rom_chip, STATUS_FLASH, "OK!");
+                    
+                    // We know the file size, so we indicate it in the status panel.
                     file_sizes[rom_chip] = rom_bytes_read;
+                    
+                    // Fill the version data ...
+                    strncpy(rom_github[rom_chip], (char*)RAM_BASE, 6);
+                    bank_push_set_bram(1);
+                    rom_release[rom_chip] = *((char*)0xBF80);
+                    bank_pull_bram();
 
+                    sprintf(info_text, "%s:R%u/%s", file, rom_release[rom_chip], rom_github[rom_chip]);
+                    info_rom(rom_chip, STATUS_FLASH, info_text);
                 }
             }
         }
@@ -1625,20 +1735,20 @@ void main() {
         info_progress("Chipsets have been detected and update files validated!");
         unsigned char ch = wait_key("Continue with update? [Y/N]", "nyNY");        
         if(strchr("nN", ch)) {
+            // We cancel all updates, the updates are skipped.
             info_smc(STATUS_SKIP, "Cancelled");
             info_vera(STATUS_SKIP, "Cancelled");
-            for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++) {
+            for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
                 info_rom(rom_chip, STATUS_SKIP, "Cancelled");
             }
             info_line("You have selected not to cancel the update ... ");
         }
     }
 
+    SEI();
 
     // Flash the SMC when it has the status!
     if (check_smc(STATUS_FLASH)) {
-
-        SEI();
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_FLASH
@@ -1650,64 +1760,74 @@ void main() {
             info_line("Press both POWER/RESET buttons on the CX16 board!");
             info_smc(STATUS_FLASHING, "Press POWER/RESET!");
             unsigned long flashed_bytes = flash_smc(PROGRESS_X, PROGRESS_Y, PROGRESS_W, smc_file_size, 8, 512, (ram_ptr_t)RAM_BASE);
-            info_smc(STATUS_FLASHED, "OK!");
+            if(flashed_bytes)
+                info_smc(STATUS_FLASHED, "");
+            else
+                info_smc(STATUS_ERROR, "SMC not updated!");
         }
-    }
 
 #endif
 #endif
+
+    }
 
 #ifdef __ROM_CHIP_PROCESS
 #ifdef __ROM_CHIP_FLASH
-
 
     // Flash the ROM chips. 
     // We loop first all the ROM chips and read the file contents.
     // Then we verify the file contents and flash the ROM only for the differences.
     // If the file contents are the same as the ROM contents, then no flashing is required.
-        
+    // IMPORTANT! We start to flash the ROMs on the extension card.
+    // The last ROM flashed is the CX16 ROM on the CX16 board!
     for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--) {
 
         if(check_rom(rom_chip, STATUS_FLASH)) {
 
-            bank_set_brom(0);
+            // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
+            if((rom_chip == 0 && check_smc(STATUS_FLASHED)) || (rom_chip != 0)) {
 
-            progress_clear();
+                bank_set_brom(0);
 
-            unsigned char rom_bank = rom_chip * 32;
-            unsigned char* file = rom_file(rom_chip);
-            sprintf(info_text, "Reading %s ... (.) data ( ) empty", file);
-            info_progress(info_text);
+                progress_clear();
 
-            unsigned long rom_bytes_read = rom_read(rom_chip, file, rom_bank, rom_sizes[rom_chip]);
+                unsigned char rom_bank = rom_chip * 32;
+                unsigned char* file = rom_file(rom_chip);
+                sprintf(info_text, "Reading %s ... (.) data ( ) empty", file);
+                info_progress(info_text);
 
-            // If the ROM file was correctly read, verify the file ...
-            if(rom_bytes_read) {
+                unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
 
-                // Now we compare the RAM with the actual ROM contents.
-                info_progress("Comparing ... (.) same, (*) different.");
-                info_rom(rom_chip, STATUS_COMPARING, "");
+                // If the ROM file was correctly read, verify the file ...
+                if(rom_bytes_read) {
 
-                // Verify the ROM...
-                unsigned long rom_differences = rom_verify(
-                    rom_chip, rom_bank, file_sizes[rom_chip]);
-                
-                if (!rom_differences) {
-                    info_rom(rom_chip, STATUS_FLASHED, "No update required");
-                } else {
-                    // If there are differences, the ROM needs to be flashed.
-                    sprintf(info_text, "%05x differences!", rom_differences);
-                    info_rom(rom_chip, STATUS_FLASH, info_text);
-                    
-                    unsigned long rom_flash_errors = rom_flash(
+                    // Now we compare the RAM with the actual ROM contents.
+                    info_progress("Comparing ... (.) same, (*) different.");
+                    info_rom(rom_chip, STATUS_COMPARING, "");
+
+                    // Verify the ROM...
+                    unsigned long rom_differences = rom_verify(
                         rom_chip, rom_bank, file_sizes[rom_chip]);
-                    if(rom_flash_errors) {
-                        sprintf(info_text, "%u flash errors!", rom_flash_errors);
-                        info_rom(rom_chip, STATUS_ERROR, info_text);
+                    
+                    if (!rom_differences) {
+                        info_rom(rom_chip, STATUS_FLASHED, "No update required");
                     } else {
-                        info_rom(rom_chip, STATUS_FLASHED, "OK!");
+                        // If there are differences, the ROM needs to be flashed.
+                        sprintf(info_text, "%05x differences!", rom_differences);
+                        info_rom(rom_chip, STATUS_FLASH, info_text);
+                        
+                        unsigned long rom_flash_errors = rom_flash(
+                            rom_chip, rom_bank, file_sizes[rom_chip]);
+                        if(rom_flash_errors) {
+                            sprintf(info_text, "%u flash errors!", rom_flash_errors);
+                            info_rom(rom_chip, STATUS_ERROR, info_text);
+                        } else {
+                            info_rom(rom_chip, STATUS_FLASHED, "OK!");
+                        }
                     }
                 }
+            } else {
+                info_rom(rom_chip, STATUS_ISSUE, "Update SMC failed!");
             }
         }
     }
@@ -1721,27 +1841,28 @@ void main() {
 
     info_progress("Update finished ...");
 
-    if(check_smc(STATUS_ERROR) || check_vera(STATUS_ERROR) || check_roms(STATUS_ERROR)) {
-        vera_display_set_border_color(RED);
-        info_progress("Upgrade Failure! Your CX16 may be bricked!");
-        info_line("Take a foto of this screen. And shut down power ...");
-        while(1);
+    if(check_smc(STATUS_SKIP) && check_vera(STATUS_SKIP) && check_roms_all(STATUS_SKIP)) {
+        vera_display_set_border_color(BLACK);
+        info_progress("The update has been cancelled!");
     } else {
-        if(check_smc(STATUS_ISSUE) || check_vera(STATUS_ISSUE) || check_roms(STATUS_ISSUE)) {
-            vera_display_set_border_color(YELLOW);
-            info_progress("Upgrade Issues ...");
-            wait_key("Take a foto of this screen. Press a key for next steps ...", NULL);
+        if(check_smc(STATUS_ERROR) || check_vera(STATUS_ERROR) || check_roms(STATUS_ERROR)) {
+            vera_display_set_border_color(RED);
+            info_progress("Update Failure! Your CX16 may be bricked!");
+            info_line("Take a foto of this screen. And shut down power ...");
+            while(1);
         } else {
-            vera_display_set_border_color(GREEN);
-            info_progress("Upgrade Success!");
-            wait_key("Press any key to reset your CX16 ...", NULL);
+            if(check_smc(STATUS_ISSUE) || check_vera(STATUS_ISSUE) || check_roms(STATUS_ISSUE)) {
+                vera_display_set_border_color(YELLOW);
+                info_progress("Update issues, your CX16 is not updated!");
+            } else {
+                vera_display_set_border_color(GREEN);
+            }
         }
     }
 
-    for(unsigned char flash_reset=0; flash_reset<120; flash_reset++) {
-        for(unsigned int reset_wait=0; reset_wait<0xFFFF; reset_wait++) {
-        }
-        sprintf(info_text, "Resetting your CX16 ... (%u)", flash_reset);
+    for(unsigned char flash_reset=240; flash_reset>0; flash_reset--) {
+        wait_moment();
+        sprintf(info_text, "Resetting your CX16 in %u ...", flash_reset);
         info_line(info_text);
     }
 
