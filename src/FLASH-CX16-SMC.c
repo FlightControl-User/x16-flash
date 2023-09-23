@@ -1627,7 +1627,7 @@ void main() {
         progress_text(intro_line, into_colors_text[intro_line]);
     }
     for(unsigned char intro_status=0; intro_status<11; intro_status++) {
-        print_info_led(PROGRESS_X + 3, PROGRESS_Y + 4 + intro_status, status_color[intro_status], BLUE);
+        print_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
     }
     wait_key("If understood, press [SPACE] to start the update ...", " ");
     progress_clear();
@@ -1724,11 +1724,11 @@ void main() {
 
 
     // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
-    if(!check_smc(STATUS_FLASH) ||!check_cx16_rom(STATUS_FLASH)) {
-        info_progress("There is an issue with either the SMC or the CX16 main ROM!");
-        wait_key("Press [SPACE] to continue [ ]", " ");
+    if(!check_smc(STATUS_FLASH) || !check_cx16_rom(STATUS_FLASH)) {
         info_smc(STATUS_ISSUE, NULL);
         info_cx16_rom(STATUS_ISSUE, NULL);
+        info_progress("There is an issue with either the SMC or the CX16 main ROM!");
+        wait_key("Press [SPACE] to continue [ ]", " ");
     }
 
     if(check_smc(STATUS_FLASH) && check_cx16_rom(STATUS_FLASH) || check_card_roms(STATUS_FLASH)) {
