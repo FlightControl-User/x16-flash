@@ -438,6 +438,7 @@ void display_progress_line(unsigned char line, unsigned char* text) {
  * @param lines The amount of lines to be displayed, starting from the top of the progress frame.
  */
 void display_progress_text(unsigned char** text, unsigned char lines) {
+    display_progress_clear();
     for(unsigned char l=0; l<lines; l++) {
         display_progress_line(l, text[l]);
     }

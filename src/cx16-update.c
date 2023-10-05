@@ -59,8 +59,25 @@ void main() {
     display_frame_draw();
     display_frame_title("Commander X16 Flash Utility!");
     display_info_title();
-    display_action_progress("Detecting SMC, VERA and ROM chipsets ...");
+    display_action_progress("Introduction ...");
     display_progress_clear();
+    display_chip_smc();
+    display_chip_vera();
+    display_chip_rom();
+
+#ifdef __INTRO
+
+    display_progress_text(display_into_briefing_text, display_intro_briefing_count);
+    util_wait_key("Please read carefully the below, and press [SPACE] ...", " ");
+
+    display_progress_text(display_into_colors_text, display_intro_colors_count);
+    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
+        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
+    }
+    util_wait_key("If understood, press [SPACE] to start the update ...", " ");
+    display_progress_clear();
+
+#endif
 
 
 #ifdef __SMC_CHIP_PROCESS
@@ -74,16 +91,18 @@ void main() {
     display_chip_smc();
 
     if(smc_bootloader == 0x0100) {
-        display_info_smc(STATUS_ERROR, "No Bootloader!");
+        display_info_smc(STATUS_ISSUE, "No Bootloader!"); // If the CX16 board does not have a bootloader, display info how to flash bootloader.
+        display_progress_text(display_no_smc_bootloader_text, display_no_smc_bootloader_count);
     } else {
         if(smc_bootloader == 0x0200) {
-            display_info_smc(STATUS_ERROR, "Unreachable!");
+            display_info_smc(STATUS_ERROR, "Unreachable!"); // This is an error with the CX16 board. J5 jumpers doesn't matter when flashing the CX16 from this utility.
         } else {
             if(smc_bootloader > 0x2) {
                 sprintf(info_text, "Bootloader v%02x invalid! !", smc_bootloader);
-                display_info_smc(STATUS_ERROR, info_text);
+                display_info_smc(STATUS_ISSUE, info_text); // Bootloader is not supported by this utility, but is not error.
+                display_progress_text(display_no_valid_smc_bootloader_text, display_no_valid_smc_bootloader_count);
             } else {
-                sprintf(info_text, "Bootloader v%02x", smc_bootloader);
+                sprintf(info_text, "Bootloader v%02x", smc_bootloader); // All ok, display bootloader version.
                 display_info_smc(STATUS_DETECTED, info_text);
             }
         }
@@ -114,21 +133,6 @@ void main() {
     }
 
     CLI();
-
-#endif
-
-#ifdef __INTRO
-
-    display_progress_text(display_into_briefing_text, display_intro_briefing_count);
-    util_wait_key("Please read carefully the below, and press [SPACE] ...", " ");
-    display_progress_clear();
-
-    display_progress_text(display_into_colors_text, display_intro_colors_count);
-    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
-        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
-    }
-    util_wait_key("If understood, press [SPACE] to start the update ...", " ");
-    display_progress_clear();
 
 #endif
 
@@ -230,15 +234,13 @@ void main() {
 
     // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
     if(!check_status_smc(STATUS_FLASH) || !check_status_cx16_rom(STATUS_FLASH)) {
-        display_info_smc(STATUS_ISSUE, NULL);
-        display_info_cx16_rom(STATUS_ISSUE, NULL);
         display_action_progress("There is an issue with either the SMC or the CX16 main ROM!");
-        util_wait_key("Press [SPACE] to continue [ ]", " ");
+        util_wait_key("Press [SPACE] to continue ...", " ");
     }
 
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
         display_action_progress("Chipsets have been detected and update files validated!");
-        unsigned char ch = util_wait_key("Continue with update? [Y/N]", "nyNY");        
+        unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY");        
         if(strchr("nN", ch)) {
             // We cancel all updates, the updates are skipped.
             display_info_smc(STATUS_SKIP, "Cancelled");
@@ -253,7 +255,9 @@ void main() {
     SEI();
 
     // Flash the SMC when it has the status!
-    if (check_status_smc(STATUS_FLASH)) {
+    if (check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
+
+        display_progress_clear();
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_FLASH
@@ -343,8 +347,6 @@ void main() {
 
     bank_set_brom(4);
     CLI();
-
-    display_progress_clear();
 
     display_action_progress("Update finished ...");
 
