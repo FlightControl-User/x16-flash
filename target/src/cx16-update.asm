@@ -26,6 +26,14 @@
 :BasicUpstart(__start)
 
   // Global Constants & labels
+  // Some addressing constants.
+  // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
+  // Normally they should be all activated.
+  // To print the graphics on the vera.
+  .const PROGRESS_X = 2
+  .const PROGRESS_Y = $20
+  .const PROGRESS_W = $40
+  .const PROGRESS_H = $10
   /// The colors of the C64
   .const BLACK = 0
   .const WHITE = 1
@@ -85,14 +93,6 @@
   .const VERA_ADDRSEL = 1
   .const VERA_LAYER_WIDTH_MASK = $30
   .const VERA_LAYER_HEIGHT_MASK = $c0
-  // Some addressing constants.
-  // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
-  // Normally they should be all activated.
-  // To print the graphics on the vera.
-  .const PROGRESS_X = 2
-  .const PROGRESS_Y = $20
-  .const PROGRESS_W = $40
-  .const PROGRESS_H = $10
   .const STATUS_NONE = 0
   .const STATUS_SKIP = 1
   .const STATUS_DETECTED = 2
@@ -103,6 +103,7 @@
   .const STATUS_ISSUE = 9
   .const STATUS_ERROR = $a
   .const PROGRESS_CELL = $200
+  // A progress frame cell represents about 512 bytes for a ROM update.
   .const PROGRESS_ROW = $8000
   /**
  * @file cx16-display-text.h
@@ -122,7 +123,7 @@
   .const STACK_BASE = $103
   .const SIZEOF_STRUCT___1 = $8f
   .const SIZEOF_STRUCT_PRINTF_BUFFER_NUMBER = $c
-  .const SIZEOF_STRUCT___2 = $90
+  .const SIZEOF_STRUCT___2 = $48
   /// $9F20 VRAM Address (7:0)
   .label VERA_ADDRX_L = $9f20
   /// $9F21 VRAM Address (15:8)
@@ -506,25 +507,25 @@ main: {
     .label main__181 = $d5
     .label main__183 = $b3
     .label main__185 = $dd
-    .label get_status_smc1_main__0 = $74
-    .label get_status_smc2_main__0 = $58
-    .label get_status_cx16_rom1_get_status_rom1_main__0 = $7f
-    .label get_status_smc3_main__0 = $78
-    .label get_status_cx16_rom2_get_status_rom1_main__0 = $72
-    .label get_status_card_roms1_get_status_rom1_main__0 = $d0
-    .label get_status_smc4_main__0 = $b2
-    .label get_status_rom1_main__0 = $bf
-    .label get_status_smc5_main__0 = $b5
-    .label get_status_vera1_main__0 = $cd
-    .label get_status_roms_all1_get_status_rom1_main__0 = $b4
-    .label get_status_smc6_main__0 = $b1
-    .label get_status_smc7_main__0 = $c5
-    .label get_status_vera2_main__0 = $79
-    .label get_status_roms1_get_status_rom1_main__0 = $68
-    .label get_status_smc8_main__0 = $7a
-    .label get_status_vera3_main__0 = $c6
-    .label get_status_roms2_get_status_rom1_main__0 = $69
-    .label get_status_smc9_main__0 = $73
+    .label check_status_smc1_main__0 = $74
+    .label check_status_smc2_main__0 = $58
+    .label check_status_cx16_rom1_check_status_rom1_main__0 = $7f
+    .label check_status_smc3_main__0 = $78
+    .label check_status_cx16_rom2_check_status_rom1_main__0 = $72
+    .label check_status_card_roms1_check_status_rom1_main__0 = $d0
+    .label check_status_smc4_main__0 = $b2
+    .label check_status_rom1_main__0 = $bf
+    .label check_status_smc5_main__0 = $b5
+    .label check_status_vera1_main__0 = $cd
+    .label check_status_roms_all1_check_status_rom1_main__0 = $b4
+    .label check_status_smc6_main__0 = $b1
+    .label check_status_smc7_main__0 = $c5
+    .label check_status_vera2_main__0 = $79
+    .label check_status_roms1_check_status_rom1_main__0 = $68
+    .label check_status_smc8_main__0 = $7a
+    .label check_status_vera3_main__0 = $c6
+    .label check_status_roms2_check_status_rom1_main__0 = $69
+    .label check_status_smc9_main__0 = $73
     .label file = $db
     .label file1 = $d1
     // main::bank_set_bram1
@@ -901,22 +902,22 @@ main: {
     // asm
     // asm { sei  }
     sei
-    // main::get_status_smc1
+    // main::check_status_smc1
     // status_smc == status
-    // [134] main::get_status_smc1_$0 = status_smc#0 == STATUS_DETECTED -- vboz1=vbum2_eq_vbuc1 
+    // [134] main::check_status_smc1_$0 = status_smc#0 == STATUS_DETECTED -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_DETECTED
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc1_main__0
+    sta.z check_status_smc1_main__0
     // return (unsigned char)(status_smc == status);
-    // [135] main::get_status_smc1_return#0 = (char)main::get_status_smc1_$0 -- vbum1=vbuz2 
-    sta get_status_smc1_return
+    // [135] main::check_status_smc1_return#0 = (char)main::check_status_smc1_$0 -- vbum1=vbuz2 
+    sta check_status_smc1_return
     // main::@61
-    // if(get_status_smc(STATUS_DETECTED))
-    // [136] if(0==main::get_status_smc1_return#0) goto main::CLI3 -- 0_eq_vbum1_then_la1 
+    // if(check_status_smc(STATUS_DETECTED))
+    // [136] if(0==main::check_status_smc1_return#0) goto main::CLI3 -- 0_eq_vbum1_then_la1 
     bne !__b4+
     jmp __b4
   !__b4:
@@ -1084,112 +1085,112 @@ main: {
     // asm
     // asm { cli  }
     cli
-    // main::get_status_smc2
+    // main::check_status_smc2
     // status_smc == status
-    // [161] main::get_status_smc2_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [161] main::check_status_smc2_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc2_main__0
+    sta.z check_status_smc2_main__0
     // return (unsigned char)(status_smc == status);
-    // [162] main::get_status_smc2_return#0 = (char)main::get_status_smc2_$0 -- vbum1=vbuz2 
-    sta get_status_smc2_return
-    // [163] phi from main::get_status_smc2 to main::get_status_cx16_rom1 [phi:main::get_status_smc2->main::get_status_cx16_rom1]
-    // main::get_status_cx16_rom1
-    // main::get_status_cx16_rom1_get_status_rom1
+    // [162] main::check_status_smc2_return#0 = (char)main::check_status_smc2_$0 -- vbum1=vbuz2 
+    sta check_status_smc2_return
+    // [163] phi from main::check_status_smc2 to main::check_status_cx16_rom1 [phi:main::check_status_smc2->main::check_status_cx16_rom1]
+    // main::check_status_cx16_rom1
+    // main::check_status_cx16_rom1_check_status_rom1
     // status_rom[rom_chip] == status
-    // [164] main::get_status_cx16_rom1_get_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [164] main::check_status_cx16_rom1_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_FLASH
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_cx16_rom1_get_status_rom1_main__0
+    sta.z check_status_cx16_rom1_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [165] main::get_status_cx16_rom1_get_status_rom1_return#0 = (char)main::get_status_cx16_rom1_get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_cx16_rom1_get_status_rom1_return
+    // [165] main::check_status_cx16_rom1_check_status_rom1_return#0 = (char)main::check_status_cx16_rom1_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom1_check_status_rom1_return
     // main::@63
-    // if(!get_status_smc(STATUS_FLASH) || !get_status_cx16_rom(STATUS_FLASH))
-    // [166] if(0==main::get_status_smc2_return#0) goto main::@33 -- 0_eq_vbum1_then_la1 
-    lda get_status_smc2_return
+    // if(!check_status_smc(STATUS_FLASH) || !check_status_cx16_rom(STATUS_FLASH))
+    // [166] if(0==main::check_status_smc2_return#0) goto main::@33 -- 0_eq_vbum1_then_la1 
+    lda check_status_smc2_return
     bne !__b33+
     jmp __b33
   !__b33:
     // main::@173
-    // [167] if(0==main::get_status_cx16_rom1_get_status_rom1_return#0) goto main::@33 -- 0_eq_vbum1_then_la1 
-    lda get_status_cx16_rom1_get_status_rom1_return
+    // [167] if(0==main::check_status_cx16_rom1_check_status_rom1_return#0) goto main::@33 -- 0_eq_vbum1_then_la1 
+    lda check_status_cx16_rom1_check_status_rom1_return
     bne !__b33+
     jmp __b33
   !__b33:
-    // main::get_status_smc3
-  get_status_smc3:
+    // main::check_status_smc3
+  check_status_smc3:
     // status_smc == status
-    // [168] main::get_status_smc3_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [168] main::check_status_smc3_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc3_main__0
+    sta.z check_status_smc3_main__0
     // return (unsigned char)(status_smc == status);
-    // [169] main::get_status_smc3_return#0 = (char)main::get_status_smc3_$0 -- vbum1=vbuz2 
-    sta get_status_smc3_return
-    // [170] phi from main::get_status_smc3 to main::get_status_cx16_rom2 [phi:main::get_status_smc3->main::get_status_cx16_rom2]
-    // main::get_status_cx16_rom2
-    // main::get_status_cx16_rom2_get_status_rom1
+    // [169] main::check_status_smc3_return#0 = (char)main::check_status_smc3_$0 -- vbum1=vbuz2 
+    sta check_status_smc3_return
+    // [170] phi from main::check_status_smc3 to main::check_status_cx16_rom2 [phi:main::check_status_smc3->main::check_status_cx16_rom2]
+    // main::check_status_cx16_rom2
+    // main::check_status_cx16_rom2_check_status_rom1
     // status_rom[rom_chip] == status
-    // [171] main::get_status_cx16_rom2_get_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [171] main::check_status_cx16_rom2_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_FLASH
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_cx16_rom2_get_status_rom1_main__0
+    sta.z check_status_cx16_rom2_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [172] main::get_status_cx16_rom2_get_status_rom1_return#0 = (char)main::get_status_cx16_rom2_get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_cx16_rom2_get_status_rom1_return
-    // [173] phi from main::get_status_cx16_rom2_get_status_rom1 to main::get_status_card_roms1 [phi:main::get_status_cx16_rom2_get_status_rom1->main::get_status_card_roms1]
-    // main::get_status_card_roms1
-    // [174] phi from main::get_status_card_roms1 to main::get_status_card_roms1_@1 [phi:main::get_status_card_roms1->main::get_status_card_roms1_@1]
-    // [174] phi main::get_status_card_roms1_rom_chip#2 = 1 [phi:main::get_status_card_roms1->main::get_status_card_roms1_@1#0] -- vbum1=vbuc1 
+    // [172] main::check_status_cx16_rom2_check_status_rom1_return#0 = (char)main::check_status_cx16_rom2_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom2_check_status_rom1_return
+    // [173] phi from main::check_status_cx16_rom2_check_status_rom1 to main::check_status_card_roms1 [phi:main::check_status_cx16_rom2_check_status_rom1->main::check_status_card_roms1]
+    // main::check_status_card_roms1
+    // [174] phi from main::check_status_card_roms1 to main::check_status_card_roms1_@1 [phi:main::check_status_card_roms1->main::check_status_card_roms1_@1]
+    // [174] phi main::check_status_card_roms1_rom_chip#2 = 1 [phi:main::check_status_card_roms1->main::check_status_card_roms1_@1#0] -- vbum1=vbuc1 
     lda #1
-    sta get_status_card_roms1_rom_chip
-    // main::get_status_card_roms1_@1
-  get_status_card_roms1___b1:
+    sta check_status_card_roms1_rom_chip
+    // main::check_status_card_roms1_@1
+  check_status_card_roms1___b1:
     // for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++)
-    // [175] if(main::get_status_card_roms1_rom_chip#2<8) goto main::get_status_card_roms1_get_status_rom1 -- vbum1_lt_vbuc1_then_la1 
-    lda get_status_card_roms1_rom_chip
+    // [175] if(main::check_status_card_roms1_rom_chip#2<8) goto main::check_status_card_roms1_check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda check_status_card_roms1_rom_chip
     cmp #8
-    bcs !get_status_card_roms1_get_status_rom1+
-    jmp get_status_card_roms1_get_status_rom1
-  !get_status_card_roms1_get_status_rom1:
-    // [176] phi from main::get_status_card_roms1_@1 to main::get_status_card_roms1_@return [phi:main::get_status_card_roms1_@1->main::get_status_card_roms1_@return]
-    // [176] phi main::get_status_card_roms1_return#2 = STATUS_NONE [phi:main::get_status_card_roms1_@1->main::get_status_card_roms1_@return#0] -- vbum1=vbuc1 
+    bcs !check_status_card_roms1_check_status_rom1+
+    jmp check_status_card_roms1_check_status_rom1
+  !check_status_card_roms1_check_status_rom1:
+    // [176] phi from main::check_status_card_roms1_@1 to main::check_status_card_roms1_@return [phi:main::check_status_card_roms1_@1->main::check_status_card_roms1_@return]
+    // [176] phi main::check_status_card_roms1_return#2 = STATUS_NONE [phi:main::check_status_card_roms1_@1->main::check_status_card_roms1_@return#0] -- vbum1=vbuc1 
     lda #STATUS_NONE
-    sta get_status_card_roms1_return
-    // main::get_status_card_roms1_@return
+    sta check_status_card_roms1_return
+    // main::check_status_card_roms1_@return
     // main::@66
   __b66:
-    // if(get_status_smc(STATUS_FLASH) && get_status_cx16_rom(STATUS_FLASH) || get_status_card_roms(STATUS_FLASH))
-    // [177] if(0==main::get_status_smc3_return#0) goto main::@174 -- 0_eq_vbum1_then_la1 
-    lda get_status_smc3_return
+    // if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH))
+    // [177] if(0==main::check_status_smc3_return#0) goto main::@174 -- 0_eq_vbum1_then_la1 
+    lda check_status_smc3_return
     beq __b174
     // main::@175
-    // [178] if(0!=main::get_status_cx16_rom2_get_status_rom1_return#0) goto main::@6 -- 0_neq_vbum1_then_la1 
-    lda get_status_cx16_rom2_get_status_rom1_return
+    // [178] if(0!=main::check_status_cx16_rom2_check_status_rom1_return#0) goto main::@6 -- 0_neq_vbum1_then_la1 
+    lda check_status_cx16_rom2_check_status_rom1_return
     beq !__b6+
     jmp __b6
   !__b6:
     // main::@174
   __b174:
-    // [179] if(0!=main::get_status_card_roms1_return#2) goto main::@6 -- 0_neq_vbum1_then_la1 
-    lda get_status_card_roms1_return
+    // [179] if(0!=main::check_status_card_roms1_return#2) goto main::@6 -- 0_neq_vbum1_then_la1 
+    lda check_status_card_roms1_return
     beq !__b6+
     jmp __b6
   !__b6:
@@ -1198,22 +1199,22 @@ main: {
     // asm
     // asm { sei  }
     sei
-    // main::get_status_smc4
+    // main::check_status_smc4
     // status_smc == status
-    // [181] main::get_status_smc4_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [181] main::check_status_smc4_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc4_main__0
+    sta.z check_status_smc4_main__0
     // return (unsigned char)(status_smc == status);
-    // [182] main::get_status_smc4_return#0 = (char)main::get_status_smc4_$0 -- vbum1=vbuz2 
-    sta get_status_smc4_return
+    // [182] main::check_status_smc4_return#0 = (char)main::check_status_smc4_$0 -- vbum1=vbuz2 
+    sta check_status_smc4_return
     // main::@67
-    // if (get_status_smc(STATUS_FLASH))
-    // [183] if(0==main::get_status_smc4_return#0) goto main::@2 -- 0_eq_vbum1_then_la1 
+    // if (check_status_smc(STATUS_FLASH))
+    // [183] if(0==main::check_status_smc4_return#0) goto main::@2 -- 0_eq_vbum1_then_la1 
     bne !__b2+
     jmp __b2
   !__b2:
@@ -1336,12 +1337,12 @@ main: {
     // main::@38
   __b38:
     // for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--)
-    // [202] if(main::rom_chip3#10!=$ff) goto main::get_status_rom1 -- vbum1_neq_vbuc1_then_la1 
+    // [202] if(main::rom_chip3#10!=$ff) goto main::check_status_rom1 -- vbum1_neq_vbuc1_then_la1 
     lda #$ff
     cmp rom_chip3
-    beq !get_status_rom1+
-    jmp get_status_rom1
-  !get_status_rom1:
+    beq !check_status_rom1+
+    jmp check_status_rom1
+  !check_status_rom1:
     // main::bank_set_brom4
     // BROM = bank
     // [203] BROM = main::bank_set_brom4_bank#0 -- vbuz1=vbuc1 
@@ -1368,198 +1369,198 @@ main: {
     lda #>info_text22
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // main::get_status_smc5
+    // main::check_status_smc5
     // status_smc == status
-    // [209] main::get_status_smc5_$0 = status_smc#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
+    // [209] main::check_status_smc5_$0 = status_smc#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_SKIP
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc5_main__0
+    sta.z check_status_smc5_main__0
     // return (unsigned char)(status_smc == status);
-    // [210] main::get_status_smc5_return#0 = (char)main::get_status_smc5_$0 -- vbum1=vbuz2 
-    sta get_status_smc5_return
-    // main::get_status_vera1
+    // [210] main::check_status_smc5_return#0 = (char)main::check_status_smc5_$0 -- vbum1=vbuz2 
+    sta check_status_smc5_return
+    // main::check_status_vera1
     // status_vera == status
-    // [211] main::get_status_vera1_$0 = status_vera#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
+    // [211] main::check_status_vera1_$0 = status_vera#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_SKIP
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_vera1_main__0
+    sta.z check_status_vera1_main__0
     // return (unsigned char)(status_vera == status);
-    // [212] main::get_status_vera1_return#0 = (char)main::get_status_vera1_$0 -- vbum1=vbuz2 
-    sta get_status_vera1_return
-    // [213] phi from main::get_status_vera1 to main::get_status_roms_all1 [phi:main::get_status_vera1->main::get_status_roms_all1]
-    // main::get_status_roms_all1
-    // [214] phi from main::get_status_roms_all1 to main::get_status_roms_all1_@1 [phi:main::get_status_roms_all1->main::get_status_roms_all1_@1]
-    // [214] phi main::get_status_roms_all1_rom_chip#2 = 0 [phi:main::get_status_roms_all1->main::get_status_roms_all1_@1#0] -- vbum1=vbuc1 
+    // [212] main::check_status_vera1_return#0 = (char)main::check_status_vera1_$0 -- vbum1=vbuz2 
+    sta check_status_vera1_return
+    // [213] phi from main::check_status_vera1 to main::check_status_roms_all1 [phi:main::check_status_vera1->main::check_status_roms_all1]
+    // main::check_status_roms_all1
+    // [214] phi from main::check_status_roms_all1 to main::check_status_roms_all1_@1 [phi:main::check_status_roms_all1->main::check_status_roms_all1_@1]
+    // [214] phi main::check_status_roms_all1_rom_chip#2 = 0 [phi:main::check_status_roms_all1->main::check_status_roms_all1_@1#0] -- vbum1=vbuc1 
     lda #0
-    sta get_status_roms_all1_rom_chip
-    // main::get_status_roms_all1_@1
-  get_status_roms_all1___b1:
+    sta check_status_roms_all1_rom_chip
+    // main::check_status_roms_all1_@1
+  check_status_roms_all1___b1:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [215] if(main::get_status_roms_all1_rom_chip#2<8) goto main::get_status_roms_all1_get_status_rom1 -- vbum1_lt_vbuc1_then_la1 
-    lda get_status_roms_all1_rom_chip
+    // [215] if(main::check_status_roms_all1_rom_chip#2<8) goto main::check_status_roms_all1_check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda check_status_roms_all1_rom_chip
     cmp #8
-    bcs !get_status_roms_all1_get_status_rom1+
-    jmp get_status_roms_all1_get_status_rom1
-  !get_status_roms_all1_get_status_rom1:
-    // [216] phi from main::get_status_roms_all1_@1 to main::get_status_roms_all1_@return [phi:main::get_status_roms_all1_@1->main::get_status_roms_all1_@return]
-    // [216] phi main::get_status_roms_all1_return#2 = 1 [phi:main::get_status_roms_all1_@1->main::get_status_roms_all1_@return#0] -- vbum1=vbuc1 
+    bcs !check_status_roms_all1_check_status_rom1+
+    jmp check_status_roms_all1_check_status_rom1
+  !check_status_roms_all1_check_status_rom1:
+    // [216] phi from main::check_status_roms_all1_@1 to main::check_status_roms_all1_@return [phi:main::check_status_roms_all1_@1->main::check_status_roms_all1_@return]
+    // [216] phi main::check_status_roms_all1_return#2 = 1 [phi:main::check_status_roms_all1_@1->main::check_status_roms_all1_@return#0] -- vbum1=vbuc1 
     lda #1
-    sta get_status_roms_all1_return
-    // main::get_status_roms_all1_@return
+    sta check_status_roms_all1_return
+    // main::check_status_roms_all1_@return
     // main::@70
   __b70:
-    // if(get_status_smc(STATUS_SKIP) && get_status_vera(STATUS_SKIP) && get_status_roms_all(STATUS_SKIP))
-    // [217] if(0==main::get_status_smc5_return#0) goto main::get_status_smc7 -- 0_eq_vbum1_then_la1 
-    lda get_status_smc5_return
-    beq get_status_smc7
+    // if(check_status_smc(STATUS_SKIP) && check_status_vera(STATUS_SKIP) && check_status_roms_all(STATUS_SKIP))
+    // [217] if(0==main::check_status_smc5_return#0) goto main::check_status_smc7 -- 0_eq_vbum1_then_la1 
+    lda check_status_smc5_return
+    beq check_status_smc7
     // main::@177
-    // [218] if(0==main::get_status_vera1_return#0) goto main::get_status_smc7 -- 0_eq_vbum1_then_la1 
-    lda get_status_vera1_return
-    beq get_status_smc7
+    // [218] if(0==main::check_status_vera1_return#0) goto main::check_status_smc7 -- 0_eq_vbum1_then_la1 
+    lda check_status_vera1_return
+    beq check_status_smc7
     // main::@176
-    // [219] if(0!=main::get_status_roms_all1_return#2) goto main::vera_display_set_border_color1 -- 0_neq_vbum1_then_la1 
-    lda get_status_roms_all1_return
+    // [219] if(0!=main::check_status_roms_all1_return#2) goto main::vera_display_set_border_color1 -- 0_neq_vbum1_then_la1 
+    lda check_status_roms_all1_return
     beq !vera_display_set_border_color1+
     jmp vera_display_set_border_color1
   !vera_display_set_border_color1:
-    // main::get_status_smc7
-  get_status_smc7:
+    // main::check_status_smc7
+  check_status_smc7:
     // status_smc == status
-    // [220] main::get_status_smc7_$0 = status_smc#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
+    // [220] main::check_status_smc7_$0 = status_smc#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_ERROR
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc7_main__0
+    sta.z check_status_smc7_main__0
     // return (unsigned char)(status_smc == status);
-    // [221] main::get_status_smc7_return#0 = (char)main::get_status_smc7_$0 -- vbum1=vbuz2 
-    sta get_status_smc7_return
-    // main::get_status_vera2
+    // [221] main::check_status_smc7_return#0 = (char)main::check_status_smc7_$0 -- vbum1=vbuz2 
+    sta check_status_smc7_return
+    // main::check_status_vera2
     // status_vera == status
-    // [222] main::get_status_vera2_$0 = status_vera#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
+    // [222] main::check_status_vera2_$0 = status_vera#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_ERROR
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_vera2_main__0
+    sta.z check_status_vera2_main__0
     // return (unsigned char)(status_vera == status);
-    // [223] main::get_status_vera2_return#0 = (char)main::get_status_vera2_$0 -- vbum1=vbuz2 
-    sta get_status_vera2_return
-    // [224] phi from main::get_status_vera2 to main::get_status_roms1 [phi:main::get_status_vera2->main::get_status_roms1]
-    // main::get_status_roms1
-    // [225] phi from main::get_status_roms1 to main::get_status_roms1_@1 [phi:main::get_status_roms1->main::get_status_roms1_@1]
-    // [225] phi main::get_status_roms1_rom_chip#2 = 0 [phi:main::get_status_roms1->main::get_status_roms1_@1#0] -- vbum1=vbuc1 
+    // [223] main::check_status_vera2_return#0 = (char)main::check_status_vera2_$0 -- vbum1=vbuz2 
+    sta check_status_vera2_return
+    // [224] phi from main::check_status_vera2 to main::check_status_roms1 [phi:main::check_status_vera2->main::check_status_roms1]
+    // main::check_status_roms1
+    // [225] phi from main::check_status_roms1 to main::check_status_roms1_@1 [phi:main::check_status_roms1->main::check_status_roms1_@1]
+    // [225] phi main::check_status_roms1_rom_chip#2 = 0 [phi:main::check_status_roms1->main::check_status_roms1_@1#0] -- vbum1=vbuc1 
     lda #0
-    sta get_status_roms1_rom_chip
-    // main::get_status_roms1_@1
-  get_status_roms1___b1:
+    sta check_status_roms1_rom_chip
+    // main::check_status_roms1_@1
+  check_status_roms1___b1:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [226] if(main::get_status_roms1_rom_chip#2<8) goto main::get_status_roms1_get_status_rom1 -- vbum1_lt_vbuc1_then_la1 
-    lda get_status_roms1_rom_chip
+    // [226] if(main::check_status_roms1_rom_chip#2<8) goto main::check_status_roms1_check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda check_status_roms1_rom_chip
     cmp #8
-    bcs !get_status_roms1_get_status_rom1+
-    jmp get_status_roms1_get_status_rom1
-  !get_status_roms1_get_status_rom1:
-    // [227] phi from main::get_status_roms1_@1 to main::get_status_roms1_@return [phi:main::get_status_roms1_@1->main::get_status_roms1_@return]
-    // [227] phi main::get_status_roms1_return#2 = STATUS_NONE [phi:main::get_status_roms1_@1->main::get_status_roms1_@return#0] -- vbum1=vbuc1 
+    bcs !check_status_roms1_check_status_rom1+
+    jmp check_status_roms1_check_status_rom1
+  !check_status_roms1_check_status_rom1:
+    // [227] phi from main::check_status_roms1_@1 to main::check_status_roms1_@return [phi:main::check_status_roms1_@1->main::check_status_roms1_@return]
+    // [227] phi main::check_status_roms1_return#2 = STATUS_NONE [phi:main::check_status_roms1_@1->main::check_status_roms1_@return#0] -- vbum1=vbuc1 
     lda #STATUS_NONE
-    sta get_status_roms1_return
-    // main::get_status_roms1_@return
+    sta check_status_roms1_return
+    // main::check_status_roms1_@return
     // main::@74
   __b74:
-    // if(get_status_smc(STATUS_ERROR) || get_status_vera(STATUS_ERROR) || get_status_roms(STATUS_ERROR))
-    // [228] if(0!=main::get_status_smc7_return#0) goto main::vera_display_set_border_color2 -- 0_neq_vbum1_then_la1 
-    lda get_status_smc7_return
+    // if(check_status_smc(STATUS_ERROR) || check_status_vera(STATUS_ERROR) || check_status_roms(STATUS_ERROR))
+    // [228] if(0!=main::check_status_smc7_return#0) goto main::vera_display_set_border_color2 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc7_return
     beq !vera_display_set_border_color2+
     jmp vera_display_set_border_color2
   !vera_display_set_border_color2:
     // main::@181
-    // [229] if(0!=main::get_status_vera2_return#0) goto main::vera_display_set_border_color2 -- 0_neq_vbum1_then_la1 
-    lda get_status_vera2_return
+    // [229] if(0!=main::check_status_vera2_return#0) goto main::vera_display_set_border_color2 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera2_return
     beq !vera_display_set_border_color2+
     jmp vera_display_set_border_color2
   !vera_display_set_border_color2:
     // main::@180
-    // [230] if(0!=main::get_status_roms1_return#2) goto main::vera_display_set_border_color2 -- 0_neq_vbum1_then_la1 
-    lda get_status_roms1_return
+    // [230] if(0!=main::check_status_roms1_return#2) goto main::vera_display_set_border_color2 -- 0_neq_vbum1_then_la1 
+    lda check_status_roms1_return
     beq !vera_display_set_border_color2+
     jmp vera_display_set_border_color2
   !vera_display_set_border_color2:
-    // main::get_status_smc8
+    // main::check_status_smc8
     // status_smc == status
-    // [231] main::get_status_smc8_$0 = status_smc#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
+    // [231] main::check_status_smc8_$0 = status_smc#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_ISSUE
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc8_main__0
+    sta.z check_status_smc8_main__0
     // return (unsigned char)(status_smc == status);
-    // [232] main::get_status_smc8_return#0 = (char)main::get_status_smc8_$0 -- vbum1=vbuz2 
-    sta get_status_smc8_return
-    // main::get_status_vera3
+    // [232] main::check_status_smc8_return#0 = (char)main::check_status_smc8_$0 -- vbum1=vbuz2 
+    sta check_status_smc8_return
+    // main::check_status_vera3
     // status_vera == status
-    // [233] main::get_status_vera3_$0 = status_vera#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
+    // [233] main::check_status_vera3_$0 = status_vera#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_ISSUE
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_vera3_main__0
+    sta.z check_status_vera3_main__0
     // return (unsigned char)(status_vera == status);
-    // [234] main::get_status_vera3_return#0 = (char)main::get_status_vera3_$0 -- vbum1=vbuz2 
-    sta get_status_vera3_return
-    // [235] phi from main::get_status_vera3 to main::get_status_roms2 [phi:main::get_status_vera3->main::get_status_roms2]
-    // main::get_status_roms2
-    // [236] phi from main::get_status_roms2 to main::get_status_roms2_@1 [phi:main::get_status_roms2->main::get_status_roms2_@1]
-    // [236] phi main::get_status_roms2_rom_chip#2 = 0 [phi:main::get_status_roms2->main::get_status_roms2_@1#0] -- vbum1=vbuc1 
+    // [234] main::check_status_vera3_return#0 = (char)main::check_status_vera3_$0 -- vbum1=vbuz2 
+    sta check_status_vera3_return
+    // [235] phi from main::check_status_vera3 to main::check_status_roms2 [phi:main::check_status_vera3->main::check_status_roms2]
+    // main::check_status_roms2
+    // [236] phi from main::check_status_roms2 to main::check_status_roms2_@1 [phi:main::check_status_roms2->main::check_status_roms2_@1]
+    // [236] phi main::check_status_roms2_rom_chip#2 = 0 [phi:main::check_status_roms2->main::check_status_roms2_@1#0] -- vbum1=vbuc1 
     lda #0
-    sta get_status_roms2_rom_chip
-    // main::get_status_roms2_@1
-  get_status_roms2___b1:
+    sta check_status_roms2_rom_chip
+    // main::check_status_roms2_@1
+  check_status_roms2___b1:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [237] if(main::get_status_roms2_rom_chip#2<8) goto main::get_status_roms2_get_status_rom1 -- vbum1_lt_vbuc1_then_la1 
-    lda get_status_roms2_rom_chip
+    // [237] if(main::check_status_roms2_rom_chip#2<8) goto main::check_status_roms2_check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda check_status_roms2_rom_chip
     cmp #8
-    bcs !get_status_roms2_get_status_rom1+
-    jmp get_status_roms2_get_status_rom1
-  !get_status_roms2_get_status_rom1:
-    // [238] phi from main::get_status_roms2_@1 to main::get_status_roms2_@return [phi:main::get_status_roms2_@1->main::get_status_roms2_@return]
-    // [238] phi main::get_status_roms2_return#2 = STATUS_NONE [phi:main::get_status_roms2_@1->main::get_status_roms2_@return#0] -- vbum1=vbuc1 
+    bcs !check_status_roms2_check_status_rom1+
+    jmp check_status_roms2_check_status_rom1
+  !check_status_roms2_check_status_rom1:
+    // [238] phi from main::check_status_roms2_@1 to main::check_status_roms2_@return [phi:main::check_status_roms2_@1->main::check_status_roms2_@return]
+    // [238] phi main::check_status_roms2_return#2 = STATUS_NONE [phi:main::check_status_roms2_@1->main::check_status_roms2_@return#0] -- vbum1=vbuc1 
     lda #STATUS_NONE
-    sta get_status_roms2_return
-    // main::get_status_roms2_@return
+    sta check_status_roms2_return
+    // main::check_status_roms2_@return
     // main::@76
   __b76:
-    // if(get_status_smc(STATUS_ISSUE) || get_status_vera(STATUS_ISSUE) || get_status_roms(STATUS_ISSUE))
-    // [239] if(0!=main::get_status_smc8_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
-    lda get_status_smc8_return
+    // if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE))
+    // [239] if(0!=main::check_status_smc8_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc8_return
     beq !vera_display_set_border_color3+
     jmp vera_display_set_border_color3
   !vera_display_set_border_color3:
     // main::@183
-    // [240] if(0!=main::get_status_vera3_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
-    lda get_status_vera3_return
+    // [240] if(0!=main::check_status_vera3_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera3_return
     beq !vera_display_set_border_color3+
     jmp vera_display_set_border_color3
   !vera_display_set_border_color3:
     // main::@182
-    // [241] if(0!=main::get_status_roms2_return#2) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
-    lda get_status_roms2_return
+    // [241] if(0!=main::check_status_roms2_return#2) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
+    lda check_status_roms2_return
     beq !vera_display_set_border_color3+
     jmp vera_display_set_border_color3
   !vera_display_set_border_color3:
@@ -1573,22 +1574,22 @@ main: {
     // [243] *VERA_DC_BORDER = GREEN -- _deref_pbuc1=vbuc2 
     lda #GREEN
     sta VERA_DC_BORDER
-    // main::get_status_smc9
+    // main::check_status_smc9
     // status_smc == status
-    // [244] main::get_status_smc9_$0 = status_smc#0 == STATUS_FLASHED -- vboz1=vbum2_eq_vbuc1 
+    // [244] main::check_status_smc9_$0 = status_smc#0 == STATUS_FLASHED -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASHED
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc9_main__0
+    sta.z check_status_smc9_main__0
     // return (unsigned char)(status_smc == status);
-    // [245] main::get_status_smc9_return#0 = (char)main::get_status_smc9_$0 -- vbum1=vbuz2 
-    sta get_status_smc9_return
+    // [245] main::check_status_smc9_return#0 = (char)main::check_status_smc9_$0 -- vbum1=vbuz2 
+    sta check_status_smc9_return
     // main::@78
-    // if(get_status_smc(STATUS_FLASHED))
-    // [246] if(0!=main::get_status_smc9_return#0) goto main::@47 -- 0_neq_vbum1_then_la1 
+    // if(check_status_smc(STATUS_FLASHED))
+    // [246] if(0!=main::check_status_smc9_return#0) goto main::@47 -- 0_neq_vbum1_then_la1 
     beq !__b47+
     jmp __b47
   !__b47:
@@ -1904,39 +1905,39 @@ main: {
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
     jmp __b5
-    // main::get_status_roms2_get_status_rom1
-  get_status_roms2_get_status_rom1:
+    // main::check_status_roms2_check_status_rom1
+  check_status_roms2_check_status_rom1:
     // status_rom[rom_chip] == status
-    // [302] main::get_status_roms2_get_status_rom1_$0 = status_rom[main::get_status_roms2_rom_chip#2] == STATUS_ISSUE -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
+    // [302] main::check_status_roms2_check_status_rom1_$0 = status_rom[main::check_status_roms2_rom_chip#2] == STATUS_ISSUE -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
     lda #STATUS_ISSUE
-    ldy get_status_roms2_rom_chip
+    ldy check_status_roms2_rom_chip
     eor status_rom,y
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_roms2_get_status_rom1_main__0
+    sta.z check_status_roms2_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [303] main::get_status_roms2_get_status_rom1_return#0 = (char)main::get_status_roms2_get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_roms2_get_status_rom1_return
-    // main::get_status_roms2_@11
-    // if(get_status_rom(rom_chip, status) == status)
-    // [304] if(main::get_status_roms2_get_status_rom1_return#0!=STATUS_ISSUE) goto main::get_status_roms2_@4 -- vbum1_neq_vbuc1_then_la1 
+    // [303] main::check_status_roms2_check_status_rom1_return#0 = (char)main::check_status_roms2_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_roms2_check_status_rom1_return
+    // main::check_status_roms2_@11
+    // if(check_status_rom(rom_chip, status) == status)
+    // [304] if(main::check_status_roms2_check_status_rom1_return#0!=STATUS_ISSUE) goto main::check_status_roms2_@4 -- vbum1_neq_vbuc1_then_la1 
     lda #STATUS_ISSUE
-    cmp get_status_roms2_get_status_rom1_return
-    bne get_status_roms2___b4
-    // [238] phi from main::get_status_roms2_@11 to main::get_status_roms2_@return [phi:main::get_status_roms2_@11->main::get_status_roms2_@return]
-    // [238] phi main::get_status_roms2_return#2 = STATUS_ISSUE [phi:main::get_status_roms2_@11->main::get_status_roms2_@return#0] -- vbum1=vbuc1 
-    sta get_status_roms2_return
+    cmp check_status_roms2_check_status_rom1_return
+    bne check_status_roms2___b4
+    // [238] phi from main::check_status_roms2_@11 to main::check_status_roms2_@return [phi:main::check_status_roms2_@11->main::check_status_roms2_@return]
+    // [238] phi main::check_status_roms2_return#2 = STATUS_ISSUE [phi:main::check_status_roms2_@11->main::check_status_roms2_@return#0] -- vbum1=vbuc1 
+    sta check_status_roms2_return
     jmp __b76
-    // main::get_status_roms2_@4
-  get_status_roms2___b4:
+    // main::check_status_roms2_@4
+  check_status_roms2___b4:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [305] main::get_status_roms2_rom_chip#1 = ++ main::get_status_roms2_rom_chip#2 -- vbum1=_inc_vbum1 
-    inc get_status_roms2_rom_chip
-    // [236] phi from main::get_status_roms2_@4 to main::get_status_roms2_@1 [phi:main::get_status_roms2_@4->main::get_status_roms2_@1]
-    // [236] phi main::get_status_roms2_rom_chip#2 = main::get_status_roms2_rom_chip#1 [phi:main::get_status_roms2_@4->main::get_status_roms2_@1#0] -- register_copy 
-    jmp get_status_roms2___b1
+    // [305] main::check_status_roms2_rom_chip#1 = ++ main::check_status_roms2_rom_chip#2 -- vbum1=_inc_vbum1 
+    inc check_status_roms2_rom_chip
+    // [236] phi from main::check_status_roms2_@4 to main::check_status_roms2_@1 [phi:main::check_status_roms2_@4->main::check_status_roms2_@1]
+    // [236] phi main::check_status_roms2_rom_chip#2 = main::check_status_roms2_rom_chip#1 [phi:main::check_status_roms2_@4->main::check_status_roms2_@1#0] -- register_copy 
+    jmp check_status_roms2___b1
     // main::vera_display_set_border_color2
   vera_display_set_border_color2:
     // *VERA_CTRL &= ~VERA_DCSEL
@@ -1974,39 +1975,39 @@ main: {
     // main::@51
   __b51:
     jmp __b51
-    // main::get_status_roms1_get_status_rom1
-  get_status_roms1_get_status_rom1:
+    // main::check_status_roms1_check_status_rom1
+  check_status_roms1_check_status_rom1:
     // status_rom[rom_chip] == status
-    // [313] main::get_status_roms1_get_status_rom1_$0 = status_rom[main::get_status_roms1_rom_chip#2] == STATUS_ERROR -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
+    // [313] main::check_status_roms1_check_status_rom1_$0 = status_rom[main::check_status_roms1_rom_chip#2] == STATUS_ERROR -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
     lda #STATUS_ERROR
-    ldy get_status_roms1_rom_chip
+    ldy check_status_roms1_rom_chip
     eor status_rom,y
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_roms1_get_status_rom1_main__0
+    sta.z check_status_roms1_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [314] main::get_status_roms1_get_status_rom1_return#0 = (char)main::get_status_roms1_get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_roms1_get_status_rom1_return
-    // main::get_status_roms1_@11
-    // if(get_status_rom(rom_chip, status) == status)
-    // [315] if(main::get_status_roms1_get_status_rom1_return#0!=STATUS_ERROR) goto main::get_status_roms1_@4 -- vbum1_neq_vbuc1_then_la1 
+    // [314] main::check_status_roms1_check_status_rom1_return#0 = (char)main::check_status_roms1_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_roms1_check_status_rom1_return
+    // main::check_status_roms1_@11
+    // if(check_status_rom(rom_chip, status) == status)
+    // [315] if(main::check_status_roms1_check_status_rom1_return#0!=STATUS_ERROR) goto main::check_status_roms1_@4 -- vbum1_neq_vbuc1_then_la1 
     lda #STATUS_ERROR
-    cmp get_status_roms1_get_status_rom1_return
-    bne get_status_roms1___b4
-    // [227] phi from main::get_status_roms1_@11 to main::get_status_roms1_@return [phi:main::get_status_roms1_@11->main::get_status_roms1_@return]
-    // [227] phi main::get_status_roms1_return#2 = STATUS_ERROR [phi:main::get_status_roms1_@11->main::get_status_roms1_@return#0] -- vbum1=vbuc1 
-    sta get_status_roms1_return
+    cmp check_status_roms1_check_status_rom1_return
+    bne check_status_roms1___b4
+    // [227] phi from main::check_status_roms1_@11 to main::check_status_roms1_@return [phi:main::check_status_roms1_@11->main::check_status_roms1_@return]
+    // [227] phi main::check_status_roms1_return#2 = STATUS_ERROR [phi:main::check_status_roms1_@11->main::check_status_roms1_@return#0] -- vbum1=vbuc1 
+    sta check_status_roms1_return
     jmp __b74
-    // main::get_status_roms1_@4
-  get_status_roms1___b4:
+    // main::check_status_roms1_@4
+  check_status_roms1___b4:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [316] main::get_status_roms1_rom_chip#1 = ++ main::get_status_roms1_rom_chip#2 -- vbum1=_inc_vbum1 
-    inc get_status_roms1_rom_chip
-    // [225] phi from main::get_status_roms1_@4 to main::get_status_roms1_@1 [phi:main::get_status_roms1_@4->main::get_status_roms1_@1]
-    // [225] phi main::get_status_roms1_rom_chip#2 = main::get_status_roms1_rom_chip#1 [phi:main::get_status_roms1_@4->main::get_status_roms1_@1#0] -- register_copy 
-    jmp get_status_roms1___b1
+    // [316] main::check_status_roms1_rom_chip#1 = ++ main::check_status_roms1_rom_chip#2 -- vbum1=_inc_vbum1 
+    inc check_status_roms1_rom_chip
+    // [225] phi from main::check_status_roms1_@4 to main::check_status_roms1_@1 [phi:main::check_status_roms1_@4->main::check_status_roms1_@1]
+    // [225] phi main::check_status_roms1_rom_chip#2 = main::check_status_roms1_rom_chip#1 [phi:main::check_status_roms1_@4->main::check_status_roms1_@1#0] -- register_copy 
+    jmp check_status_roms1___b1
     // main::vera_display_set_border_color1
   vera_display_set_border_color1:
     // *VERA_CTRL &= ~VERA_DCSEL
@@ -2030,44 +2031,44 @@ main: {
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
     jmp __b5
-    // main::get_status_roms_all1_get_status_rom1
-  get_status_roms_all1_get_status_rom1:
+    // main::check_status_roms_all1_check_status_rom1
+  check_status_roms_all1_check_status_rom1:
     // status_rom[rom_chip] == status
-    // [321] main::get_status_roms_all1_get_status_rom1_$0 = status_rom[main::get_status_roms_all1_rom_chip#2] == STATUS_SKIP -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
+    // [321] main::check_status_roms_all1_check_status_rom1_$0 = status_rom[main::check_status_roms_all1_rom_chip#2] == STATUS_SKIP -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
     lda #STATUS_SKIP
-    ldy get_status_roms_all1_rom_chip
+    ldy check_status_roms_all1_rom_chip
     eor status_rom,y
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_roms_all1_get_status_rom1_main__0
+    sta.z check_status_roms_all1_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [322] main::get_status_roms_all1_get_status_rom1_return#0 = (char)main::get_status_roms_all1_get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_roms_all1_get_status_rom1_return
-    // main::get_status_roms_all1_@11
-    // if(get_status_rom(rom_chip, status) != status)
-    // [323] if(main::get_status_roms_all1_get_status_rom1_return#0==STATUS_SKIP) goto main::get_status_roms_all1_@4 -- vbum1_eq_vbuc1_then_la1 
+    // [322] main::check_status_roms_all1_check_status_rom1_return#0 = (char)main::check_status_roms_all1_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_roms_all1_check_status_rom1_return
+    // main::check_status_roms_all1_@11
+    // if(check_status_rom(rom_chip, status) != status)
+    // [323] if(main::check_status_roms_all1_check_status_rom1_return#0==STATUS_SKIP) goto main::check_status_roms_all1_@4 -- vbum1_eq_vbuc1_then_la1 
     lda #STATUS_SKIP
-    cmp get_status_roms_all1_get_status_rom1_return
-    beq get_status_roms_all1___b4
-    // [216] phi from main::get_status_roms_all1_@11 to main::get_status_roms_all1_@return [phi:main::get_status_roms_all1_@11->main::get_status_roms_all1_@return]
-    // [216] phi main::get_status_roms_all1_return#2 = 0 [phi:main::get_status_roms_all1_@11->main::get_status_roms_all1_@return#0] -- vbum1=vbuc1 
+    cmp check_status_roms_all1_check_status_rom1_return
+    beq check_status_roms_all1___b4
+    // [216] phi from main::check_status_roms_all1_@11 to main::check_status_roms_all1_@return [phi:main::check_status_roms_all1_@11->main::check_status_roms_all1_@return]
+    // [216] phi main::check_status_roms_all1_return#2 = 0 [phi:main::check_status_roms_all1_@11->main::check_status_roms_all1_@return#0] -- vbum1=vbuc1 
     lda #0
-    sta get_status_roms_all1_return
+    sta check_status_roms_all1_return
     jmp __b70
-    // main::get_status_roms_all1_@4
-  get_status_roms_all1___b4:
+    // main::check_status_roms_all1_@4
+  check_status_roms_all1___b4:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [324] main::get_status_roms_all1_rom_chip#1 = ++ main::get_status_roms_all1_rom_chip#2 -- vbum1=_inc_vbum1 
-    inc get_status_roms_all1_rom_chip
-    // [214] phi from main::get_status_roms_all1_@4 to main::get_status_roms_all1_@1 [phi:main::get_status_roms_all1_@4->main::get_status_roms_all1_@1]
-    // [214] phi main::get_status_roms_all1_rom_chip#2 = main::get_status_roms_all1_rom_chip#1 [phi:main::get_status_roms_all1_@4->main::get_status_roms_all1_@1#0] -- register_copy 
-    jmp get_status_roms_all1___b1
-    // main::get_status_rom1
-  get_status_rom1:
+    // [324] main::check_status_roms_all1_rom_chip#1 = ++ main::check_status_roms_all1_rom_chip#2 -- vbum1=_inc_vbum1 
+    inc check_status_roms_all1_rom_chip
+    // [214] phi from main::check_status_roms_all1_@4 to main::check_status_roms_all1_@1 [phi:main::check_status_roms_all1_@4->main::check_status_roms_all1_@1]
+    // [214] phi main::check_status_roms_all1_rom_chip#2 = main::check_status_roms_all1_rom_chip#1 [phi:main::check_status_roms_all1_@4->main::check_status_roms_all1_@1#0] -- register_copy 
+    jmp check_status_roms_all1___b1
+    // main::check_status_rom1
+  check_status_rom1:
     // status_rom[rom_chip] == status
-    // [325] main::get_status_rom1_$0 = status_rom[main::rom_chip3#10] == STATUS_FLASH -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
+    // [325] main::check_status_rom1_$0 = status_rom[main::rom_chip3#10] == STATUS_FLASH -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
     lda #STATUS_FLASH
     ldy rom_chip3
     eor status_rom,y
@@ -2075,36 +2076,36 @@ main: {
     lda #1
   !:
     eor #1
-    sta.z get_status_rom1_main__0
+    sta.z check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [326] main::get_status_rom1_return#0 = (char)main::get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_rom1_return
+    // [326] main::check_status_rom1_return#0 = (char)main::check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_rom1_return
     // main::@68
-    // if(get_status_rom(rom_chip, STATUS_FLASH))
-    // [327] if(0==main::get_status_rom1_return#0) goto main::@39 -- 0_eq_vbum1_then_la1 
+    // if(check_status_rom(rom_chip, STATUS_FLASH))
+    // [327] if(0==main::check_status_rom1_return#0) goto main::@39 -- 0_eq_vbum1_then_la1 
     beq __b39
-    // main::get_status_smc6
+    // main::check_status_smc6
     // status_smc == status
-    // [328] main::get_status_smc6_$0 = status_smc#0 == STATUS_FLASHED -- vboz1=vbum2_eq_vbuc1 
+    // [328] main::check_status_smc6_$0 = status_smc#0 == STATUS_FLASHED -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASHED
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_smc6_main__0
+    sta.z check_status_smc6_main__0
     // return (unsigned char)(status_smc == status);
-    // [329] main::get_status_smc6_return#0 = (char)main::get_status_smc6_$0 -- vbum1=vbuz2 
-    sta get_status_smc6_return
+    // [329] main::check_status_smc6_return#0 = (char)main::check_status_smc6_$0 -- vbum1=vbuz2 
+    sta check_status_smc6_return
     // main::@71
-    // if((rom_chip == 0 && get_status_smc(STATUS_FLASHED)) || (rom_chip != 0))
+    // if((rom_chip == 0 && check_status_smc(STATUS_FLASHED)) || (rom_chip != 0))
     // [330] if(main::rom_chip3#10!=0) goto main::@178 -- vbum1_neq_0_then_la1 
     // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
     lda rom_chip3
     bne __b178
     // main::@179
-    // [331] if(0!=main::get_status_smc6_return#0) goto main::bank_set_brom5 -- 0_neq_vbum1_then_la1 
-    lda get_status_smc6_return
+    // [331] if(0!=main::check_status_smc6_return#0) goto main::bank_set_brom5 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc6_return
     bne bank_set_brom5
     // main::@178
   __b178:
@@ -2745,38 +2746,38 @@ main: {
     // [425] phi from main::@132 to main::@34 [phi:main::@132->main::@34]
     // [425] phi main::rom_chip2#2 = main::rom_chip2#1 [phi:main::@132->main::@34#0] -- register_copy 
     jmp __b34
-    // main::get_status_card_roms1_get_status_rom1
-  get_status_card_roms1_get_status_rom1:
+    // main::check_status_card_roms1_check_status_rom1
+  check_status_card_roms1_check_status_rom1:
     // status_rom[rom_chip] == status
-    // [432] main::get_status_card_roms1_get_status_rom1_$0 = status_rom[main::get_status_card_roms1_rom_chip#2] == STATUS_FLASH -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
+    // [432] main::check_status_card_roms1_check_status_rom1_$0 = status_rom[main::check_status_card_roms1_rom_chip#2] == STATUS_FLASH -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
     lda #STATUS_FLASH
-    ldy get_status_card_roms1_rom_chip
+    ldy check_status_card_roms1_rom_chip
     eor status_rom,y
     beq !+
     lda #1
   !:
     eor #1
-    sta.z get_status_card_roms1_get_status_rom1_main__0
+    sta.z check_status_card_roms1_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [433] main::get_status_card_roms1_get_status_rom1_return#0 = (char)main::get_status_card_roms1_get_status_rom1_$0 -- vbum1=vbuz2 
-    sta get_status_card_roms1_get_status_rom1_return
-    // main::get_status_card_roms1_@11
-    // if(get_status_rom(rom_chip, status))
-    // [434] if(0==main::get_status_card_roms1_get_status_rom1_return#0) goto main::get_status_card_roms1_@4 -- 0_eq_vbum1_then_la1 
-    beq get_status_card_roms1___b4
-    // [176] phi from main::get_status_card_roms1_@11 to main::get_status_card_roms1_@return [phi:main::get_status_card_roms1_@11->main::get_status_card_roms1_@return]
-    // [176] phi main::get_status_card_roms1_return#2 = STATUS_FLASH [phi:main::get_status_card_roms1_@11->main::get_status_card_roms1_@return#0] -- vbum1=vbuc1 
+    // [433] main::check_status_card_roms1_check_status_rom1_return#0 = (char)main::check_status_card_roms1_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_card_roms1_check_status_rom1_return
+    // main::check_status_card_roms1_@11
+    // if(check_status_rom(rom_chip, status))
+    // [434] if(0==main::check_status_card_roms1_check_status_rom1_return#0) goto main::check_status_card_roms1_@4 -- 0_eq_vbum1_then_la1 
+    beq check_status_card_roms1___b4
+    // [176] phi from main::check_status_card_roms1_@11 to main::check_status_card_roms1_@return [phi:main::check_status_card_roms1_@11->main::check_status_card_roms1_@return]
+    // [176] phi main::check_status_card_roms1_return#2 = STATUS_FLASH [phi:main::check_status_card_roms1_@11->main::check_status_card_roms1_@return#0] -- vbum1=vbuc1 
     lda #STATUS_FLASH
-    sta get_status_card_roms1_return
+    sta check_status_card_roms1_return
     jmp __b66
-    // main::get_status_card_roms1_@4
-  get_status_card_roms1___b4:
+    // main::check_status_card_roms1_@4
+  check_status_card_roms1___b4:
     // for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++)
-    // [435] main::get_status_card_roms1_rom_chip#1 = ++ main::get_status_card_roms1_rom_chip#2 -- vbum1=_inc_vbum1 
-    inc get_status_card_roms1_rom_chip
-    // [174] phi from main::get_status_card_roms1_@4 to main::get_status_card_roms1_@1 [phi:main::get_status_card_roms1_@4->main::get_status_card_roms1_@1]
-    // [174] phi main::get_status_card_roms1_rom_chip#2 = main::get_status_card_roms1_rom_chip#1 [phi:main::get_status_card_roms1_@4->main::get_status_card_roms1_@1#0] -- register_copy 
-    jmp get_status_card_roms1___b1
+    // [435] main::check_status_card_roms1_rom_chip#1 = ++ main::check_status_card_roms1_rom_chip#2 -- vbum1=_inc_vbum1 
+    inc check_status_card_roms1_rom_chip
+    // [174] phi from main::check_status_card_roms1_@4 to main::check_status_card_roms1_@1 [phi:main::check_status_card_roms1_@4->main::check_status_card_roms1_@1]
+    // [174] phi main::check_status_card_roms1_rom_chip#2 = main::check_status_card_roms1_rom_chip#1 [phi:main::check_status_card_roms1_@4->main::check_status_card_roms1_@1#0] -- register_copy 
+    jmp check_status_card_roms1___b1
     // main::@33
   __b33:
     // [436] smc_file_size#360 = smc_file_size#202 -- vwum1=vwum2 
@@ -2829,7 +2830,7 @@ main: {
     lda #>info_text11
     sta.z util_wait_key.info_text+1
     jsr util_wait_key
-    jmp get_status_smc3
+    jmp check_status_smc3
     // main::bank_set_brom2
   bank_set_brom2:
     // BROM = bank
@@ -3736,45 +3737,45 @@ main: {
     .byte 0
     rom_chip: .byte 0
     intro_status: .byte 0
-    get_status_smc1_return: .byte 0
-    get_status_smc2_return: .byte 0
-    get_status_cx16_rom1_get_status_rom1_return: .byte 0
+    check_status_smc1_return: .byte 0
+    check_status_smc2_return: .byte 0
+    check_status_cx16_rom1_check_status_rom1_return: .byte 0
     rom_chip1: .byte 0
     rom_bank: .byte 0
     .label rom_bytes_read = rom_read.return
     rom_file_modulo: .dword 0
-    get_status_smc3_return: .byte 0
-    get_status_cx16_rom2_get_status_rom1_return: .byte 0
-    get_status_card_roms1_get_status_rom1_return: .byte 0
-    get_status_card_roms1_rom_chip: .byte 0
-    get_status_card_roms1_return: .byte 0
-    get_status_smc4_return: .byte 0
+    check_status_smc3_return: .byte 0
+    check_status_cx16_rom2_check_status_rom1_return: .byte 0
+    check_status_card_roms1_check_status_rom1_return: .byte 0
+    check_status_card_roms1_rom_chip: .byte 0
+    check_status_card_roms1_return: .byte 0
+    check_status_smc4_return: .byte 0
     .label ch = strchr.c
     rom_chip2: .byte 0
     flashed_bytes: .dword 0
-    get_status_rom1_return: .byte 0
-    get_status_smc5_return: .byte 0
-    get_status_vera1_return: .byte 0
-    get_status_roms_all1_get_status_rom1_return: .byte 0
-    get_status_roms_all1_rom_chip: .byte 0
-    get_status_roms_all1_return: .byte 0
+    check_status_rom1_return: .byte 0
+    check_status_smc5_return: .byte 0
+    check_status_vera1_return: .byte 0
+    check_status_roms_all1_check_status_rom1_return: .byte 0
+    check_status_roms_all1_rom_chip: .byte 0
+    check_status_roms_all1_return: .byte 0
     rom_chip3: .byte 0
-    get_status_smc6_return: .byte 0
+    check_status_smc6_return: .byte 0
     rom_bank1: .byte 0
     .label rom_bytes_read1 = rom_read.return
     .label rom_differences = printf_ulong.uvalue
     rom_flash_errors: .dword 0
-    get_status_smc7_return: .byte 0
-    get_status_vera2_return: .byte 0
-    get_status_roms1_get_status_rom1_return: .byte 0
-    get_status_roms1_rom_chip: .byte 0
-    get_status_roms1_return: .byte 0
-    get_status_smc8_return: .byte 0
-    get_status_vera3_return: .byte 0
-    get_status_roms2_get_status_rom1_return: .byte 0
-    get_status_roms2_rom_chip: .byte 0
-    get_status_roms2_return: .byte 0
-    get_status_smc9_return: .byte 0
+    check_status_smc7_return: .byte 0
+    check_status_vera2_return: .byte 0
+    check_status_roms1_check_status_rom1_return: .byte 0
+    check_status_roms1_rom_chip: .byte 0
+    check_status_roms1_return: .byte 0
+    check_status_smc8_return: .byte 0
+    check_status_vera3_return: .byte 0
+    check_status_roms2_check_status_rom1_return: .byte 0
+    check_status_roms2_rom_chip: .byte 0
+    check_status_roms2_return: .byte 0
+    check_status_smc9_return: .byte 0
     w: .byte 0
     w1: .byte 0
 }
@@ -13252,22 +13253,21 @@ fopen: {
     ora #>$8000
     sta.z stream+1
     // char pathpos = sp * __STDIO_FILECOUNT
-    // [1968] fopen::pathpos#0 = fopen::sp#0 << 2 -- vbum1=vbum2_rol_2 
+    // [1968] fopen::pathpos#0 = fopen::sp#0 << 1 -- vbum1=vbum2_rol_1 
     lda sp
-    asl
     asl
     sta pathpos
     // __logical = 0
-    // [1969] ((char *)&__stdio_file+$80)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    // [1969] ((char *)&__stdio_file+$40)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
     lda #0
     ldy sp
-    sta __stdio_file+$80,y
+    sta __stdio_file+$40,y
     // __device = 0
-    // [1970] ((char *)&__stdio_file+$84)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
-    sta __stdio_file+$84,y
+    // [1970] ((char *)&__stdio_file+$42)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$42,y
     // __channel = 0
-    // [1971] ((char *)&__stdio_file+$88)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
-    sta __stdio_file+$88,y
+    // [1971] ((char *)&__stdio_file+$44)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$44,y
     // [1972] fopen::pathtoken#22 = fopen::pathtoken#0 -- pbuz1=pbuz2 
     lda.z pathtoken
     sta.z pathtoken_1
@@ -13354,13 +13354,13 @@ fopen: {
     bne __b8
     // fopen::@26
     // __status = 0
-    // [1984] ((char *)&__stdio_file+$8c)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    // [1984] ((char *)&__stdio_file+$46)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
     tya
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // if(!__logical)
-    // [1985] if(0!=((char *)&__stdio_file+$80)[fopen::sp#0]) goto fopen::@1 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
-    lda __stdio_file+$80,y
+    // [1985] if(0!=((char *)&__stdio_file+$40)[fopen::sp#0]) goto fopen::@1 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$40,y
     cmp #0
     bne __b1
     // fopen::@27
@@ -13370,27 +13370,27 @@ fopen: {
     inc
     sta.z fopen__4
     // __logical = __stdio_filecount+1
-    // [1987] ((char *)&__stdio_file+$80)[fopen::sp#0] = fopen::$4 -- pbuc1_derefidx_vbum1=vbuz2 
-    sta __stdio_file+$80,y
+    // [1987] ((char *)&__stdio_file+$40)[fopen::sp#0] = fopen::$4 -- pbuc1_derefidx_vbum1=vbuz2 
+    sta __stdio_file+$40,y
     // fopen::@1
   __b1:
     // if(!__device)
-    // [1988] if(0!=((char *)&__stdio_file+$84)[fopen::sp#0]) goto fopen::@2 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
+    // [1988] if(0!=((char *)&__stdio_file+$42)[fopen::sp#0]) goto fopen::@2 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
     ldy sp
-    lda __stdio_file+$84,y
+    lda __stdio_file+$42,y
     cmp #0
     bne __b2
     // fopen::@5
     // __device = 8
-    // [1989] ((char *)&__stdio_file+$84)[fopen::sp#0] = 8 -- pbuc1_derefidx_vbum1=vbuc2 
+    // [1989] ((char *)&__stdio_file+$42)[fopen::sp#0] = 8 -- pbuc1_derefidx_vbum1=vbuc2 
     lda #8
-    sta __stdio_file+$84,y
+    sta __stdio_file+$42,y
     // fopen::@2
   __b2:
     // if(!__channel)
-    // [1990] if(0!=((char *)&__stdio_file+$88)[fopen::sp#0]) goto fopen::@3 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
+    // [1990] if(0!=((char *)&__stdio_file+$44)[fopen::sp#0]) goto fopen::@3 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
     ldy sp
-    lda __stdio_file+$88,y
+    lda __stdio_file+$44,y
     cmp #0
     bne __b3
     // fopen::@6
@@ -13401,8 +13401,8 @@ fopen: {
     adc #2
     sta.z fopen__9
     // __channel = __stdio_filecount+2
-    // [1992] ((char *)&__stdio_file+$88)[fopen::sp#0] = fopen::$9 -- pbuc1_derefidx_vbum1=vbuz2 
-    sta __stdio_file+$88,y
+    // [1992] ((char *)&__stdio_file+$44)[fopen::sp#0] = fopen::$9 -- pbuc1_derefidx_vbum1=vbuz2 
+    sta __stdio_file+$44,y
     // fopen::@3
   __b3:
     // __filename
@@ -13450,15 +13450,15 @@ fopen: {
     jsr CBM_SETNAM
     // fopen::@28
     // cbm_k_setlfs(__logical, __device, __channel)
-    // [2001] cbm_k_setlfs::channel = ((char *)&__stdio_file+$80)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    // [2001] cbm_k_setlfs::channel = ((char *)&__stdio_file+$40)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
     ldy sp
-    lda __stdio_file+$80,y
+    lda __stdio_file+$40,y
     sta cbm_k_setlfs.channel
-    // [2002] cbm_k_setlfs::device = ((char *)&__stdio_file+$84)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
-    lda __stdio_file+$84,y
+    // [2002] cbm_k_setlfs::device = ((char *)&__stdio_file+$42)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    lda __stdio_file+$42,y
     sta cbm_k_setlfs.device
-    // [2003] cbm_k_setlfs::command = ((char *)&__stdio_file+$88)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
-    lda __stdio_file+$88,y
+    // [2003] cbm_k_setlfs::command = ((char *)&__stdio_file+$44)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    lda __stdio_file+$44,y
     sta cbm_k_setlfs.command
     // [2004] call cbm_k_setlfs
     jsr cbm_k_setlfs
@@ -13486,9 +13486,9 @@ fopen: {
     // [2010] fopen::$15 = fopen::cbm_k_readst1_return#1 -- vbuz1=vbum2 
     sta.z fopen__15
     // __status = cbm_k_readst()
-    // [2011] ((char *)&__stdio_file+$8c)[fopen::sp#0] = fopen::$15 -- pbuc1_derefidx_vbum1=vbuz2 
+    // [2011] ((char *)&__stdio_file+$46)[fopen::sp#0] = fopen::$15 -- pbuc1_derefidx_vbum1=vbuz2 
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // ferror(stream)
     // [2012] ferror::stream#0 = (struct $2 *)fopen::stream#0
     // [2013] call ferror
@@ -13507,9 +13507,9 @@ fopen: {
     beq __b4
     // fopen::@7
     // cbm_k_close(__logical)
-    // [2017] fopen::cbm_k_close1_channel = ((char *)&__stdio_file+$80)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    // [2017] fopen::cbm_k_close1_channel = ((char *)&__stdio_file+$40)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
     ldy sp
-    lda __stdio_file+$80,y
+    lda __stdio_file+$40,y
     sta cbm_k_close1_channel
     // fopen::cbm_k_close1
     // asm
@@ -13619,26 +13619,26 @@ fopen: {
     bne __b12
     // fopen::@19
     // __channel = num
-    // [2036] ((char *)&__stdio_file+$88)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
+    // [2036] ((char *)&__stdio_file+$44)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
     lda num
     ldy sp
-    sta __stdio_file+$88,y
+    sta __stdio_file+$44,y
     jmp __b12
     // fopen::@18
   __b18:
     // __device = num
-    // [2037] ((char *)&__stdio_file+$84)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
+    // [2037] ((char *)&__stdio_file+$42)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
     lda num
     ldy sp
-    sta __stdio_file+$84,y
+    sta __stdio_file+$42,y
     jmp __b12
     // fopen::@17
   __b17:
     // __logical = num
-    // [2038] ((char *)&__stdio_file+$80)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
+    // [2038] ((char *)&__stdio_file+$40)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
     lda num
     ldy sp
-    sta __stdio_file+$80,y
+    sta __stdio_file+$40,y
     jmp __b12
     // fopen::@13
   __b13:
@@ -13711,9 +13711,9 @@ fgets: {
     lda.z stream
     sta sp
     // cbm_k_chkin(__logical)
-    // [2047] fgets::cbm_k_chkin1_channel = ((char *)&__stdio_file+$80)[fgets::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    // [2047] fgets::cbm_k_chkin1_channel = ((char *)&__stdio_file+$40)[fgets::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
     tay
-    lda __stdio_file+$80,y
+    lda __stdio_file+$40,y
     sta cbm_k_chkin1_channel
     // fgets::cbm_k_chkin1
     // char status
@@ -13745,12 +13745,12 @@ fgets: {
     // [2054] fgets::$1 = fgets::cbm_k_readst1_return#1 -- vbuz1=vbum2 
     sta.z fgets__1
     // __status = cbm_k_readst()
-    // [2055] ((char *)&__stdio_file+$8c)[fgets::sp#0] = fgets::$1 -- pbuc1_derefidx_vbum1=vbuz2 
+    // [2055] ((char *)&__stdio_file+$46)[fgets::sp#0] = fgets::$1 -- pbuc1_derefidx_vbum1=vbuz2 
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // if (__status)
-    // [2056] if(0==((char *)&__stdio_file+$8c)[fgets::sp#0]) goto fgets::@1 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
-    lda __stdio_file+$8c,y
+    // [2056] if(0==((char *)&__stdio_file+$46)[fgets::sp#0]) goto fgets::@1 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$46,y
     cmp #0
     beq __b1
     // [2057] phi from fgets::@11 fgets::@12 fgets::@5 to fgets::@return [phi:fgets::@11/fgets::@12/fgets::@5->fgets::@return]
@@ -13844,13 +13844,13 @@ fgets: {
     // [2073] fgets::$8 = fgets::cbm_k_readst2_return#1 -- vbuz1=vbum2 
     sta.z fgets__8
     // __status = cbm_k_readst()
-    // [2074] ((char *)&__stdio_file+$8c)[fgets::sp#0] = fgets::$8 -- pbuc1_derefidx_vbum1=vbuz2 
+    // [2074] ((char *)&__stdio_file+$46)[fgets::sp#0] = fgets::$8 -- pbuc1_derefidx_vbum1=vbuz2 
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // __status & 0xBF
-    // [2075] fgets::$9 = ((char *)&__stdio_file+$8c)[fgets::sp#0] & $bf -- vbuz1=pbuc1_derefidx_vbum2_band_vbuc2 
+    // [2075] fgets::$9 = ((char *)&__stdio_file+$46)[fgets::sp#0] & $bf -- vbuz1=pbuc1_derefidx_vbum2_band_vbuc2 
     lda #$bf
-    and __stdio_file+$8c,y
+    and __stdio_file+$46,y
     sta.z fgets__9
     // if (__status & 0xBF)
     // [2076] if(0==fgets::$9) goto fgets::@5 -- 0_eq_vbuz1_then_la1 
@@ -13919,9 +13919,9 @@ fgets: {
     sbc bytes+1
     sta remaining+1
     // while ((__status == 0) && ((size && remaining) || !size))
-    // [2085] if(((char *)&__stdio_file+$8c)[fgets::sp#0]==0) goto fgets::@16 -- pbuc1_derefidx_vbum1_eq_0_then_la1 
+    // [2085] if(((char *)&__stdio_file+$46)[fgets::sp#0]==0) goto fgets::@16 -- pbuc1_derefidx_vbum1_eq_0_then_la1 
     ldy sp
-    lda __stdio_file+$8c,y
+    lda __stdio_file+$46,y
     cmp #0
     beq __b16
     // [2057] phi from fgets::@17 fgets::@7 to fgets::@return [phi:fgets::@17/fgets::@7->fgets::@return]
@@ -14021,9 +14021,9 @@ fclose: {
     lda.z stream
     sta sp
     // cbm_k_chkin(__logical)
-    // [2101] fclose::cbm_k_chkin1_channel = ((char *)&__stdio_file+$80)[fclose::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    // [2101] fclose::cbm_k_chkin1_channel = ((char *)&__stdio_file+$40)[fclose::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
     tay
-    lda __stdio_file+$80,y
+    lda __stdio_file+$40,y
     sta cbm_k_chkin1_channel
     // fclose::cbm_k_chkin1
     // char status
@@ -14055,12 +14055,12 @@ fclose: {
     // [2108] fclose::$1 = fclose::cbm_k_readst1_return#1 -- vbuz1=vbum2 
     sta.z fclose__1
     // __status = cbm_k_readst()
-    // [2109] ((char *)&__stdio_file+$8c)[fclose::sp#0] = fclose::$1 -- pbuc1_derefidx_vbum1=vbuz2 
+    // [2109] ((char *)&__stdio_file+$46)[fclose::sp#0] = fclose::$1 -- pbuc1_derefidx_vbum1=vbuz2 
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // if (__status)
-    // [2110] if(0==((char *)&__stdio_file+$8c)[fclose::sp#0]) goto fclose::@1 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
-    lda __stdio_file+$8c,y
+    // [2110] if(0==((char *)&__stdio_file+$46)[fclose::sp#0]) goto fclose::@1 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$46,y
     cmp #0
     beq __b1
     // fclose::@return
@@ -14070,9 +14070,9 @@ fclose: {
     // fclose::@1
   __b1:
     // cbm_k_close(__logical)
-    // [2112] fclose::cbm_k_close1_channel = ((char *)&__stdio_file+$80)[fclose::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    // [2112] fclose::cbm_k_close1_channel = ((char *)&__stdio_file+$40)[fclose::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
     ldy sp
-    lda __stdio_file+$80,y
+    lda __stdio_file+$40,y
     sta cbm_k_close1_channel
     // fclose::cbm_k_close1
     // asm
@@ -14098,32 +14098,31 @@ fclose: {
     // [2118] fclose::$4 = fclose::cbm_k_readst2_return#1 -- vbuz1=vbum2 
     sta.z fclose__4
     // __status = cbm_k_readst()
-    // [2119] ((char *)&__stdio_file+$8c)[fclose::sp#0] = fclose::$4 -- pbuc1_derefidx_vbum1=vbuz2 
+    // [2119] ((char *)&__stdio_file+$46)[fclose::sp#0] = fclose::$4 -- pbuc1_derefidx_vbum1=vbuz2 
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // if (__status)
-    // [2120] if(0==((char *)&__stdio_file+$8c)[fclose::sp#0]) goto fclose::@2 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
-    lda __stdio_file+$8c,y
+    // [2120] if(0==((char *)&__stdio_file+$46)[fclose::sp#0]) goto fclose::@2 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$46,y
     cmp #0
     beq __b2
     rts
     // fclose::@2
   __b2:
     // __logical = 0
-    // [2121] ((char *)&__stdio_file+$80)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    // [2121] ((char *)&__stdio_file+$40)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
     lda #0
     ldy sp
-    sta __stdio_file+$80,y
+    sta __stdio_file+$40,y
     // __device = 0
-    // [2122] ((char *)&__stdio_file+$84)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
-    sta __stdio_file+$84,y
+    // [2122] ((char *)&__stdio_file+$42)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$42,y
     // __channel = 0
-    // [2123] ((char *)&__stdio_file+$88)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
-    sta __stdio_file+$88,y
+    // [2123] ((char *)&__stdio_file+$44)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$44,y
     // __filename
-    // [2124] fclose::$6 = fclose::sp#0 << 2 -- vbuz1=vbum2_rol_2 
+    // [2124] fclose::$6 = fclose::sp#0 << 1 -- vbuz1=vbum2_rol_1 
     tya
-    asl
     asl
     sta.z fclose__6
     // *__filename = '\0'
@@ -16485,9 +16484,9 @@ ferror: {
     beq __b1
     // ferror::@2
     // __status = st
-    // [2457] ((char *)&__stdio_file+$8c)[ferror::sp#0] = ferror::st#1 -- pbuc1_derefidx_vbum1=vbum2 
+    // [2457] ((char *)&__stdio_file+$46)[ferror::sp#0] = ferror::st#1 -- pbuc1_derefidx_vbum1=vbum2 
     ldy sp
-    sta __stdio_file+$8c,y
+    sta __stdio_file+$46,y
     // cbm_k_close(15)
     // [2458] ferror::cbm_k_close1_channel = $f -- vbum1=vbuc1 
     lda #$f
@@ -17414,6 +17413,7 @@ memcpy8_vram_vram: {
  */
   status_smc: .byte 0
   status_vera: .byte 0
+  // A progress frame row represents about 32768 bytes for a ROM update.
   smc_bootloader: .word 0
   smc_file_size: .word 0
   smc_file_size_1: .word 0

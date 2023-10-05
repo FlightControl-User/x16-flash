@@ -74,15 +74,12 @@ void main() {
     display_chip_smc();
 
     if(smc_bootloader == 0x0100) {
-        // TODO: explain next steps ...
         display_info_smc(STATUS_ERROR, "No Bootloader!");
     } else {
         if(smc_bootloader == 0x0200) {
-            // TODO: explain next steps ...
             display_info_smc(STATUS_ERROR, "Unreachable!");
         } else {
             if(smc_bootloader > 0x2) {
-                // TODO: explain next steps ...
                 sprintf(info_text, "Bootloader v%02x invalid! !", smc_bootloader);
                 display_info_smc(STATUS_ERROR, info_text);
             } else {
@@ -147,14 +144,15 @@ void main() {
 
         // In case no file was found, set the status to error and skip to the next, else, mention the amount of bytes read.
         if (!smc_file_size) {
-            display_info_smc(STATUS_ERROR, "No SMC.BIN!");
+            display_info_smc(STATUS_ERROR, "No SMC.BIN!"); // Stop with SMC error.
         } else {
             // If the smc.bin file size is larger than 0x1E00 then there is an error!
             if(smc_file_size > 0x1E00) {
-                display_info_smc(STATUS_ERROR, "SMC.BIN too large!");
+                display_info_smc(STATUS_ERROR, "SMC.BIN too large!"); // Stop with SMC error.
             } else {
+                // All ok, display the SMC bootloader.
                 sprintf(info_text, "Bootloader v%02x", smc_bootloader);
-                display_info_smc(STATUS_FLASH, info_text);
+                display_info_smc(STATUS_FLASH, info_text); // All ok, SMC can be updated.
             }
         }
     }
@@ -177,34 +175,36 @@ void main() {
 
         bank_set_brom(0);
 
+        // If the ROM chip was detected and is known ...
         if(rom_device_ids[rom_chip] != UNKNOWN) {
 
             display_progress_clear();
 
             unsigned char rom_bank = rom_chip * 32;
-            unsigned char* file = rom_file(rom_chip);
+            unsigned char* file = rom_file(rom_chip); // Calculate the ROM(n).BIN input file name, based on the rom chip number.
             sprintf(info_text, "Checking %s ... (.) data ( ) empty", file);
             display_action_progress(info_text);
 
-
+            // Read the ROM(n).BIN file.
             unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_CHECKING, rom_bank, rom_sizes[rom_chip]);
 
             // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
             if (!rom_bytes_read) {
                 sprintf(info_text, "No %s, skipped", file);
-                display_info_rom(rom_chip, STATUS_NONE, info_text);
+                display_info_rom(rom_chip, STATUS_NONE, info_text); // ROM status is none, nothing to do here.
             } else {
                 // If the rom size is not a factor or 0x4000 bytes, then there is an error.
                 unsigned long rom_file_modulo = rom_bytes_read % 0x4000;
                 if(rom_file_modulo) {
                     sprintf(info_text, "File %s size error!", file);
-                    display_info_rom(rom_chip, STATUS_ERROR, info_text);
+                    display_info_rom(rom_chip, STATUS_ERROR, info_text); // ROM status is in error, no flash.
                 } else {
-                    
                     // We know the file size, so we indicate it in the status panel.
                     file_sizes[rom_chip] = rom_bytes_read;
                     
                     // Fill the version data ...
+                    // TODO: I need to make a function for this, and calculate it properly! 
+                    // TODO: It seems currently not to work like I would expect.
                     strncpy(rom_github[rom_chip], (char*)RAM_BASE, 6);
                     bank_push_set_bram(1);
                     rom_release[rom_chip] = *((char*)0xBF80);
@@ -222,6 +222,10 @@ void main() {
 
     bank_set_brom(0);
     CLI();
+
+    // TODO: validate the SMC firmware version on the CX16 with the SMC firmware version in the SMC.BIN.
+    // TODO: if equal, do not flash ... => No SMC flash necessary, but ROM flash can continue...
+    // TODO: if no SMC flash => Just reset the system, no SMC reset needed.
 
 
     // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
