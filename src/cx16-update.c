@@ -1,10 +1,9 @@
 /**
- * @mainpage cx16-rom-flash.c
- * @author Sven Van de Velde (https://www.commanderx16.com/forum/index.php?/profile/1249-svenvandevelde/)
+ * @mainpage cx16-update.c
  * @author Wavicle from CX16 forums (https://www.commanderx16.com/forum/index.php?/profile/1585-wavicle/)
- * @brief COMMANDER X16 ROM FLASH UTILITY
- *
- *
+ * @author Stefan Jakobsson from CX16 forums (
+ * @author Sven Van de Velde (https://www.commanderx16.com/forum/index.php?/profile/1249-svenvandevelde/)
+ * @brief COMMANDER X16 FIRMWARE UPDATE UTILITY
  *
  * @version 2.0
  * @date 2023-09-21
@@ -20,6 +19,8 @@
 
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
+#define __COLS_40
+#define __COLS_80
 #define __FLASH
 #define __INTRO
 #define __SMC_CHIP_PROCESS
@@ -45,7 +46,7 @@
 #pragma encoding(screencode_mixed)
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(zp)
+#pragma var_model(mem)
 
 
 // Main includes.
@@ -58,6 +59,8 @@
 #include <stdio.h>
 #include "cx16-vera.h"
 #include "cx16-veralib.h"
+
+#pragma var_model(zp, global_integer_ssa_mem, local_integer_ssa_mem, parameter_integer_ssa_zp, local_pointer_ssa_mem)
 
 // Some addressing constants.
 #define RAM_BASE                ((unsigned int)0x6000)
@@ -115,6 +118,8 @@ const char PROGRESS_H = 16;
 #define INFO_Y 17
 #define INFO_W 64
 #define INFO_H 10
+
+cx16_k_screen_mode_t screen_mode;
 
 char file[32];
 char info_text[80];
@@ -202,6 +207,17 @@ void wait_moment() {
     for(unsigned int i=65535; i>0; i--);
 }
 
+void smc_reset() {
+
+    bank_set_bram(0);
+    bank_set_brom(0);
+
+    // Reboot the SMC.
+    cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0);
+
+    while(1);
+}
+
 void system_reset() {
 
     bank_set_bram(0);
@@ -210,7 +226,9 @@ void system_reset() {
     asm {
         jmp ($FFFC)
     }
+    while(1);
 }
+
 
 unsigned char frame_maskxy(unsigned char x, unsigned char y) {
     unsigned char c = cpeekcxy(x, y);
@@ -548,6 +566,9 @@ void info_line(unsigned char* info_text) {
     printf("%-65s", info_text);
     gotoxy(x, y);
 }
+
+
+
 
 inline void print_info_title() {
     cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   File  / Total Information");
@@ -1025,7 +1046,7 @@ unsigned int flash_smc(unsigned char x, unsigned char y, unsigned char w, unsign
     }
 
     // Reboot the SMC.
-    cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0);
+    // cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0);
     
 
     return smc_bytes_flashed;
@@ -1503,6 +1524,24 @@ void main() {
     bank_set_bram(0);
     bank_set_brom(0);
 
+    // Get the current screen mode ...
+    /**
+    screen_mode = cx16_k_screen_get_mode();
+    printf("Screen mode: %x, x:%x, y:%x", screen_mode.mode, screen_mode.x, screen_mode.y);
+    if(cx16_k_screen_mode_is_40(&screen_mode)) {
+        printf("Running in 40 columns\n");
+        wait_key("Press a key ...", NULL);
+    } else {
+        if(cx16_k_screen_mode_is_80(&screen_mode)) {
+            printf("Running in 40 columns\n");
+            wait_key("Press a key ...", NULL);
+        } else {
+            printf("Screen mode now known ...\n");
+            wait_key("Press a key ...", NULL);
+        }
+    }
+    */
+
     cx16_k_screen_set_charset(3, (char *)0);
 
     frame_init();
@@ -1839,6 +1878,8 @@ void main() {
     bank_set_brom(4);
     CLI();
 
+    progress_clear();
+
     info_progress("Update finished ...");
 
     if(check_smc(STATUS_SKIP) && check_vera(STATUS_SKIP) && check_roms_all(STATUS_SKIP)) {
@@ -1856,17 +1897,66 @@ void main() {
                 info_progress("Update issues, your CX16 is not updated!");
             } else {
                 vera_display_set_border_color(GREEN);
+                if(check_smc(STATUS_FLASHED)) {
+                    const char debriefing_count = 12;
+                    const char* debriefing_text[12] = {
+                        "Your CX16 system has been successfully updated!",
+                        "",
+                        "Because your SMC chipset has been updated,",
+                        "the restart process differs, depending on the",
+                        "SMC boootloader version installed on your CX16 board:",
+                        "",
+                        "- SMC bootloader v2.0: your CX16 will automatically shut down.",
+                        "",
+                        "- SMC bootloader v1.0: you need to ",
+                        "  COMPLETELY DISCONNECT your CX16 from the power source!",
+                        "  The power-off button won't work!",
+                        "  Then, reconnect and start the CX16 normally."
+                    };
+
+                    for(unsigned char l=0; l<debriefing_count; l++) {
+                        progress_text(l, debriefing_text[l]);
+                    }
+
+                    for (unsigned char w=128; w>0; w--) {
+                        wait_moment();
+                        sprintf(info_text, "Please read carefully the below (%u) ...", w);
+                        info_line(info_text);
+                    }
+
+                    sprintf(info_text, "Please disconnect your CX16 from power source ...");
+                    info_line(info_text);
+
+                    smc_reset(); // This call will reboot the SMC, which will reset the CX16 if bootloader R2.
+
+                } else {
+
+                    const char debriefing_count = 4;
+                    const char* debriefing_text[4] = {
+                        "Your CX16 system has been successfully updated!",
+                        "",
+                        "Since your CX16 system SMC and main ROM chipset",
+                        "have not been updated, your CX16 will just reset."
+                    };
+
+                    for(unsigned char l=0; l<debriefing_count; l++) {
+                        progress_text(l, debriefing_text[l]);
+                    }
+                }
             }
         }
     }
 
-    for(unsigned char flash_reset=240; flash_reset>0; flash_reset--) {
-        wait_moment();
-        sprintf(info_text, "Resetting your CX16 in %u ...", flash_reset);
-        info_line(info_text);
-    }
+    {
 
-    system_reset();
+        for (unsigned char w=200; w>0; w--) {
+            wait_moment();
+            sprintf(info_text, "Your CX16 will reset (%03u) ...", w);
+            info_line(info_text);
+        }
+
+        system_reset();
+    }
 
     return;
 }
