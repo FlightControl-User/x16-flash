@@ -67,8 +67,8 @@ __mem unsigned char status_color[11] = {
     STATUS_COLOR_FLASH, STATUS_COLOR_FLASHING, STATUS_COLOR_FLASHED, STATUS_COLOR_ISSUE, STATUS_COLOR_ERROR};
 
 
-const unsigned int PROGRESS_CELL = 0x200;
-const unsigned int PROGRESS_ROW = 0x8000; 
+const unsigned int PROGRESS_CELL = 0x200;  // A progress frame cell represents about 512 bytes for a ROM update.
+const unsigned int PROGRESS_ROW = 0x8000;  // A progress frame row represents about 32768 bytes for a ROM update.
 
 
 __mem unsigned int smc_bootloader = 0;

@@ -20,22 +20,11 @@
 // Uses all parameters to be passed using zero pages (fast).
 #pragma var_model(mem)
 
-
-// Main includes.
-#include <6502.h>
-#include <cx16.h>
-#include <cx16-conio.h>
-#include <kernal.h>
-#include <printf.h>
-#include <sprintf.h>
-#include <stdio.h>
-#include "cx16-vera.h"
-#include "cx16-veralib.h"
+#include "cx16-defines.h"
+#include "cx16-globals.h"
 
 #pragma var_model(zp, global_integer_ssa_mem, local_integer_ssa_mem, parameter_integer_ssa_zp, local_pointer_ssa_mem)
 
-#include "cx16-defines.h"
-#include "cx16-globals.h"
 #include "cx16-status.h"
 #include "cx16-display.h"
 #include "cx16-display-text.h"
@@ -43,10 +32,7 @@
 #include "cx16-rom.h"
 
 
-
 void main() {
-
-    unsigned int bytes = 0;
 
     bank_set_bram(0);
     bank_set_brom(0);
