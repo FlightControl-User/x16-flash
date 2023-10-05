@@ -36,55 +36,12 @@
 
 #include "cx16-defines.h"
 #include "cx16-globals.h"
+#include "cx16-status.h"
 #include "cx16-display.h"
 #include "cx16-display-text.h"
 #include "cx16-smc.h"
 #include "cx16-rom.h"
 
-inline unsigned char check_smc(unsigned char status) {
-    return (unsigned char)(status_smc == status);
-}
-
-
-inline unsigned char check_vera(unsigned char status) {
-    return (unsigned char)(status_vera == status);
-}
-
-
-inline unsigned char check_rom(unsigned char rom_chip, unsigned char status) {
-    return (unsigned char)(status_rom[rom_chip] == status);
-}
-
-inline unsigned char check_cx16_rom(unsigned char status) {
-    return check_rom(0, status);
-}
-
-inline unsigned char check_card_roms(unsigned char status) {
-    for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++) {
-        if(check_rom(rom_chip, status)) {
-            return status;
-        }        
-    }
-    return STATUS_NONE;
-}
-
-inline unsigned char check_roms(unsigned char status) {
-    for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        if(check_rom(rom_chip, status) == status) {
-            return status;
-        }        
-    }
-    return STATUS_NONE;
-}
-
-inline unsigned char check_roms_all(unsigned char status) {
-    for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        if(check_rom(rom_chip, status) != status) {
-            return 0;
-        }        
-    }
-    return 1;
-}
 
 
 void main() {
@@ -112,21 +69,12 @@ void main() {
     }
     */
 
-    cx16_k_screen_set_charset(3, (char *)0);
-
     display_frame_init_64();
     display_frame_draw();
-
     display_frame_title("Commander X16 Flash Utility!");
     display_info_title();
-
-    display_progress_clear();
-
-    // info_print(0, "The SMC chip on the X16 board controls the power on/off, keyboard and mouse pheripherals.");
-    // info_print(1, "It is essential that the SMC chip gets updated together with the latest ROM on the X16 board.");
-    // info_print(2, "On the X16 board, near the SMC chip are two jumpers");
-
     display_action_progress("Detecting SMC, VERA and ROM chipsets ...");
+    display_progress_clear();
 
 
 #ifdef __SMC_CHIP_PROCESS
@@ -206,7 +154,7 @@ void main() {
 
     SEI();
 
-    if(check_smc(STATUS_DETECTED)) {
+    if(get_status_smc(STATUS_DETECTED)) {
 
         // Check the SMC.BIN file size!
         smc_file_size = smc_read(8, 512);
@@ -291,14 +239,14 @@ void main() {
 
 
     // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
-    if(!check_smc(STATUS_FLASH) || !check_cx16_rom(STATUS_FLASH)) {
+    if(!get_status_smc(STATUS_FLASH) || !get_status_cx16_rom(STATUS_FLASH)) {
         display_info_smc(STATUS_ISSUE, NULL);
         display_info_cx16_rom(STATUS_ISSUE, NULL);
         display_action_progress("There is an issue with either the SMC or the CX16 main ROM!");
         util_wait_key("Press [SPACE] to continue [ ]", " ");
     }
 
-    if(check_smc(STATUS_FLASH) && check_cx16_rom(STATUS_FLASH) || check_card_roms(STATUS_FLASH)) {
+    if(get_status_smc(STATUS_FLASH) && get_status_cx16_rom(STATUS_FLASH) || get_status_card_roms(STATUS_FLASH)) {
         display_action_progress("Chipsets have been detected and update files validated!");
         unsigned char ch = util_wait_key("Continue with update? [Y/N]", "nyNY");        
         if(strchr("nN", ch)) {
@@ -315,7 +263,7 @@ void main() {
     SEI();
 
     // Flash the SMC when it has the status!
-    if (check_smc(STATUS_FLASH)) {
+    if (get_status_smc(STATUS_FLASH)) {
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_FLASH
@@ -349,10 +297,10 @@ void main() {
     // The last ROM flashed is the CX16 ROM on the CX16 board!
     for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--) {
 
-        if(check_rom(rom_chip, STATUS_FLASH)) {
+        if(get_status_rom(rom_chip, STATUS_FLASH)) {
 
             // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
-            if((rom_chip == 0 && check_smc(STATUS_FLASHED)) || (rom_chip != 0)) {
+            if((rom_chip == 0 && get_status_smc(STATUS_FLASHED)) || (rom_chip != 0)) {
 
                 bank_set_brom(0);
 
@@ -410,22 +358,22 @@ void main() {
 
     display_action_progress("Update finished ...");
 
-    if(check_smc(STATUS_SKIP) && check_vera(STATUS_SKIP) && check_roms_all(STATUS_SKIP)) {
+    if(get_status_smc(STATUS_SKIP) && get_status_vera(STATUS_SKIP) && get_status_roms_all(STATUS_SKIP)) {
         vera_display_set_border_color(BLACK);
         display_action_progress("The update has been cancelled!");
     } else {
-        if(check_smc(STATUS_ERROR) || check_vera(STATUS_ERROR) || check_roms(STATUS_ERROR)) {
+        if(get_status_smc(STATUS_ERROR) || get_status_vera(STATUS_ERROR) || get_status_roms(STATUS_ERROR)) {
             vera_display_set_border_color(RED);
             display_action_progress("Update Failure! Your CX16 may be bricked!");
             display_action_text("Take a foto of this screen. And shut down power ...");
             while(1);
         } else {
-            if(check_smc(STATUS_ISSUE) || check_vera(STATUS_ISSUE) || check_roms(STATUS_ISSUE)) {
+            if(get_status_smc(STATUS_ISSUE) || get_status_vera(STATUS_ISSUE) || get_status_roms(STATUS_ISSUE)) {
                 vera_display_set_border_color(YELLOW);
                 display_action_progress("Update issues, your CX16 is not updated!");
             } else {
                 vera_display_set_border_color(GREEN);
-                if(check_smc(STATUS_FLASHED)) {
+                if(get_status_smc(STATUS_FLASHED)) {
                     display_progress_text(display_debriefing_text_smc, display_debriefing_count_smc);
 
                     for (unsigned char w=128; w>0; w--) {

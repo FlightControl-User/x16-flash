@@ -70,9 +70,6 @@ __mem unsigned char status_color[11] = {
 const unsigned int PROGRESS_CELL = 0x200;
 const unsigned int PROGRESS_ROW = 0x8000; 
 
-unsigned char status_smc = 0;
-unsigned char status_vera = 0;
-unsigned char status_rom[8] = {0};
 
 __mem unsigned int smc_bootloader = 0;
 __mem unsigned int smc_file_size = 0;
