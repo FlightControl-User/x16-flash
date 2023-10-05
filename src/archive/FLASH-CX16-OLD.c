@@ -166,7 +166,7 @@ void system_reset() {
     }
 }
 
-void frame_draw() {
+void display_frame_draw() {
 
     textcolor(WHITE);
     bgcolor(BLUE);
@@ -680,7 +680,7 @@ void main() {
     scroll(0);
     clrscr();
 
-    frame_draw();
+    display_frame_draw();
 
     gotoxy(2, 1);
     printf("commander x16 rom flash utility");
