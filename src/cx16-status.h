@@ -16,10 +16,10 @@ extern unsigned char status_smc;
 extern unsigned char status_vera;
 extern unsigned char status_rom[8];
 
-inline unsigned char get_status_smc(unsigned char status);
-inline unsigned char get_status_vera(unsigned char status);
-inline unsigned char get_status_rom(unsigned char rom_chip, unsigned char status);
-inline unsigned char get_status_cx16_rom(unsigned char status);
-inline unsigned char get_status_card_roms(unsigned char status);
-inline unsigned char get_status_roms(unsigned char status);
-inline unsigned char get_status_roms_all(unsigned char status);
+inline unsigned char check_status_smc(unsigned char status);
+inline unsigned char check_status_vera(unsigned char status);
+inline unsigned char check_status_rom(unsigned char rom_chip, unsigned char status);
+inline unsigned char check_status_cx16_rom(unsigned char status);
+inline unsigned char check_status_card_roms(unsigned char status);
+inline unsigned char check_status_roms(unsigned char status);
+inline unsigned char check_status_roms_all(unsigned char status);

@@ -154,7 +154,7 @@ void main() {
 
     SEI();
 
-    if(get_status_smc(STATUS_DETECTED)) {
+    if(check_status_smc(STATUS_DETECTED)) {
 
         // Check the SMC.BIN file size!
         smc_file_size = smc_read(8, 512);
@@ -239,14 +239,14 @@ void main() {
 
 
     // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
-    if(!get_status_smc(STATUS_FLASH) || !get_status_cx16_rom(STATUS_FLASH)) {
+    if(!check_status_smc(STATUS_FLASH) || !check_status_cx16_rom(STATUS_FLASH)) {
         display_info_smc(STATUS_ISSUE, NULL);
         display_info_cx16_rom(STATUS_ISSUE, NULL);
         display_action_progress("There is an issue with either the SMC or the CX16 main ROM!");
         util_wait_key("Press [SPACE] to continue [ ]", " ");
     }
 
-    if(get_status_smc(STATUS_FLASH) && get_status_cx16_rom(STATUS_FLASH) || get_status_card_roms(STATUS_FLASH)) {
+    if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
         display_action_progress("Chipsets have been detected and update files validated!");
         unsigned char ch = util_wait_key("Continue with update? [Y/N]", "nyNY");        
         if(strchr("nN", ch)) {
@@ -263,7 +263,7 @@ void main() {
     SEI();
 
     // Flash the SMC when it has the status!
-    if (get_status_smc(STATUS_FLASH)) {
+    if (check_status_smc(STATUS_FLASH)) {
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_FLASH
@@ -297,10 +297,10 @@ void main() {
     // The last ROM flashed is the CX16 ROM on the CX16 board!
     for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--) {
 
-        if(get_status_rom(rom_chip, STATUS_FLASH)) {
+        if(check_status_rom(rom_chip, STATUS_FLASH)) {
 
             // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
-            if((rom_chip == 0 && get_status_smc(STATUS_FLASHED)) || (rom_chip != 0)) {
+            if((rom_chip == 0 && check_status_smc(STATUS_FLASHED)) || (rom_chip != 0)) {
 
                 bank_set_brom(0);
 
@@ -358,22 +358,22 @@ void main() {
 
     display_action_progress("Update finished ...");
 
-    if(get_status_smc(STATUS_SKIP) && get_status_vera(STATUS_SKIP) && get_status_roms_all(STATUS_SKIP)) {
+    if(check_status_smc(STATUS_SKIP) && check_status_vera(STATUS_SKIP) && check_status_roms_all(STATUS_SKIP)) {
         vera_display_set_border_color(BLACK);
         display_action_progress("The update has been cancelled!");
     } else {
-        if(get_status_smc(STATUS_ERROR) || get_status_vera(STATUS_ERROR) || get_status_roms(STATUS_ERROR)) {
+        if(check_status_smc(STATUS_ERROR) || check_status_vera(STATUS_ERROR) || check_status_roms(STATUS_ERROR)) {
             vera_display_set_border_color(RED);
             display_action_progress("Update Failure! Your CX16 may be bricked!");
             display_action_text("Take a foto of this screen. And shut down power ...");
             while(1);
         } else {
-            if(get_status_smc(STATUS_ISSUE) || get_status_vera(STATUS_ISSUE) || get_status_roms(STATUS_ISSUE)) {
+            if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE)) {
                 vera_display_set_border_color(YELLOW);
                 display_action_progress("Update issues, your CX16 is not updated!");
             } else {
                 vera_display_set_border_color(GREEN);
-                if(get_status_smc(STATUS_FLASHED)) {
+                if(check_status_smc(STATUS_FLASHED)) {
                     display_progress_text(display_debriefing_text_smc, display_debriefing_count_smc);
 
                     for (unsigned char w=128; w>0; w--) {
