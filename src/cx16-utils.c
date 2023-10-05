@@ -36,7 +36,7 @@ void system_reset() {
  */
 unsigned char util_wait_key(unsigned char* info_text, unsigned char* filter) {
 
-    display_info_line(info_text);
+    display_action_text(info_text);
 
     unsigned ch = 0;
 

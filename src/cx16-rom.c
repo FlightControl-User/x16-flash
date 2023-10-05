@@ -322,7 +322,7 @@ unsigned long rom_read(
     unsigned char rom_github[6];
 
     sprintf(info_text, "Opening %s from SD card ...", file);
-    display_info_line(info_text);
+    display_action_text(info_text);
 
     FILE *fp = fopen(file, "r");
     if (fp) {
@@ -331,7 +331,7 @@ unsigned long rom_read(
         while (rom_file_size < rom_size) {
 
             sprintf(info_text, "Reading %s:%05x/%05x -> RAM:%02x:%04p ...", file, rom_file_size, rom_size, bram_bank, ram_address);
-            display_info_line(info_text);
+            display_action_text(info_text);
 
             if (!(rom_address % 0x04000)) {
                 brom_bank_start++;
@@ -456,7 +456,7 @@ unsigned long rom_verify(
         rom_different_bytes += (PROGRESS_CELL - equal_bytes);
 
         sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", rom_different_bytes, bram_bank, ram_address, rom_address);
-        display_info_line(info_text);
+        display_action_text(info_text);
     }
 
     return rom_different_bytes;
@@ -509,7 +509,7 @@ unsigned long rom_flash(
     ram_ptr_t ram_address_sector = (ram_ptr_t)RAM_BASE;
 
     // Now we compare the RAM with the actual ROM contents.
-    display_info_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
+    display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
 
     unsigned long rom_address_sector = rom_address_from_bank(rom_bank_start);
     unsigned long rom_boundary = rom_address_sector + file_size;
@@ -549,7 +549,7 @@ unsigned long rom_flash(
                 while (rom_address < rom_sector_boundary) {
 
                     sprintf(info_text, "Flashing ... RAM:%02x:%04p -> ROM:%05x ... %u flash errors ...", bram_bank_sector, ram_address_sector, rom_address_sector, flash_errors_sector + flash_errors);
-                    display_info_line(info_text);
+                    display_action_text(info_text);
 
                     unsigned long written_bytes = rom_write(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
 
@@ -608,7 +608,7 @@ unsigned long rom_flash(
         display_info_rom(rom_chip, STATUS_FLASHING, info_text);
     }
 
-    display_info_line("Flashed ...");
+    display_action_text("Flashed ...");
 
     return flash_errors;
 }

@@ -85,17 +85,17 @@ unsigned char display_frame_char(unsigned char mask) {
     }
 }
 
-// Draw a line horizontal from a given xy position and a given length.
-// The line should calculate the matching characters to draw and glue them.
-// So it first needs to peek the characters at the given position.
-// And then calculate the resulting characters to draw.
 /**
- * @brief 
+ * @brief Draw a rectangle or a line given the coordinates.
+ * Draw a line horizontal from a given xy position and a given length.  
+ * The line should calculate the matching characters to draw and glue them.  
+ * So it first needs to peek the characters at the given position.  
+ * And then calculate the resulting characters to draw.
  * 
- * @param x0 
- * @param y0 
- * @param x1 
- * @param y1 
+ * @param x0 Left up X position, counting from 0.
+ * @param y0 Left up Y position, counting from 0,
+ * @param x1 Right down X position, counting from 0.
+ * @param y1 Right down Y position, counting from 0.
  */
 void display_frame(unsigned char x0, unsigned char y0, unsigned char x1, unsigned char y1) {
     unsigned char w = x1 - x0;
@@ -156,8 +156,7 @@ void display_frame(unsigned char x0, unsigned char y0, unsigned char x1, unsigne
 }
 
 /**
- * @brief 
- * 
+ * @brief Create the CX16 update frame for X = 64, Y = 40 positions.
  */
 void display_frame_draw() {
     textcolor(LIGHT_BLUE);
@@ -189,10 +188,9 @@ void display_frame_draw() {
 }
 
 /**
- * @brief 
- * 
+ * @brief Initialize the display and size the borders for 64 characters horizontally.
  */
-void display_frame_init() {
+void display_frame_init_64() {
     // Set the charset to lower case.
     // screenlayer1();
     textcolor(WHITE);
@@ -206,12 +204,25 @@ void display_frame_init() {
     cx16_k_screen_set_charset(3, (char *)0);
 }
 
-void display_print_title(unsigned char* title_text) {
+/**
+ * @brief Print the frame title.
+ * 
+ * @param title_text The title.
+ */
+void display_frame_title(unsigned char* title_text) {
     gotoxy(2, 1);
     printf("%-65s", title_text);
 }
 
-void display_print_chip_line(char x, char y, char w, char c) {
+/**
+ * @brief Print one line of a chip figure.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w Width
+ * @param c Fore color
+ */
+void display_chip_line(char x, char y, char w, char c) {
 
     gotoxy(x, y);
 
@@ -234,7 +245,14 @@ void display_print_chip_line(char x, char y, char w, char c) {
     cputcxy(x+2, y, c);
 }
 
-void display_print_chip_end(char x, char y, char w) {
+/**
+ * @brief Print last line of a chip figure.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w Width
+ */
+void display_chip_end(char x, char y, char w) {
 
     gotoxy(x, y);
 
@@ -253,7 +271,16 @@ void display_print_chip_end(char x, char y, char w) {
     cputc(VERA_CHR_UL);
 }
 
-void display_print_chip_led(char x, char y, char w, char tc, char bc) {
+/**
+ * @brief Print the colored led of a chip figure.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w width
+ * @param tc Fore color
+ * @param bc Back color
+ */
+void display_chip_led(char x, char y, char w, char tc, char bc) {
 
     textcolor(tc);
     bgcolor(bc);
@@ -268,49 +295,85 @@ void display_print_chip_led(char x, char y, char w, char tc, char bc) {
     bgcolor(BLUE);
 }
 
-void display_print_info_led(char x, char y, char tc, char bc) {
+/**
+ * @brief Print the colored led of an info line in the info frame.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param tc Fore color
+ * @param bc Back color
+ */
+void display_info_led(char x, char y, char tc, char bc) {
     textcolor(tc); bgcolor(bc);
     cputcxy(x, y, VERA_CHR_UR);
     textcolor(WHITE);
 }
 
+/**
+ * @brief Print a full chip.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w Width
+ * @param text Vertical text to be displayed in the chip, starting from the top.
+ */
 void display_print_chip(unsigned char x, unsigned char y, unsigned char w, unsigned char* text) {
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_line(x, y++, w, *text++);
-    display_print_chip_end(x, y++, w);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_line(x, y++, w, *text++);
+    display_chip_end(x, y++, w);
 }
 
-void display_print_smc_led(unsigned char c) {
-    display_print_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c, BLUE);
-    display_print_info_led(INFO_X-2, INFO_Y, c, BLUE);
+/**
+ * @brief Print SMC led above the SMC chip.
+ * 
+ * @param c Led color
+ */
+void display_smc_led(unsigned char c) {
+    display_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c, BLUE);
+    display_info_led(INFO_X-2, INFO_Y, c, BLUE);
 }
 
 void display_chip_smc() {
-    display_print_smc_led(GREY);
+    display_smc_led(GREY);
     display_print_chip(CHIP_SMC_X, CHIP_SMC_Y+2, CHIP_SMC_W, "SMC     ");
 }
 
-void display_print_vera_led(unsigned char c) {
-    display_print_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c, BLUE);
-    display_print_info_led(INFO_X-2, INFO_Y+1, c, BLUE);
+/**
+ * @brief Print VERA led above the VERA chip.
+ * 
+ * @param c Led color
+ */
+void display_vera_led(unsigned char c) {
+    display_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c, BLUE);
+    display_info_led(INFO_X-2, INFO_Y+1, c, BLUE);
 }
 
 void display_chip_vera() {
-    display_print_vera_led(GREY);
+    display_vera_led(GREY);
     display_print_chip(CHIP_VERA_X, CHIP_VERA_Y+2, CHIP_VERA_W, "VERA     ");
 }
 
-void display_print_rom_led(unsigned char chip, unsigned char c) {
-    display_print_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c, BLUE);
-    display_print_info_led(INFO_X-2, INFO_Y+chip+2, c, BLUE);
+/**
+ * @brief Print ROM led above the ROM chip.
+ * 
+ * @param chip ROM chip number (0 is main rom chip of CX16)
+ * @param c Led color
+ */
+void display_rom_led(unsigned char chip, unsigned char c) {
+    display_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c, BLUE);
+    display_info_led(INFO_X-2, INFO_Y+chip+2, c, BLUE);
 }
 
+/**
+ * @brief Print all ROM chips.
+ * 
+ */
 void display_chip_rom() {
 
     char rom[16];
@@ -320,19 +383,19 @@ void display_chip_rom() {
         if(r) {
             *(rom+3) = r+'0';
         }
-        display_print_rom_led(r, GREY);
+        display_rom_led(r, GREY);
         display_print_chip(CHIP_ROM_X+r*6, CHIP_ROM_Y+2, CHIP_ROM_W, rom);
     }
 }
 
-void print_chip_KB(unsigned char rom_chip, unsigned char* kb) {
-    display_print_chip_line(3 + rom_chip * 10, 51, 3, kb[0]);
-    display_print_chip_line(3 + rom_chip * 10, 52, 3, kb[1]);
-    display_print_chip_line(3 + rom_chip * 10, 53, 3, kb[2]);
-}
-
+/**
+ * @brief Print the I2C address, which needs a standard format.
+ * 
+ * @param bram_bank The RAM bank from where the I2C is flashed.
+ * @param bram_ptr The RAM pointer address from where the I2C is flashed.
+ * @param i2c_address The I2C address where the I2C is flashed.
+ */
 void print_i2c_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned int i2c_address) {
-
     textcolor(WHITE);
     gotoxy(43, 1);
     printf("ram = %2x/%4p, i2c = %4x", bram_bank, bram_ptr, i2c_address);
@@ -342,7 +405,6 @@ void print_i2c_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned int 
  * @brief Clean the progress area for the flashing.
  */
 void display_progress_clear() {
-
     textcolor(WHITE);
     bgcolor(BLUE);
 
@@ -359,17 +421,35 @@ void display_progress_clear() {
     }
 }
 
+/**
+ * @brief Print one line of text in the progress frame at a line position.
+ * 
+ * @param line The start line, counting from 0.
+ * @param text The text to be displayed.
+ */
 void display_progress_line(unsigned char line, unsigned char* text) {
     cputsxy(PROGRESS_X, PROGRESS_Y+line, text);
 }
 
+/**
+ * @brief Print a block of text within the progress frame with a count of lines.
+ * 
+ * @param text A pointer to an array of strings to be displayed (char**).
+ * @param lines The amount of lines to be displayed, starting from the top of the progress frame.
+ */
 void display_progress_text(unsigned char** text, unsigned char lines) {
     for(unsigned char l=0; l<lines; l++) {
         display_progress_line(l, text[l]);
     }
 }
 
-void display_info_progress(unsigned char* info_text) {
+
+/**
+ * @brief Print the progress at the action frame, which is the first line.
+ * 
+ * @param info_text The progress text to be displayed.
+ */
+void display_action_progress(unsigned char* info_text) {
     unsigned char x = wherex();
     unsigned char y = wherey();
     gotoxy(2, PROGRESS_Y-4);
@@ -377,7 +457,13 @@ void display_info_progress(unsigned char* info_text) {
     gotoxy(x, y);
 }
 
-void display_info_line(unsigned char* info_text) {
+
+/**
+ * @brief Print an info line at the action frame, which is the second line.
+ * 
+ * @param info_text The info text to be displayed.
+ */
+void display_action_text(unsigned char* info_text) {
     unsigned char x = wherex();
     unsigned char y = wherey();
     gotoxy(2, PROGRESS_Y-3);
@@ -385,14 +471,17 @@ void display_info_line(unsigned char* info_text) {
     gotoxy(x, y);
 }
 
-
-void display_print_info_title() {
+/**
+ * @brief Display the title in the info pane.
+ * 
+ */
+void display_info_title() {
     cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   File  / Total Information");
     cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ----- / ----- --------------------");
 }
 
 /**
- * @brief Print the SMC status.
+ * @brief Display the SMC status in the info frame.
  * 
  * @param status The STATUS_ 
  * 
@@ -401,7 +490,7 @@ void display_print_info_title() {
 void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     unsigned char x = wherex(); unsigned char y = wherey();
     status_smc = info_status;
-    display_print_smc_led(status_color[info_status]);
+    display_smc_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y);
     printf("SMC  %-9s ATTiny %05x / 01E00 ", status_text[info_status], smc_file_size);
     if(info_text) {
@@ -411,14 +500,14 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
 }
 
 /**
- * @brief Print the VERA status.
+ * @brief Display the VERA status at the info frame.
  * 
  * @param info_status The STATUS_ 
  */
 void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     unsigned char x = wherex(); unsigned char y = wherey();
     status_vera = info_status;
-    display_print_vera_led(status_color[info_status]);
+    display_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
     printf("VERA %-9s FPGA   1a000 / 1a000 ", status_text[info_status]);
     if(info_text) {
@@ -428,16 +517,16 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
 }
 
 /**
- * @brief 
+ * @brief Display the ROM status of a specific rom chip. 
  * 
- * @param rom_chip 
- * @param info_status 
- * @param info_text 
+ * @param rom_chip The ROM chip, 0 is the main CX16 ROM chip, maximum 7 ROMs.
+ * @param info_status The status.
+ * @param info_text The status text.
  */
 void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigned char* info_text) {
     unsigned char x = wherex(); unsigned char y = wherey();
     status_rom[rom_chip] = info_status;
-    display_print_rom_led(rom_chip, status_color[info_status]);
+    display_rom_led(rom_chip, status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
     printf("ROM%u %-9s %-6s %05x / %05x ", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip]);
     if(info_text) {
@@ -447,10 +536,10 @@ void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigne
 }
 
 /**
- * @brief 
+ * @brief Display the ROM status of the main CX16 ROM chip.
  * 
- * @param info_status 
- * @param info_text 
+ * @param info_status The status.
+ * @param info_text The status text.
  */
 void display_info_cx16_rom(unsigned char info_status, unsigned char* info_text) {
     display_info_rom(0, info_status, info_text);
