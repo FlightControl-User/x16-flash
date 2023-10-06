@@ -118,7 +118,7 @@ unsigned int smc_flash_block(ram_ptr_t ram_ptr) {
  * 
  * @return unsigned int The amount of bytes read from SMC.BIN to be flashed.
  */
-unsigned int smc_read() {
+unsigned int smc_read(unsigned char display_progress) {
 
     unsigned int smc_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
     unsigned int progress_row_bytes = 0;
@@ -152,7 +152,8 @@ unsigned int smc_read() {
                 progress_row_bytes = 0;
             }
 
-            cputc('.');
+            if(display_progress)
+                cputc('.');
 
             ram_ptr += smc_file_read;
             smc_file_size += smc_file_read;

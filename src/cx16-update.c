@@ -18,7 +18,7 @@
 #pragma encoding(screencode_mixed)
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(mem)
+#pragma var_model(zp)
 
 #include "cx16-defines.h"
 #include "cx16-globals.h"
@@ -149,7 +149,7 @@ void main() {
     if(check_status_smc(STATUS_DETECTED)) {
 
         // Check the SMC.BIN file size!
-        smc_file_size = smc_read();
+        smc_file_size = smc_read(0);
 
         // In case no file was found, set the status to error and skip to the next, else, mention the amount of bytes read.
         if (!smc_file_size) {
@@ -194,7 +194,7 @@ void main() {
             display_action_progress(info_text);
 
             // Read the ROM(n).BIN file.
-            unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_CHECKING, rom_bank, rom_sizes[rom_chip]);
+            unsigned long rom_bytes_read = rom_read(0, rom_chip, file, STATUS_CHECKING, rom_bank, rom_sizes[rom_chip]);
 
             // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
             if (!rom_bytes_read) {
@@ -218,7 +218,7 @@ void main() {
                     rom_release[rom_chip] = *((char*)0xBF80);
                     bank_pull_bram();
 
-                    sprintf(info_text, "%s:R%u/%s", file, rom_release[rom_chip], rom_github[rom_chip]);
+                    sprintf(info_text, "%s:R%u/%s", file, (~(rom_release[rom_chip]))+1, rom_github[rom_chip]);
                     display_info_rom(rom_chip, STATUS_FLASH, info_text);
                 }
             }
@@ -273,7 +273,7 @@ void main() {
 #ifdef __SMC_CHIP_FLASH
 
         // Read the SMC.BIN to flash the SMC chip.
-        smc_file_size = smc_read();
+        smc_file_size = smc_read(1);
         if(smc_file_size) {
             // Flash the SMC chip.
             display_action_text("Press both POWER/RESET buttons on the CX16 board!");
@@ -315,7 +315,7 @@ void main() {
                 sprintf(info_text, "Reading %s ... (.) data ( ) empty", file);
                 display_action_progress(info_text);
 
-                unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
+                unsigned long rom_bytes_read = rom_read(1, rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
 
                 // If the ROM file was correctly read, verify the file ...
                 if(rom_bytes_read) {
@@ -373,12 +373,13 @@ void main() {
                 display_action_progress("Update issues, your CX16 is not updated!");
             } else {
                 vera_display_set_border_color(GREEN);
+                display_action_progress("Your CX16 update is a success!");
                 if(check_status_smc(STATUS_FLASHED)) {
                     display_progress_text(display_debriefing_text_smc, display_debriefing_count_smc);
 
-                    for (unsigned char w=128; w>0; w--) {
+                    for (unsigned char w=240; w>0; w--) {
                         wait_moment();
-                        sprintf(info_text, "Please read carefully the below (%u) ...", w);
+                        sprintf(info_text, "(%u) Please read carefully the below ...", w);
                         display_action_text(info_text);
                     }
 
@@ -398,7 +399,7 @@ void main() {
 
         for (unsigned char w=200; w>0; w--) {
             wait_moment();
-            sprintf(info_text, "(%03u) Your CX16 will reset ...", w);
+            sprintf(info_text, "(%u) Your CX16 will reset ...", w);
             display_action_text(info_text);
         }
 

@@ -36,7 +36,7 @@ unsigned int smc_detect();
 unsigned long smc_version(unsigned char* version_string);
 void smc_reset();
 unsigned int smc_flash_block(ram_ptr_t ram_ptr);
-unsigned int smc_read();
+unsigned int smc_read(unsigned char display_progress);
 unsigned int smc_flash(unsigned int smc_bytes_total);
 
 

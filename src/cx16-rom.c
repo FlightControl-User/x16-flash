@@ -300,6 +300,7 @@ unsigned char* rom_file(unsigned char rom_chip) {
 }
 
 unsigned long rom_read(
+        unsigned char display_progress,
         unsigned char rom_chip, unsigned char* file,
         unsigned char info_status,
         unsigned char brom_bank_start, unsigned long rom_size) {
@@ -351,7 +352,8 @@ unsigned long rom_read(
                 rom_row_current = 0;
             }
 
-            cputc('.');
+            if(display_progress)
+                cputc('.');
 
             ram_address += rom_package_read;
             rom_address += rom_package_read;
