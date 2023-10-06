@@ -101,17 +101,16 @@ Please find below a detailed description of the complete process.
 ### 3.1. Introduction and briefing screens
 
 You will see a first screen, which introduces the update process. The top shows the title of the utility.
-Below are all the possible components shown that this update utility supports. Above each component, a led is shown that will light up in different colors indicating the status of the upgrade progress.
+Below are all the possible components shown that this update utility supports. Above each component, a led is shown that will light up in different colors indicating the status of the upgrade progress. Below the components is an overview shown of each chipset and its properties. Totally on the right of each line will show a short indication with additional information or issue, or even an error situation with the component during the process. In the middle of the screen are two lines shown that indicate the step of the overall flow of thee update process and an action line or additional information of the update action in progress. And at the bottom is an information pane, that shows additional textual or graphical information of the update action awaiting or being executed.
 
-Below the components is an overview shown of each chipset and its properties. Totally on the right of each line will show a short indication with additional information or issue, or even an error situation with the component during the process.
-
-In the middle of the screen are two lines shown that indicate the step of the overall flow of thee update process and an action line or additional information of the update action in progress.
-
-And at the bottom is an information pane, that shows additional textual or graphical information of the update action awaiting or being executed.
+![WIN_20231006_11_52_27_Pro](https://github.com/FlightControl-User/x16-flash/assets/13690775/365014aa-51ea-4398-9bfb-08fbe36920bc)
 
 Please read carefully the text at the bottom panel of the screen, and press SPACE to continue ...
 
 A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your ISA expansion cardridge board. Press SPACE to continue.
+
+![WIN_20231006_11_52_30_Pro](https://github.com/FlightControl-User/x16-flash/assets/13690775/5db1bfc8-51eb-49ad-a692-0d3fae34c7bf)
+
 
 ### 3.2. Component detection
 
