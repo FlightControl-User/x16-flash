@@ -119,17 +119,14 @@ A second screen appears, which indicates the color schema used to indicate the u
 
 Next, the update utility detects which components are upgradable. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the remaining 7 ROM chips (the most right chip is ROM#7), which would be the right most chip on the ISA expansion cardridge.
 
-<img width="642" alt="FLASH-START" src="https://user-images.githubusercontent.com/13690775/225111270-385066a4-1b71-473f-8647-0c15f8c49da3.png">
-
 Each component detected will be highlighted with a Detected status and a WHITE led. The capacity of each detected ROM is shown in KBytes. Other components that are not detected are highlighed with a None staus and a BLACK led. These ROMs won't be considered for flashing.
 
 ![detected](https://github.com/FlightControl-User/x16-flash/blob/main/images/detected.jpg)
 
 Note again, that ROMs that can be flashed, but which don't have the jumper pins closed, won't be detected and will be skipped!
 
+Once all components have been detected, it will validate each file.
 For each flashable ROM, the program will look for a related ROM[N].BIN file. 
-
-<img width="642" alt="FLASH-NOFILE" src="https://user-images.githubusercontent.com/13690775/225111329-2528fc22-9e51-4bbd-9cf2-f06931e25dd5.png">
 
 If there is no file found, a message is shown to the user and this ROM will be skipped. The ROM will be highlighted with a GREY led. 
 
