@@ -47,19 +47,6 @@ const char* display_into_colors_text[16] = {
     "Errors indicate your J1 jumpers are not properly set!",
 };
 
-const char display_no_smc_bootloader_count = 9;
-const char* display_no_smc_bootloader_text[9] = {
-    "The SMC chip in your CX16 system does not contain a bootloader.",
-    "",
-    "A bootloader is needed to reset the SMC chip after updating.",
-    "Unfortunately, your SMC chip cannot be updated using this tool!",
-    "",
-    "You will either need to upload your own bootloader onto",
-    "the SMC chip on your board using an arduino device,",
-    "or alternatively to order a new SMC chip from TexElec",
-    "containing the required bootloader!"
-};
-
 const char display_no_valid_smc_bootloader_count = 9;
 const char* display_no_valid_smc_bootloader_text[9] = {
     "The SMC chip in your CX16 system does not contain a valid bootloader.",
@@ -67,10 +54,10 @@ const char* display_no_valid_smc_bootloader_text[9] = {
     "A valid bootloader is needed to update the SMC chip.",
     "Unfortunately, your SMC chip cannot be updated using this tool!",
     "",
-    "You will either need to downgrade the bootloader onto",
-    "the SMC chip on your board using an arduino device,",
-    "or alternatively to order a new SMC chip from TexElec",
-    "containing a valid bootloader!"
+    "You will either need to install or downgrade the bootloader onto",
+    "the SMC chip on your CX16 using an arduino device,",
+    "or alternatively to order a new SMC chip from TexElec or",
+    "a CX16 community friend containing a valid bootloader!"
 };
 
 

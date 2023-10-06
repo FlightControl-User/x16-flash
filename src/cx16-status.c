@@ -12,9 +12,11 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
-unsigned char status_smc = 0;
-unsigned char status_vera = 0;
-unsigned char status_rom[8] = {0};
+// Globals
+__mem unsigned char status_smc = 0;
+__mem unsigned char status_vera = 0;
+__mem unsigned char status_rom[8] = {0};
+
 
 /**
  * @brief Check the status of the SMC chip.
@@ -80,7 +82,7 @@ inline unsigned char check_status_card_roms(unsigned char status) {
  */
 inline unsigned char check_status_roms(unsigned char status) {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        if(check_status_rom(rom_chip, status) == status) {
+        if(check_status_rom(rom_chip, status)) {
             return status;
         }        
     }

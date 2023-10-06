@@ -1,27 +1,34 @@
 # Commander X16 Flashing Utility
 
-Contains the source code of the commander x16 rom flashing utility.
-The artefact of this source code is a small program that allows to upgrade (or downgrade) your CX16 on-board ROM, or, to flash external ROMs etched on an ISA cardridge board.
+Contains the source code of the commander x16 update utility.
+This utility allows you to upgrade (or downgrade) your CX16 on-board SMC firmware and main ROM, and/or, to flash external ROMs etched on an ISA cardridge board.
 
-Please find here a short user manual of this program.
+Please find below a short user manual.
 
 ## Notice of caution
 
-Flashing your on-board rom requires you to carefully follow the instructions. There is a small risk that your on-board ROM may get damaged during the ROM flashing process and may generate your ROM unusable, resulting in a bricked CX16!
+Updating your on-board firmware requires you to carefully follow the instructions. There is a small risk that your on-board firmware may get damaged during the update process and may generate your CX16 unusable, resulting in a bricked CX16!
 
 Further steps to mitigate and recover from such situations are pending to be documented. However, please direct youself in such situations to the commander X16 [Discord]() or [Forum](https://www.commanderx16.com/forum)!
 
 # User Manual
 
-Please consider this draft user manual as a first guide how to use the flashing tool.
+Please consider this draft user manual as a first guide how to use the update tool.
 
 ## 0. What you need
 
-There is not much that is needed to upgrade your ROM(s).
+Depending on your configuration and the new release artefacts available from the CX16 community site,  
+specific hardware on your CX16 board will be upgraded. But in essence, the upgrade should be fairly straightforward and user friendly!
 
 - Ensure you have a valid and working SDCARD that has sufficient free space and is formatted in FAT32.
-- You need a CX16 computer (the real thing).
+- You need a Commander X16 computer (the real thing).
 - You optionally can have an add-on ISA cardridge board, that is plugged in any of the 4 ISA slots. This ISA RA/ROM board can contain an extra 3.5 MB of RAM/ROM!
+
+On the Commander X16 main board, you have 3 important compontents that this utility can update:
+
+- The SMC : 
+- The VERA : 
+- The ROM : 
 
 ## 1. Download the program
 

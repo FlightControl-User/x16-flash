@@ -23,7 +23,7 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
-#pragma var_model(zp, global_integer_ssa_mem, local_integer_ssa_mem, parameter_integer_ssa_zp, local_pointer_ssa_mem)
+#pragma var_model(zp)
 
 #include "cx16-status.h"
 #include "cx16-display.h"
@@ -68,13 +68,13 @@ void main() {
 #ifdef __INTRO
 
     display_progress_text(display_into_briefing_text, display_intro_briefing_count);
-    util_wait_key("Please read carefully the below, and press [SPACE] ...", " ");
+    util_wait_space();
 
     display_progress_text(display_into_colors_text, display_intro_colors_count);
     for(unsigned char intro_status=0; intro_status<11; intro_status++) {
         display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
     }
-    util_wait_key("If understood, press [SPACE] to start the update ...", " ");
+    util_wait_space();
     display_progress_clear();
 
 #endif
@@ -92,17 +92,18 @@ void main() {
 
     if(smc_bootloader == 0x0100) {
         display_info_smc(STATUS_ISSUE, "No Bootloader!"); // If the CX16 board does not have a bootloader, display info how to flash bootloader.
-        display_progress_text(display_no_smc_bootloader_text, display_no_smc_bootloader_count);
+        display_progress_text(display_no_valid_smc_bootloader_text, display_no_valid_smc_bootloader_count);
     } else {
         if(smc_bootloader == 0x0200) {
-            display_info_smc(STATUS_ERROR, "Unreachable!"); // This is an error with the CX16 board. J5 jumpers doesn't matter when flashing the CX16 from this utility.
+            display_info_smc(STATUS_ERROR, "SMC Unreachable!"); // This is an error with the CX16 board. J5 jumpers doesn't matter when flashing the CX16 from this utility.
         } else {
             if(smc_bootloader > 0x2) {
                 sprintf(info_text, "Bootloader v%02x invalid! !", smc_bootloader);
                 display_info_smc(STATUS_ISSUE, info_text); // Bootloader is not supported by this utility, but is not error.
                 display_progress_text(display_no_valid_smc_bootloader_text, display_no_valid_smc_bootloader_count);
             } else {
-                sprintf(info_text, "Bootloader v%02x", smc_bootloader); // All ok, display bootloader version.
+                smc_version(smc_version_string);
+                sprintf(info_text, "SMC %s, BL v%02x", smc_version_string, smc_bootloader); // All ok, display bootloader version.
                 display_info_smc(STATUS_DETECTED, info_text);
             }
         }
@@ -148,15 +149,14 @@ void main() {
 
         // In case no file was found, set the status to error and skip to the next, else, mention the amount of bytes read.
         if (!smc_file_size) {
-            display_info_smc(STATUS_ERROR, "No SMC.BIN!"); // Stop with SMC error.
+            display_info_smc(STATUS_ISSUE, "No SMC.BIN!"); // Stop with SMC issue, and reset the CX16.
         } else {
             // If the smc.bin file size is larger than 0x1E00 then there is an error!
             if(smc_file_size > 0x1E00) {
-                display_info_smc(STATUS_ERROR, "SMC.BIN too large!"); // Stop with SMC error.
+                display_info_smc(STATUS_ISSUE, "SMC.BIN too large!"); // Stop with SMC issue, and reset the CX16.
             } else {
-                // All ok, display the SMC bootloader.
-                sprintf(info_text, "Bootloader v%02x", smc_bootloader);
-                display_info_smc(STATUS_FLASH, info_text); // All ok, SMC can be updated.
+                // All ok, display the SMC version and bootloader.
+                display_info_smc(STATUS_FLASH, NULL); // All ok, SMC can be updated.
             }
         }
     }
@@ -232,12 +232,18 @@ void main() {
     // TODO: if no SMC flash => Just reset the system, no SMC reset needed.
 
 
-    // // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
-    // if(!check_status_smc(STATUS_FLASH) || !check_status_cx16_rom(STATUS_FLASH)) {
-    //     display_action_progress("There is an issue with either the SMC or the CX16 main ROM!");
-    //     util_wait_key("Press [SPACE] to continue ...", " ");
-    // }
+    if(!check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
+        display_action_progress("The SMC must also be flashable, check the SMC issue!");
+        display_info_smc(STATUS_ISSUE, NULL);
+        util_wait_space();
+    }
+    if(check_status_smc(STATUS_FLASH) && !check_status_cx16_rom(STATUS_FLASH)) {
+        display_action_progress("The ROM must also be flashable, check the ROM issue.");
+        display_info_cx16_rom(STATUS_ISSUE, NULL);
+        util_wait_space();
+    }
 
+    // If the SMC and CX16 ROM is ready to flash, or, if one of the ROMs can be flashed, ok, go ahead and flash.
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
         display_action_progress("Chipsets have been detected and update files validated!");
         unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY");        
@@ -348,8 +354,6 @@ void main() {
     bank_set_brom(4);
     CLI();
 
-    display_action_progress("Update finished ...");
-
     if(check_status_smc(STATUS_SKIP) && check_status_vera(STATUS_SKIP) && check_status_roms_all(STATUS_SKIP)) {
         vera_display_set_border_color(BLACK);
         display_action_progress("The update has been cancelled!");
@@ -390,7 +394,7 @@ void main() {
 
         for (unsigned char w=200; w>0; w--) {
             wait_moment();
-            sprintf(info_text, "Your CX16 will reset (%03u) ...", w);
+            sprintf(info_text, " (%03u) Your CX16 will reset ...", w);
             display_action_text(info_text);
         }
 

@@ -12,6 +12,9 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 #include "cx16-display-text.h"
+#include "cx16-smc.h"
+#include "cx16-rom.h"
+#include "cx16-status.h"
 
 /**
  * @brief 
@@ -495,7 +498,7 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     gotoxy(INFO_X, INFO_Y);
     printf("SMC  %-9s ATTiny %05x / 01E00 ", status_text[info_status], smc_file_size);
     if(info_text) {
-        printf("%-20s", info_text);
+        printf("%-25s", info_text);
     }
     gotoxy(x, y);
 }
@@ -512,7 +515,7 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     gotoxy(INFO_X, INFO_Y+1);
     printf("VERA %-9s FPGA   1a000 / 1a000 ", status_text[info_status]);
     if(info_text) {
-        printf("%-20s", info_text);
+        printf("%-25s", info_text);
     }
     gotoxy(x, y);
 }
@@ -531,7 +534,7 @@ void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigne
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
     printf("ROM%u %-9s %-6s %05x / %05x ", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip]);
     if(info_text) {
-        printf("%-20s", info_text);
+        printf("%-25s", info_text);
     }
     gotoxy(x,y);
 }

@@ -21,6 +21,13 @@
 #include "cx16-display.h"
 #include "cx16-smc.h"
 
+// Globals (to save zeropage and code overhead with parameter passing.)
+__mem unsigned int smc_bootloader = 0;
+__mem unsigned int smc_file_size = 0;
+__mem unsigned char smc_version_string[16];
+
+
+
 /**
  * @brief Detect the SMC chip on the CX16 board, and the bootloader version contained in it.
  * 
@@ -48,6 +55,21 @@ unsigned int smc_detect() {
 
     return smc_bootloader_version;
 }
+
+/**
+ * @brief Detect and write the SMC version number into the info_text.
+ * 
+ * @param version_string The string containing the SMC version filled upon return.
+ */
+unsigned long smc_version(unsigned char* version_string) {
+    unsigned int version = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_VERSION);
+    unsigned int major = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MAJOR);
+    unsigned int minor = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MINOR);
+
+    sprintf(version_string, "%u.%u.%u", version, major, minor);
+    return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, version));
+}
+
 
 /**
  * @brief Shut down the CX16 through an SMC reboot.
@@ -105,7 +127,7 @@ unsigned int smc_read() {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W; 
 
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;  // It is assume that one RAM bank is 0X2000 bytes.
+    ram_ptr_t ram_ptr = (ram_ptr_t)RAM_BASE;  // It is assume that one RAM bank is 0X2000 bytes.
 
     display_action_progress("Reading SMC.BIN ... (.) data, ( ) empty");
 
@@ -120,9 +142,9 @@ unsigned int smc_read() {
 
         // We read block_size bytes at a time, and each block_size bytes we plot a dot.
         // Every r bytes we move to the next line.
-        while (smc_file_read = fgets(ram_address, SMC_PROGRESS_CELL, fp)) {
+        while (smc_file_read = fgets(ram_ptr, SMC_PROGRESS_CELL, fp)) {
 
-            sprintf(info_text, "Reading SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_file_read, smc_file_size, 0, ram_address);
+            sprintf(info_text, "Reading SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_file_read, smc_file_size, 0, ram_ptr);
             display_action_text(info_text);
 
             if (progress_row_bytes == SMC_PROGRESS_ROW) {
@@ -132,7 +154,7 @@ unsigned int smc_read() {
 
             cputc('.');
 
-            ram_address += smc_file_read;
+            ram_ptr += smc_file_read;
             smc_file_size += smc_file_read;
             progress_row_bytes += smc_file_read;
         }

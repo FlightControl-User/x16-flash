@@ -74,6 +74,4 @@ const unsigned char SMC_PROGRESS_CELL = 0x8;  // A progress frame cell represent
 const unsigned int SMC_PROGRESS_ROW = 0x200;  // A progress frame row represents about 512 bytes for a SMC update.
 
 
-__mem unsigned int smc_bootloader = 0;
-__mem unsigned int smc_file_size = 0;
 

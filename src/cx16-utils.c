@@ -65,6 +65,10 @@ unsigned char util_wait_key(unsigned char* info_text, unsigned char* filter) {
     return ch;
 }
 
+void util_wait_space() {
+    util_wait_key("Press [SPACE] to continue ...", " ");
+}
+
 /**
  * @brief 
  * 

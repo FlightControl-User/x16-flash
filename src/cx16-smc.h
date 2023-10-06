@@ -22,12 +22,18 @@
 #define FLASH_I2C_SMC_UPLOAD 0x80
 #define FLASH_I2C_SMC_COMMIT 0x81
 #define FLASH_I2C_SMC_REBOOT 0x82
+#define FLASH_I2C_SMC_VERSION 0x30
+#define FLASH_I2C_SMC_MAJOR 0x31
+#define FLASH_I2C_SMC_MINOR 0x32
+
 #define FLASH_I2C_SMC_DEVICE 0x42
 
 extern unsigned int smc_bootloader;
+extern unsigned char smc_version_string[16];
 extern unsigned int smc_file_size;
 
 unsigned int smc_detect();
+unsigned long smc_version(unsigned char* version_string);
 void smc_reset();
 unsigned int smc_flash_block(ram_ptr_t ram_ptr);
 unsigned int smc_read();
