@@ -32,26 +32,29 @@ On the Commander X16 main board, you have 3 important compontents that this util
 
 ## 1. Download the program
 
-The latest version of the program can be found on the [release page](https://github.com/FlightControl-User/x16-flash/releases) of this repository. Search for the file FLASH-CX16.PRG and download the file. Copy the program into a directory of your SDCARD. You will run this program on your CX16 hardware. Ensure the file is copied onto the SDcard with the file name in CAPITAL letters.
+The latest version of the program can be found on the [release page](https://github.com/FlightControl-User/x16-flash/releases) of this repository. Search for the file CX16-UPDATE.PRG and download the file. Copy the program into a directory of your SDCARD. You will run this program on your CX16 hardware. Ensure the file is copied onto the SDcard with the file name in CAPITAL letters.
 
-## 2. Download your rom.bin file(s) and name the bin files
+## 2. Download the Commander X16 community firmware release files from the web site.
 
-Download your rom.bin files and name the files according your rom flashing strategy.  
-There are two scenarios for rom flashing: flashing the on-board rom or flashing the off-board roms on the RAM/ROM external board.
+Download the latest SMC.BIN and ROM.BIN file from the Commander X16 community web site.
+Any additional ROMs on the ISA expansion card to be flashed, require ROMn.BIN files to be added,  according your rom flashing strategy.  
 
-### 2.1. Flash the single ROM on your CX16 board
+### 2.1. Update your SMC and main ROM firmware on your CX16 board
 
-Download the latest version of the rom.bin available at the CX16 github page. Copy the bin file at the same location where your FLASH-CX16.PRG file is located. Ensure the file is copied onto the SDcard with the file name in CAPITAL letters.
+Copy the SMC.BIN and the ROM.BIN files on the SDcard at the same folder where your FLASH-CX16.PRG file is located. Ensure the files are copied onto the SDcard with the file names in **CAPITAL** letters.
 
-Ensure that the J1 jumper pins are closed, to remove the write protection of the on-board ROM.
+Ensure that the J1 jumper pins on the Commander X16 main board are closed, to remove the write protection of the on-board ROM. If the J1 jumper pins are not closed, the onboard ROM will not be recognized by the 
+update utility and an issue will be reported by the software!
 
 ![ROM-onboard-dip](https://user-images.githubusercontent.com/13690775/225110062-8081d0a6-079a-405a-b03a-ab2f482fbfff.jpg)
 
-Once you have the J1 jumper pins properly closed, the ROM will be detected by the flashing program. If the J1 jumper pins are open, the ROM won't be recognized by the flashing program and your ROM.BIN file will not be flashed!
+Once you have the J1 jumper pins properly closed, the ROM on the main board of the Commander X16 will be detected by the update utility.
+
+Ensure that the J5 jumper pins on the Commander X16 main board are closed, to ensure that no issue occurs reading the contents of the SMC chipset. The update utility can flash the SMC with the J5 jumper pins open, but to ensure that no issue occurs, it is safer to have them also closed.
 
 ### 2.2. Flash multiple ROMs on the external RAM/ROM ISA cardidge.
 
-First for all clarity, this is the cardridge:
+First for all clarity, find below a picture of such a ISA ROM expansion cardridge:
 
 ![ROM-cardridge](https://user-images.githubusercontent.com/13690775/225110167-546596e6-998a-464f-b6a9-53fb598c19b4.jpg)
 
@@ -61,21 +64,21 @@ Each ROM is addressing wise 512K separated from each other, and can be flashed w
 
 To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on the cardridge are to be remained open. However, in order to flash the ROMs, close the relevant jumper pins.
 
-Close the J1 jumper pins (at the left side of the board) to remove the write-protection for ROM#1 till ROM#6. 
+Close the J1 jumper pins (at the left side of the ISA cardridge board) to remove the write-protection for ROM#1 till ROM#6. 
 
 ![ROM-DIP-J1](https://user-images.githubusercontent.com/13690775/225111120-56eeaca5-69a6-4812-a854-5cfc1246045a.jpg)
 
-Close the J2 jumper pins (at the right side of the board) to remove the write-protection for ROM#7. 
+Close the J2 jumper pins (at the right side of the ISA cardridge board) to remove the write-protection for ROM#7. 
 
 ![ROM-DIP-J2](https://user-images.githubusercontent.com/13690775/225111150-c441812c-5331-46b1-805f-f769064507f7.jpg)
 
-Once you have the J1 and/or J2 jumper pins properly closed, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
+Once you have the J1 and/or J2 jumper pins properly closed on the ISA cardridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
 
-## 3. Flashing the ROMs
+## 3. Proceed with updating your Commander X16 firmware or ROMs.
 
-Once you've copied the FLASH-CX16.PRG and the relevant ROM[N].BIN files onto the SDcard, you are ready for ROM flashing!
+Once you've copied the CX16-UPDATE.PRG and the relevant SMC.BIN and ROM[N].BIN files onto the SDcard, you are ready to update your Commander X16!
 
-Place the SDcard in the foreseen VERA slot, and verify that all indicated jumper pins are closed properly.
+Place the SDcard in the foreseen VERA card slot, and again, verify that all indicated J1 and J5 jumper pins are closed properly on the Commander X16 main board and optionally on the ISA cardridge board.
 
 Boot/Start your Commander X16 computer.
 
@@ -86,32 +89,39 @@ Your Commander X16 startup screen might look like this ...
 Load the program and run it, follow a small guide as described below.
 
   1. DOS "CD:folder" - Optionally ensure that you navigate to the right folder on the SDcard where you copied all the files using DOS "CD:folder" commands.
-  2. LOAD "FLASH-CX16.PRG",8
+  2. LOAD "CX16-UPDATE.PRG",8
   3. RUN
 
-The flashing program will first identify each ROM that is able to be flashed on the board and on the cardridge. Any ROM that is either not identified or not reachable will be shown as inactive and will be skipped.
+The update utility will walk you through the update process in a very user friendly way.
+At first 2 introduction screens are shown. Once those screens have been read and understood, the actual update process can commence.
+The update utility detects each chipset and its properties. It will read each file, and will verify the contents of the file in terms of file presence, file size and contents. Once these checks are executed and everything is fine, the update process can proceed for the identified Commander X16 components to be updated. And finally, a debriefing screen is shown with the result of the update process. Depending on the type of components updated, different reboot actions will take place.
 
-The identified ROMs for flashing will be flashed from the highest ROM# number to the lowest ROM number. The last ROM that is considered for flashing is the on-board ROM.
+Please find below a detailed description of the complete process.
 
-The reason why this sequence was chosen, is to ensure that the program has the ROM routines available for allowing the user to view the flashing results and press the keyboard to continue the process.
+### 3.1. Introduction and briefing screens
 
-Once the onboard ROM has been flashed, the program will automatically reset.
+You will see a first screen, which introduces the update process. The top shows the title of the utility.
+Below are all the possible components shown that this update utility supports. Above each component, a led is shown that will light up in different colors indicating the status of the upgrade progress.
 
-Please find in more details this sequence explained visually, with an explanation of the screens and the meaning of the symbols/colors.
+Below the components is an overview shown of each chipset and its properties. Totally on the right of each line will show a short indication with additional information or issue, or even an error situation with the component during the process.
 
-### 3.1. ROM identification
+In the middle of the screen are two lines shown that indicate the step of the overall flow of thee update process and an action line or additional information of the update action in progress.
 
-Once the flashing program is started, it will first attempt to identify which ROMs are "flashable". You see 8 ROM chips with the left chip the on-board ROM chip and the most right chip the ROM#7, which would be the right most chip on the cardridge.
+And at the bottom is an information pane, that shows additional textual or graphical information of the update action awaiting or being executed.
+
+Please read carefully the text at the bottom panel of the screen, and press SPACE to continue ...
+
+A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your ISA expansion cardridge board. Press SPACE to continue.
+
+### 3.2. Component detection
+
+Next, the update utility detects which components are upgradable. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the remaining 7 ROM chips (the most right chip is ROM#7), which would be the right most chip on the ISA expansion cardridge.
 
 <img width="642" alt="FLASH-START" src="https://user-images.githubusercontent.com/13690775/225111270-385066a4-1b71-473f-8647-0c15f8c49da3.png">
 
-Each ROM detected will be highlighted with a WHITE led. The ROM capacity is shown in KB and the manufacturer ID and device ID are shown (for your information).
+Each component detected will be highlighted with a Detected status and a WHITE led. The capacity of each detected ROM is shown in KBytes. Other components that are not detected are highlighed with a None staus and a BLACK led. These ROMs won't be considered for flashing.
 
-Other ROM slots that could not be detected are highlighed with a BLACH led. These ROMs won't be considered for flashing.
-
-Note that ROMs that can be flashed, but which don't have the jumper pins closed, won't be detected and will be skipped!
-
-The user us requested to press a key to start the flashing procedure.
+Note again, that ROMs that can be flashed, but which don't have the jumper pins closed, won't be detected and will be skipped!
 
 For each flashable ROM, the program will look for a related ROM[N].BIN file. 
 
@@ -182,3 +192,14 @@ Ensure that your ROM has been correctly flashed by testing your program or testi
 If you have an issue after a ROM upgrade, you always have the possibility to downgrade the ROM version if needed by reflashing an older version of a ROM.BIN file. However, since ROMs cannot be endlessly re-flashed it is highly recommended to first test your programs using the available emulators.
 
 
+
+
+
+
+The identified ROMs for flashing will be flashed from the highest ROM# number to the lowest ROM number. The last ROM that is considered for flashing is the on-board ROM.
+
+The reason why this sequence was chosen, is to ensure that the program has the ROM routines available for allowing the user to view the flashing results and press the keyboard to continue the process.
+
+Once the onboard ROM has been flashed, the program will automatically reset.
+
+Please find in more details this sequence explained visually, with an explanation of the screens and the meaning of the symbols/colors.

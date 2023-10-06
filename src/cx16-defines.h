@@ -20,8 +20,8 @@
 #define __STDIO_FILECOUNT 2
 
 // Some addressing constants.
-#define RAM_BASE                ((unsigned int)0x6000)
-#define RAM_HIGH                ((unsigned int)0x8000)
+#define RAM_BASE                ((unsigned int)0x7800)
+#define RAM_HIGH                ((unsigned int)0x9800)
 #define BRAM_LOW                ((unsigned int)0xA000)
 #define BRAM_HIGH               ((unsigned int)0xC000)
 

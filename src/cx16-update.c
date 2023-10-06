@@ -64,6 +64,10 @@ void main() {
     display_chip_smc();
     display_chip_vera();
     display_chip_rom();
+    display_info_smc(STATUS_COLOR_NONE, NULL);
+    display_info_vera(STATUS_NONE, NULL);
+    for(unsigned rom_chip=0; rom_chip<8; rom_chip++)
+        display_info_rom(rom_chip, STATUS_NONE, NULL);
 
 #ifdef __INTRO
 
@@ -394,7 +398,7 @@ void main() {
 
         for (unsigned char w=200; w>0; w--) {
             wait_moment();
-            sprintf(info_text, " (%03u) Your CX16 will reset ...", w);
+            sprintf(info_text, "(%03u) Your CX16 will reset ...", w);
             display_action_text(info_text);
         }
 
