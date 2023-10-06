@@ -1,3 +1,5 @@
+# --- WORK IN PROGRESS ---
+
 # Commander X16 Flashing Utility
 
 Contains the source code of the commander x16 update utility.
@@ -103,13 +105,14 @@ Please find below a detailed description of the complete process.
 You will see a first screen, which introduces the update process. The top shows the title of the utility.
 Below are all the possible components shown that this update utility supports. Above each component, a led is shown that will light up in different colors indicating the status of the upgrade progress. Below the components is an overview shown of each chipset and its properties. Totally on the right of each line will show a short indication with additional information or issue, or even an error situation with the component during the process. In the middle of the screen are two lines shown that indicate the step of the overall flow of thee update process and an action line or additional information of the update action in progress. And at the bottom is an information pane, that shows additional textual or graphical information of the update action awaiting or being executed.
 
-![WIN_20231006_11_52_27_Pro](https://github.com/FlightControl-User/x16-flash/assets/13690775/365014aa-51ea-4398-9bfb-08fbe36920bc)
+
+![into-1](https://github.com/FlightControl-User/x16-flash/blob/main/images/intro-1.jpg)
 
 Please read carefully the text at the bottom panel of the screen, and press SPACE to continue ...
 
 A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your ISA expansion cardridge board. Press SPACE to continue.
 
-![WIN_20231006_11_52_30_Pro](https://github.com/FlightControl-User/x16-flash/assets/13690775/5db1bfc8-51eb-49ad-a692-0d3fae34c7bf)
+![intro-2](https://github.com/FlightControl-User/x16-flash/blob/main/images/intro-2.jpg)
 
 
 ### 3.2. Component detection
@@ -119,6 +122,8 @@ Next, the update utility detects which components are upgradable. The Commander 
 <img width="642" alt="FLASH-START" src="https://user-images.githubusercontent.com/13690775/225111270-385066a4-1b71-473f-8647-0c15f8c49da3.png">
 
 Each component detected will be highlighted with a Detected status and a WHITE led. The capacity of each detected ROM is shown in KBytes. Other components that are not detected are highlighed with a None staus and a BLACK led. These ROMs won't be considered for flashing.
+
+![detected](https://github.com/FlightControl-User/x16-flash/blob/main/images/detected.jpg)
 
 Note again, that ROMs that can be flashed, but which don't have the jumper pins closed, won't be detected and will be skipped!
 
