@@ -144,7 +144,7 @@ void main() {
     if(check_status_smc(STATUS_DETECTED)) {
 
         // Check the SMC.BIN file size!
-        smc_file_size = smc_read(8, 512);
+        smc_file_size = smc_read();
 
         // In case no file was found, set the status to error and skip to the next, else, mention the amount of bytes read.
         if (!smc_file_size) {
@@ -232,11 +232,11 @@ void main() {
     // TODO: if no SMC flash => Just reset the system, no SMC reset needed.
 
 
-    // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
-    if(!check_status_smc(STATUS_FLASH) || !check_status_cx16_rom(STATUS_FLASH)) {
-        display_action_progress("There is an issue with either the SMC or the CX16 main ROM!");
-        util_wait_key("Press [SPACE] to continue ...", " ");
-    }
+    // // If the SMC and CX16 ROM is ready to flash, ok, go ahead and flash.
+    // if(!check_status_smc(STATUS_FLASH) || !check_status_cx16_rom(STATUS_FLASH)) {
+    //     display_action_progress("There is an issue with either the SMC or the CX16 main ROM!");
+    //     util_wait_key("Press [SPACE] to continue ...", " ");
+    // }
 
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
         display_action_progress("Chipsets have been detected and update files validated!");
@@ -263,12 +263,12 @@ void main() {
 #ifdef __SMC_CHIP_FLASH
 
         // Read the SMC.BIN to flash the SMC chip.
-        smc_file_size = smc_read(8, 512);
+        smc_file_size = smc_read();
         if(smc_file_size) {
             // Flash the SMC chip.
             display_action_text("Press both POWER/RESET buttons on the CX16 board!");
             display_info_smc(STATUS_FLASHING, "Press POWER/RESET!");
-            unsigned long flashed_bytes = flash_smc(PROGRESS_X, PROGRESS_Y, PROGRESS_W, smc_file_size, 8, 512, (ram_ptr_t)RAM_BASE);
+            unsigned long flashed_bytes = smc_flash(smc_file_size);
             if(flashed_bytes)
                 display_info_smc(STATUS_FLASHED, "");
             else

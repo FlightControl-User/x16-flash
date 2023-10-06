@@ -341,12 +341,12 @@ unsigned long rom_read(
 
             bank_set_bram(bram_bank);
 
-            unsigned int rom_package_read = fgets(ram_address, PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
+            unsigned int rom_package_read = fgets(ram_address, ROM_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
             if (!rom_package_read) {
                 break;
             }
 
-            if (rom_row_current == PROGRESS_ROW) {
+            if (rom_row_current == ROM_PROGRESS_ROW) {
                 gotoxy(x, ++y);
                 rom_row_current = 0;
             }
@@ -425,22 +425,22 @@ unsigned long rom_verify(
 
         // {asm{.byte $db}}
 
-        unsigned int equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
+        unsigned int equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
-        if (progress_row_current == PROGRESS_ROW) {
+        if (progress_row_current == ROM_PROGRESS_ROW) {
             gotoxy(x, ++y);
             progress_row_current = 0;
         }
 
-        if (equal_bytes != PROGRESS_CELL) {
+        if (equal_bytes != ROM_PROGRESS_CELL) {
             cputc('*');
         } else {
             cputc('=');
         }
 
-        ram_address += PROGRESS_CELL;
-        rom_address += PROGRESS_CELL;
-        progress_row_current += PROGRESS_CELL;
+        ram_address += ROM_PROGRESS_CELL;
+        rom_address += ROM_PROGRESS_CELL;
+        progress_row_current += ROM_PROGRESS_CELL;
 
         if (ram_address == BRAM_HIGH) {
             ram_address = (ram_ptr_t)BRAM_LOW;
@@ -453,7 +453,7 @@ unsigned long rom_verify(
             bram_bank = 1;
         }
 
-        rom_different_bytes += (PROGRESS_CELL - equal_bytes);
+        rom_different_bytes += (ROM_PROGRESS_CELL - equal_bytes);
 
         sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", rom_different_bytes, bram_bank, ram_address, rom_address);
         display_action_text(info_text);
@@ -551,14 +551,14 @@ unsigned long rom_flash(
                     sprintf(info_text, "Flashing ... RAM:%02x:%04p -> ROM:%05x ... %u flash errors ...", bram_bank_sector, ram_address_sector, rom_address_sector, flash_errors_sector + flash_errors);
                     display_action_text(info_text);
 
-                    unsigned long written_bytes = rom_write(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
+                    unsigned long written_bytes = rom_write(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
-                    equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, PROGRESS_CELL);
+                    equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
                     gotoxy(x, y);
 
 #ifdef __FLASH_ERROR_DETECT
-                    if (equal_bytes != PROGRESS_CELL)
+                    if (equal_bytes != ROM_PROGRESS_CELL)
 #else
                     if (0)
 #endif
@@ -568,8 +568,8 @@ unsigned long rom_flash(
                     } else {
                         cputcxy(x,y,'+');
                     }
-                    ram_address += PROGRESS_CELL;
-                    rom_address += PROGRESS_CELL;
+                    ram_address += ROM_PROGRESS_CELL;
+                    rom_address += ROM_PROGRESS_CELL;
 
                     x++; // This should never exceed the 64 char boundary.
                 }
@@ -599,7 +599,7 @@ unsigned long rom_flash(
         }
 
         x_sector += 8;
-        if (!(rom_address_sector % PROGRESS_ROW)) {
+        if (!(rom_address_sector % ROM_PROGRESS_ROW)) {
             x_sector = PROGRESS_X;
             y_sector++;
         }

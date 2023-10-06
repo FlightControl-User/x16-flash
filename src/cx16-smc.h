@@ -14,6 +14,9 @@
  *
  */
 
+#include "cx16-defines.h"
+#include "cx16-globals.h"
+
 #define FLASH_I2C_SMC_OFFSET 0x8E
 #define FLASH_I2C_SMC_BOOTLOADER_RESET 0x8F
 #define FLASH_I2C_SMC_UPLOAD 0x80
@@ -24,6 +27,10 @@
 extern unsigned int smc_bootloader;
 extern unsigned int smc_file_size;
 
+unsigned int smc_detect();
 void smc_reset();
+unsigned int smc_flash_block(ram_ptr_t ram_ptr);
+unsigned int smc_read();
+unsigned int smc_flash(unsigned int smc_bytes_total);
 
 
