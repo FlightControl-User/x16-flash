@@ -480,8 +480,8 @@ void display_action_text(unsigned char* info_text) {
  * 
  */
 void display_info_title() {
-    cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   File  / Total Information");
-    cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ----- / ----- --------------------");
+    cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   Curr. Release Update Info");
+    cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ------------- --------------------");
 }
 
 /**
@@ -496,7 +496,7 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     status_smc = info_status;
     display_smc_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y);
-    printf("SMC  %-9s ATTiny %05x / 01E00 ", status_text[info_status], smc_file_size);
+    printf("SMC  %-9s ATTiny v%s ", status_text[info_status], smc_version_string);
     if(info_text) {
         printf("%-25s", info_text);
     }
@@ -513,7 +513,7 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     status_vera = info_status;
     display_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
-    printf("VERA %-9s FPGA   1a000 / 1a000 ", status_text[info_status]);
+    printf("VERA %-9s FPGA                 ", status_text[info_status]);
     if(info_text) {
         printf("%-25s", info_text);
     }
@@ -532,7 +532,7 @@ void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigne
     status_rom[rom_chip] = info_status;
     display_rom_led(rom_chip, status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
-    printf("ROM%u %-9s %-6s %05x / %05x ", rom_chip, status_text[info_status], rom_device_names[rom_chip], file_sizes[rom_chip], rom_sizes[rom_chip]);
+    printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13]);
     if(info_text) {
         printf("%-25s", info_text);
     }

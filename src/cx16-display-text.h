@@ -9,8 +9,8 @@
  * 
  */
 
-const char display_intro_briefing_count = 16;
-const char* display_into_briefing_text[16] = {
+const char display_intro_briefing_count = 14;
+const char* display_into_briefing_text[14] = {
     "Welcome to the CX16 update tool! This program will update the",
     "chipsets on your CX16 board and on your ROM expansion cardridge.",
     "",
@@ -58,6 +58,17 @@ const char* display_no_valid_smc_bootloader_text[9] = {
     "the SMC chip on your CX16 using an arduino device,",
     "or alternatively to order a new SMC chip from TexElec or",
     "a CX16 community friend containing a valid bootloader!"
+};
+
+const char display_smc_rom_issue_count = 7;
+const char* display_smc_rom_issue__text[7] = {
+    "There is an issue with the CX16 SMC or ROM flash readiness.",
+    "",
+    "Both the SMC and the main ROM must be updated together,",
+    "to avoid possible conflicts of firmware, bricking your CX16.",
+    "",
+    "Therefore, ensure you have the correct SMC.BIN and ROM.BIN",
+    "files placed on your SDcard."
 };
 
 

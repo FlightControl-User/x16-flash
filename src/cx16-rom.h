@@ -17,6 +17,19 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
+// Globals
+extern unsigned char rom_device_ids[8];
+extern unsigned char* rom_device_names[8];
+extern unsigned char* rom_size_strings[8];
+extern unsigned char rom_release_text[8*13];
+extern unsigned char rom_release[8];
+extern unsigned char rom_prefix[8];
+extern unsigned char rom_github[8*8];
+extern unsigned char rom_manufacturer_ids[8];
+extern unsigned long rom_sizes[8];
+extern unsigned long file_sizes[8];
+
+
 #define ROM_BASE                ((unsigned int)0xC000)
 #define ROM_SIZE                ((unsigned int)0x4000)
 #define ROM_PTR_MASK            ((unsigned int)0x003FFF)
@@ -29,6 +42,12 @@
 #define SST39SF020A ((unsigned char)0xB6)
 #define SST39SF040 ((unsigned char)0xB7)
 #define UNKNOWN ((unsigned char)0x55)
+
+unsigned char rom_get_release(unsigned char release);
+unsigned char rom_get_prefix(unsigned char release);
+void rom_get_github_commit_id(unsigned char* commit_id, unsigned char* from);
+void rom_get_version_text(unsigned char* rom_release_info, unsigned char rom_prefix, unsigned char rom_release, unsigned char* rom_github);
+
 
 inline brom_ptr_t rom_ptr(unsigned long address);
 inline unsigned char rom_bank(unsigned long address);

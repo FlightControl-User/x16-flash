@@ -21,6 +21,75 @@
 #include "cx16-display.h"
 #include "cx16-rom.h"
 
+// Globals
+unsigned char rom_device_ids[8] = {0};
+unsigned char* rom_device_names[8] = {0};
+unsigned char* rom_size_strings[8] = {0};
+unsigned char rom_release_text[8*13];
+unsigned char rom_release[8];
+unsigned char rom_prefix[8];
+unsigned char rom_github[8*8];
+unsigned char rom_manufacturer_ids[8] = {0};
+unsigned long rom_sizes[8] = {0};
+unsigned long file_sizes[8] = {0};
+
+
+/**
+ * @brief Calculate the correct ROM release number.
+ * The 2's complement is taken if bit 7 is set of the release number.
+ * 
+ * @param release The raw release number.
+ * @return unsigned char The release potentially taken 2's complement.
+ */
+unsigned char rom_get_release(unsigned char release) {
+    if(release & 0x80) { // If bit 7 of the release is set, then the release is a preview.
+        release = ~release + 1; // We take 2's complement to calculate the preview release.
+    }
+    return release;
+}
+
+/**
+ * @brief Determine the prefix of the ROM release number.
+ * If the version is 0xFF or bit 7 of the version is set, then the release is a preview.
+ * 
+ * @param rom_chip The ROM chip to calculate the release.
+ * @param release The release potentially taken 2's complement.
+ * @return unsigned char 'r' if the release is official, 'p' if the release is inofficial of 0xFF.
+ */
+unsigned char rom_get_prefix(unsigned char release) {
+    unsigned char prefix = 'r'; // By default, the ROM is considered an official release.
+    if(release == 0xFF) // If the release is 0xFF, then the release is a preview.
+        prefix = 'p'; // Then the release is inofficial.
+    if(release & 0x80) { // If bit 7 of the release is set, then the release is a preview.
+        prefix = 'p';
+    }
+    return prefix;
+}
+
+
+/**
+ * @brief Copy the github commit_id only if the commit_id contains hexadecimal characters. 
+ * 
+ * @param commit_id The target commit_id.
+ * @param from The source ptr in ROM or RAM.
+ */
+void rom_get_github_commit_id(unsigned char* commit_id, unsigned char* from) {
+    bool commit_id_ok = true;
+    for(unsigned char c=0; c<7; c++) {
+        unsigned char ch = from[c];
+        if(!(ch >= 48 && ch <= 48+9 || ch >= 65 && ch <= 65+26))
+            commit_id_ok = false;
+    }
+    if(commit_id_ok)
+        strncpy(commit_id, from, 7);
+    else
+        *commit_id = '\0';
+}
+
+void rom_get_version_text(unsigned char* release_info, unsigned char prefix, unsigned char release, unsigned char* github) {
+    sprintf(release_info, "%c%u %s", prefix, release, github);
+}
+
 /**
  * @brief Calcuates the 16 bit ROM pointer from the ROM using the 22 bit address.
  * The 16 bit ROM pointer is calculated by masking the lower 14 bits (bit 13-0), and then adding $C000 to it.
@@ -209,26 +278,26 @@ void rom_detect() {
             rom_manufacturer_ids[rom_chip] = 0x9f;
             rom_device_ids[rom_chip] = SST39SF040;
         }
-        // if (rom_detect_address == 0x80000) {
-        //     rom_manufacturer_ids[rom_chip] = 0x9f;
-        //     rom_device_ids[rom_chip] = SST39SF040;
-        // }
-        // if (rom_detect_address == 0x100000) {
-        //     rom_manufacturer_ids[rom_chip] = 0x9f;
-        //     rom_device_ids[rom_chip] = SST39SF020A;
-        // }
-        // if (rom_detect_address == 0x180000) {
-        //     rom_manufacturer_ids[rom_chip] = 0x9f;
-        //     rom_device_ids[rom_chip] = SST39SF010A;
-        // }
-        // if (rom_detect_address == 0x200000) {
-        //     rom_manufacturer_ids[rom_chip] = 0x9f;
-        //     rom_device_ids[rom_chip] = SST39SF040;
-        // }
-        // if (rom_detect_address == 0x280000) {
-        //     rom_manufacturer_ids[rom_chip] = 0x9f;
-        //     rom_device_ids[rom_chip] = SST39SF040;
-        // }
+        if (rom_detect_address == 0x80000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
+        if (rom_detect_address == 0x100000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF020A;
+        }
+        if (rom_detect_address == 0x180000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF010A;
+        }
+        if (rom_detect_address == 0x200000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
+        if (rom_detect_address == 0x280000) {
+            rom_manufacturer_ids[rom_chip] = 0x9f;
+            rom_device_ids[rom_chip] = SST39SF040;
+        }
 #endif
 
         // Ensure the ROM is set to BASIC.

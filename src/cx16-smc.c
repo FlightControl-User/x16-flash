@@ -61,14 +61,12 @@ unsigned int smc_detect() {
  * 
  * @param version_string The string containing the SMC version filled upon return.
  */
-unsigned long smc_version(unsigned char* version_string) {
-    unsigned int version = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_VERSION);
-    unsigned int major = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MAJOR);
-    unsigned int minor = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MINOR);
+unsigned long smc_get_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor) {
 
-    sprintf(version_string, "%u.%u.%u", version, major, minor);
-    return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, version));
+    sprintf(version_string, "%u.%u.%u ", release, major, minor);
+    return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, release));
 }
+
 
 
 /**

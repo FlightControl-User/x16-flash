@@ -25,14 +25,6 @@ cx16_k_screen_mode_t screen_mode;
 char file[32];
 char info_text[80];
 
-unsigned char rom_device_ids[8] = {0};
-unsigned char* rom_device_names[8] = {0};
-unsigned char* rom_size_strings[8] = {0};
-unsigned char rom_github[8][8];
-unsigned char rom_release[8];
-unsigned char rom_manufacturer_ids[8] = {0};
-unsigned long rom_sizes[8] = {0};
-unsigned long file_sizes[8] = {0};
 
 const char STATUS_NONE  = 0;
 const char STATUS_SKIP  = 1;
