@@ -3,6 +3,7 @@ parsing
 flex pass 1
 flex pass 2
 flex pass 3
+flex pass 4
 Output pass
 Writing prg file: cx16-update.prg
 
@@ -14,10 +15,10 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$3324 Code
+  $080d-$4621 Code
 
 Data-segment:
-  $3325-$446e Data
+  $4622-$5d8e Data
 
 Writing Vice symbol file: cx16-update.vs
 Writing Symbol file: cx16-update.sym
