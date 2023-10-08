@@ -2847,7 +2847,7 @@ main: {
     jmp __b45
     // main::@46
   __b46:
-    // display_info_rom(rom_chip, STATUS_FLASHED, "No update required")
+    // display_info_rom(rom_chip, STATUS_SKIP, "No update required")
     // [472] display_info_rom::rom_chip#12 = main::rom_chip4#10 -- vbuz1=vbum2 
     lda rom_chip4
     sta.z display_info_rom.rom_chip
@@ -2860,8 +2860,8 @@ main: {
     lda #>info_text33
     sta.z display_info_rom.info_text+1
     // [1240] phi display_info_rom::rom_chip#16 = display_info_rom::rom_chip#12 [phi:main::@46->display_info_rom#1] -- register_copy 
-    // [1240] phi display_info_rom::info_status#16 = STATUS_FLASHED [phi:main::@46->display_info_rom#2] -- vbuz1=vbuc1 
-    lda #STATUS_FLASHED
+    // [1240] phi display_info_rom::info_status#16 = STATUS_SKIP [phi:main::@46->display_info_rom#2] -- vbuz1=vbuc1 
+    lda #STATUS_SKIP
     sta.z display_info_rom.info_status
     jsr display_info_rom
     jmp __b45
@@ -3806,7 +3806,7 @@ main: {
     jsr rom_get_version_text
     // [618] phi from main::@73 to main::@150 [phi:main::@73->main::@150]
     // main::@150
-    // sprintf(info_text, "%s %s", file, rom_file_release_text)
+    // sprintf(info_text, "%s:%s", file, rom_file_release_text)
     // [619] call snprintf_init
     // [1123] phi from main::@150 to snprintf_init [phi:main::@150->snprintf_init]
     // [1123] phi snprintf_init::s#26 = info_text [phi:main::@150->snprintf_init#0] -- pbuz1=pbuc1 
@@ -3816,7 +3816,7 @@ main: {
     sta.z snprintf_init.s+1
     jsr snprintf_init
     // main::@151
-    // sprintf(info_text, "%s %s", file, rom_file_release_text)
+    // sprintf(info_text, "%s:%s", file, rom_file_release_text)
     // [620] printf_string::str#19 = main::file#0 -- pbuz1=pbum2 
     lda file
     sta.z printf_string.str
@@ -3838,7 +3838,7 @@ main: {
     jsr printf_string
     // [622] phi from main::@151 to main::@152 [phi:main::@151->main::@152]
     // main::@152
-    // sprintf(info_text, "%s %s", file, rom_file_release_text)
+    // sprintf(info_text, "%s:%s", file, rom_file_release_text)
     // [623] call printf_str
     // [1128] phi from main::@152 to printf_str [phi:main::@152->printf_str]
     // [1128] phi printf_str::putc#71 = &snputc [phi:main::@152->printf_str#0] -- pprz1=pprc1 
@@ -3846,15 +3846,15 @@ main: {
     sta.z printf_str.putc
     lda #>snputc
     sta.z printf_str.putc+1
-    // [1128] phi printf_str::s#71 = s [phi:main::@152->printf_str#1] -- pbuz1=pbuc1 
-    lda #<@s
+    // [1128] phi printf_str::s#71 = s3 [phi:main::@152->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s3
     sta.z printf_str.s
-    lda #>@s
+    lda #>@s3
     sta.z printf_str.s+1
     jsr printf_str
     // [624] phi from main::@152 to main::@153 [phi:main::@152->main::@153]
     // main::@153
-    // sprintf(info_text, "%s %s", file, rom_file_release_text)
+    // sprintf(info_text, "%s:%s", file, rom_file_release_text)
     // [625] call printf_string
     // [1137] phi from main::@153 to printf_string [phi:main::@153->printf_string]
     // [1137] phi printf_string::putc#22 = &snputc [phi:main::@153->printf_string#0] -- pprz1=pprc1 
@@ -3874,7 +3874,7 @@ main: {
     sta.z printf_string.format_min_length
     jsr printf_string
     // main::@154
-    // sprintf(info_text, "%s %s", file, rom_file_release_text)
+    // sprintf(info_text, "%s:%s", file, rom_file_release_text)
     // [626] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
     lda #0
     pha
@@ -18990,9 +18990,9 @@ memcpy8_vram_vram: {
   .byte 0
   __80: .text "Your CX16 system has been successfully updated!"
   .byte 0
-  __82: .text "Since your CX16 system SMC and main ROM chipset"
+  __82: .text "Since your CX16 system SMC chip has not been updated"
   .byte 0
-  __83: .text "have not been updated, your CX16 will just reset."
+  __83: .text "your CX16 will just reset automatically after count down."
   .byte 0
   s: .text " "
   .byte 0

@@ -18,7 +18,7 @@ Code-segment:
   $080d-$4e91 Code
 
 Data-segment:
-  $4e92-$687e Data
+  $4e92-$688b Data
 
 Writing Vice symbol file: cx16-update.vs
 Writing Symbol file: cx16-update.sym

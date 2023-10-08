@@ -126,7 +126,7 @@ void main() {
         if(rom_device_ids[rom_chip] != UNKNOWN) {
             // RD1 | Known ROM chip device ID | Display ROM chip firmware release number and github commit ID if in hexadecimal format and set to Check. | None
             // Fill the version data ...
-            bank_set_brom(0);
+            bank_set_brom(rom_chip*32);
             rom_get_github_commit_id(&rom_github[rom_chip*8], (char*)0xC000);
             rom_release[rom_chip] = rom_get_release(*((char*)0xFF80));
             rom_prefix[rom_chip] = rom_get_prefix(*((char*)0xFF80));
@@ -168,8 +168,10 @@ void main() {
 
     if(check_status_smc(STATUS_DETECTED)) {
 
+        display_action_progress("Checking SMC.BIN ...");
+
         // Check the SMC.BIN file size!
-        smc_file_size = smc_read(0);
+        smc_file_size = smc_read(STATUS_CHECKING);
 
         if (!smc_file_size) {
             // SF1 | no SMC.BIN | Ask user to place an SMC.BIN file onto the SDcard and don't flash. | Issue
@@ -222,11 +224,11 @@ void main() {
 
             unsigned char rom_bank = rom_chip * 32;
             unsigned char* file = rom_file(rom_chip); // Calculate the ROM(n).BIN input file name, based on the rom chip number.
-            sprintf(info_text, "Checking %s ... (.) data ( ) empty", file);
+            sprintf(info_text, "Checking %s ...", file);
             display_action_progress(info_text);
 
             // Read the ROM(n).BIN file.
-            unsigned long rom_bytes_read = rom_read(0, rom_chip, file, STATUS_CHECKING, rom_bank, rom_sizes[rom_chip]);
+            unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_CHECKING, rom_bank, rom_sizes[rom_chip]);
 
             // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
             if (!rom_bytes_read) {
@@ -346,10 +348,11 @@ void main() {
         // Flash the SMC when it has the status!
         if (check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
 
+            display_action_progress("Reading SMC.BIN ... (.) data, ( ) empty");
             display_progress_clear();
 
             // Read the SMC.BIN to flash the SMC chip.
-            smc_file_size = smc_read(1);
+            smc_file_size = smc_read(STATUS_READING);
             if(smc_file_size) {
                 // Flash the SMC chip.
                 display_action_text("Press both POWER/RESET buttons on the CX16 board!");
@@ -400,7 +403,7 @@ void main() {
                     sprintf(info_text, "Reading %s ... (.) data ( ) empty", file);
                     display_action_progress(info_text);
 
-                    unsigned long rom_bytes_read = rom_read(1, rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
+                    unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
 
                     // If the ROM file was correctly read, verify the file ...
                     if(rom_bytes_read) {
@@ -444,6 +447,8 @@ void main() {
 #endif
 
     }
+
+    display_progress_clear();
 
     if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 

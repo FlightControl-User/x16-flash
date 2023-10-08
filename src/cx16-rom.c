@@ -369,7 +369,6 @@ unsigned char* rom_file(unsigned char rom_chip) {
 }
 
 unsigned long rom_read(
-        unsigned char display_progress,
         unsigned char rom_chip, unsigned char* file,
         unsigned char info_status,
         unsigned char brom_bank_start, unsigned long rom_size) {
@@ -390,6 +389,12 @@ unsigned long rom_read(
     unsigned int rom_row_current = 0;
     unsigned char rom_release;
     unsigned char rom_github[6];
+    unsigned char* rom_action_text;
+
+    if(info_status == STATUS_READING)
+        rom_action_text = "Reading";
+    else
+        rom_action_text = "Checking";
 
     sprintf(info_text, "Opening %s from SD card ...", file);
     display_action_text(info_text);
@@ -400,7 +405,7 @@ unsigned long rom_read(
         gotoxy(x, y);
         while (rom_file_size < rom_size) {
 
-            sprintf(info_text, "Reading %s:%05x/%05x -> RAM:%02x:%04p ...", file, rom_file_size, rom_size, bram_bank, ram_address);
+            sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", rom_action_text, file, rom_file_size, rom_size, bram_bank, ram_address);
             display_action_text(info_text);
 
             if (!(rom_address % 0x04000)) {
@@ -421,7 +426,7 @@ unsigned long rom_read(
                 rom_row_current = 0;
             }
 
-            if(display_progress)
+            if(info_status == STATUS_READING)
                 cputc('.');
 
             ram_address += rom_package_read;

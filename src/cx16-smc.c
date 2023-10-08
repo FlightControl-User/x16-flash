@@ -140,7 +140,7 @@ unsigned int smc_flash_block(ram_ptr_t ram_ptr) {
  * 
  * @return unsigned int The amount of bytes read from SMC.BIN to be flashed.
  */
-unsigned int smc_read(unsigned char display_progress) {
+unsigned int smc_read(unsigned char info_status) {
 
     unsigned int smc_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
     unsigned int progress_row_bytes = 0;
@@ -149,9 +149,14 @@ unsigned int smc_read(unsigned char display_progress) {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W; 
 
-    ram_ptr_t ram_ptr = (ram_ptr_t)RAM_BASE;  // It is assume that one RAM bank is 0X2000 bytes.
+    unsigned char* smc_action_text;
 
-    display_action_progress("Reading SMC.BIN ... (.) data, ( ) empty");
+    if(info_status == STATUS_READING)
+        smc_action_text = "Reading";
+    else
+        smc_action_text = "Checking";
+
+    ram_ptr_t ram_ptr = (ram_ptr_t)RAM_BASE;  // It is assume that one RAM bank is 0X2000 bytes.
 
     textcolor(WHITE);
     gotoxy(x, y);
@@ -172,7 +177,7 @@ unsigned int smc_read(unsigned char display_progress) {
             // Every r bytes we move to the next line.
             while (smc_file_read = fgets(ram_ptr, SMC_PROGRESS_CELL, fp)) {
 
-                sprintf(info_text, "Reading SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_file_read, smc_file_size, 0, ram_ptr);
+                sprintf(info_text, "%s SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_action_text, smc_file_read, smc_file_size, 0, ram_ptr);
                 display_action_text(info_text);
 
                 if (progress_row_bytes == SMC_PROGRESS_ROW) {
@@ -180,7 +185,7 @@ unsigned int smc_read(unsigned char display_progress) {
                     progress_row_bytes = 0;
                 }
 
-                if(display_progress)
+                if(info_status == STATUS_READING)
                     cputc('.');
 
                 ram_ptr += smc_file_read;
