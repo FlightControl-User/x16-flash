@@ -32,7 +32,7 @@ extern unsigned int smc_bootloader;
 extern unsigned char smc_version_text[16];
 extern unsigned int smc_file_size;
 
-extern unsigned char smc_rom_releases[32];
+extern unsigned char smc_file_header[32];
 
 extern unsigned char smc_release;
 extern unsigned char smc_major;

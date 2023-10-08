@@ -496,7 +496,7 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     status_smc = info_status;
     display_smc_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y);
-    printf("SMC  %-9s ATTiny %-9s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader);
+    printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader);
     if(info_text) {
         printf("%-25s", info_text);
     }

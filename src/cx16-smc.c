@@ -25,7 +25,7 @@
 __mem unsigned int smc_bootloader = 0;
 __mem unsigned int smc_file_size = 0;
 
-__mem unsigned char smc_rom_releases[32];
+__mem unsigned char smc_file_header[32];
 
 __mem unsigned char smc_release;
 __mem unsigned char smc_major;
@@ -78,9 +78,16 @@ unsigned long smc_get_version_text(unsigned char* version_string, unsigned char 
     return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, release));
 }
 
+/**
+ * @brief Search in the smc file header for supported ROM.BIN releases.
+ * The first 3 bytes of the smc file header contain the SMC.BIN version, major and minor numbers.
+ * 
+ * @param rom_release The ROM release to search for.
+ * @return unsigned char true if found.
+ */
 unsigned char smc_supported_rom(unsigned char rom_release) {
-    for(unsigned char i=0; i<32; i++) {
-        if(smc_rom_releases[i] == rom_release)
+    for(unsigned char i=31; i>3; i--) {
+        if(smc_file_header[i] == rom_release)
             return 1;
     }
     return 0;
@@ -156,7 +163,7 @@ unsigned int smc_read(unsigned char display_progress) {
     if (fp) {
 
         // Read the ROM releases in the SMC.BIN header first.
-        smc_file_read = fgets(smc_rom_releases, 32, fp);
+        smc_file_read = fgets(smc_file_header, 32, fp);
 
         // Has the header been read, all ok, otherwise the file size is wrong!
         if(smc_file_read) {

@@ -181,10 +181,10 @@ void main() {
                 display_info_smc(STATUS_ISSUE, "SMC.BIN too large!"); // Stop with SMC issue, and reset the CX16.
             } else {
                 // SF-4 | SMC.BIN and all ok | Display the SMC.BIN file version and set SMC to Flash. | Flash
-                // Fill the version data ...
-                smc_file_release = rom_get_release(*((char*)RAM_BASE+0x30));
-                smc_file_major = rom_get_prefix(*((char*)RAM_BASE+0x31));
-                smc_file_minor = rom_get_prefix(*((char*)RAM_BASE+0x32));
+                // The first 3 bytes of the smc file header is the version of the SMC file.
+                smc_file_release = smc_file_header[0];
+                smc_file_major = smc_file_header[1];
+                smc_file_minor = smc_file_header[2];
 
                 char smc_file_version_text[13]; 
                 smc_get_version_text(smc_file_version_text, smc_file_release, smc_file_major, smc_file_minor);
