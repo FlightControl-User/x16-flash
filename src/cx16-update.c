@@ -105,8 +105,7 @@ void main() {
                 smc_major = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MAJOR);
                 smc_minor = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MINOR);
                 smc_get_version_text(smc_version_text, smc_release, smc_major, smc_minor);
-                sprintf(info_text, "BL:v%u", smc_bootloader); // All ok, display bootloader version.
-                display_info_smc(STATUS_DETECTED, info_text);
+                display_info_smc(STATUS_DETECTED, NULL);
             }
         }
     } 
@@ -183,15 +182,14 @@ void main() {
             } else {
                 // SF-4 | SMC.BIN and all ok | Display the SMC.BIN file version and set SMC to Flash. | Flash
                 // Fill the version data ...
-                smc_file_release = rom_get_release(*((char*)0xA030));
-                smc_file_major = rom_get_prefix(*((char*)0xA031));
-                smc_file_minor = rom_get_prefix(*((char*)0xA032));
+                smc_file_release = rom_get_release(*((char*)RAM_BASE+0x30));
+                smc_file_major = rom_get_prefix(*((char*)RAM_BASE+0x31));
+                smc_file_minor = rom_get_prefix(*((char*)RAM_BASE+0x32));
 
                 char smc_file_version_text[13]; 
                 smc_get_version_text(smc_file_version_text, smc_file_release, smc_file_major, smc_file_minor);
-                sprintf(info_text, "BL:v%u, SMC:%s", smc_bootloader, smc_file_version_text); // All ok, display bootloader version.
-
-                display_info_smc(STATUS_FLASH, NULL); // All ok, SMC can be updated.
+                sprintf(info_text, "SMC.BIN:%s", smc_file_version_text); // All ok, display file version.
+                display_info_smc(STATUS_FLASH, info_text); // All ok, SMC can be updated.
             }
         }
     }

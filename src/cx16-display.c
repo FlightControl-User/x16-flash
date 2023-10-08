@@ -481,7 +481,7 @@ void display_action_text(unsigned char* info_text) {
  */
 void display_info_title() {
     cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   Curr. Release Update Info");
-    cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ------------- --------------------");
+    cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ------------- --------------------------");
 }
 
 /**
@@ -496,7 +496,7 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     status_smc = info_status;
     display_smc_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y);
-    printf("SMC  %-9s ATTiny v%s ", status_text[info_status], smc_version_text);
+    printf("SMC  %-9s ATTiny %-9s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader);
     if(info_text) {
         printf("%-25s", info_text);
     }
