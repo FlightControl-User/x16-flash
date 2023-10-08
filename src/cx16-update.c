@@ -86,21 +86,21 @@ void main() {
     display_chip_smc();
 
     if(smc_bootloader == 0x0100) {
-        // SD-1 | No Bootloader | Display that there is no bootloader and set SMC to Issue. | Issue
+        // SD1 | No Bootloader | Display that there is no bootloader and set SMC to Issue. | Issue
         display_info_smc(STATUS_ISSUE, "No Bootloader!"); // If the CX16 board does not have a bootloader, display info how to flash bootloader.
         display_progress_text(display_no_valid_smc_bootloader_text, display_no_valid_smc_bootloader_count);
     } else {
         if(smc_bootloader == 0x0200) {
-            // SD-2 | SMC chip not detected | Display that the SMC chip is not detected and set SMC to Error. | Error
+            // SD2 | SMC chip not detected | Display that the SMC chip is not detected and set SMC to Error. | Error
             display_info_smc(STATUS_ERROR, "SMC Unreachable!"); // This is an error with the CX16 board. J5 jumpers doesn't matter when flashing the CX16 from this utility.
         } else {
             if(smc_bootloader > 0x2) {
-                // SD-3 | Bootloader version not supported | Display that the current bootloader is not supported and set SMC to Issue. | Issue
+                // SD3 | Bootloader version not supported | Display that the current bootloader is not supported and set SMC to Issue. | Issue
                 sprintf(info_text, "Bootloader v%02x invalid! !", smc_bootloader);
                 display_info_smc(STATUS_ISSUE, info_text); // Bootloader is not supported by this utility, but is not error.
                 display_progress_text(display_no_valid_smc_bootloader_text, display_no_valid_smc_bootloader_count);
             } else {
-                // SD-4 | SMC chip was detected and bootloader ok | Display SMC chip version and bootloader version and set SMC to Check. | Check
+                // SD4 | SMC chip was detected and bootloader ok | Display SMC chip version and bootloader version and set SMC to Check. | Check
                 smc_release = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_VERSION);
                 smc_major = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MAJOR);
                 smc_minor = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_MINOR);
@@ -124,7 +124,7 @@ void main() {
 
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
         if(rom_device_ids[rom_chip] != UNKNOWN) {
-            // RD-1 | Known ROM chip device ID | Display ROM chip firmware release number and github commit ID if in hexadecimal format and set to Check. | None
+            // RD1 | Known ROM chip device ID | Display ROM chip firmware release number and github commit ID if in hexadecimal format and set to Check. | None
             // Fill the version data ...
             bank_set_brom(0);
             rom_get_github_commit_id(&rom_github[rom_chip*8], (char*)0xC000);
@@ -133,7 +133,7 @@ void main() {
             rom_get_version_text(&rom_release_text[rom_chip*13], rom_prefix[rom_chip], rom_release[rom_chip], &rom_github[rom_chip*8]);
             display_info_rom(rom_chip, STATUS_DETECTED, ""); // Set the info for the ROMs to Detected.
         } else {
-            // RD-2 | Unknown ROM chip device ID | Don't do anything and set to None. | None
+            // RD2 | Unknown ROM chip device ID | Don't do anything and set to None. | None
             // display_info_rom(rom_chip, STATUS_NONE, ""); // Set the info for the ROMs to None.
         }
     }
@@ -172,15 +172,15 @@ void main() {
         smc_file_size = smc_read(0);
 
         if (!smc_file_size) {
-            // SF-1 | no SMC.BIN | Ask user to place an SMC.BIN file onto the SDcard and don't flash. | Issue
-            // SF-2 | size SMC.BIN is 0 | Ask user to place an SMC.BIN file onto the SDcard and don't flash. | Issue
+            // SF1 | no SMC.BIN | Ask user to place an SMC.BIN file onto the SDcard and don't flash. | Issue
+            // SF2 | size SMC.BIN is 0 | Ask user to place an SMC.BIN file onto the SDcard and don't flash. | Issue
             display_info_smc(STATUS_SKIP, "No SMC.BIN!"); // Skip if there is no SMC.BIN file.
         } else {
             if(smc_file_size > 0x1E00) {
-                // SF-3 | size SMC.BIN is > 0x1E00 | Display SMC.BIN file size issue and don't flash. Ask the user to place a correct SMC.BIN file onto the SDcard. | Issue
+                // SF3 | size SMC.BIN is > 0x1E00 | Display SMC.BIN file size issue and don't flash. Ask the user to place a correct SMC.BIN file onto the SDcard. | Issue
                 display_info_smc(STATUS_ISSUE, "SMC.BIN too large!"); // Stop with SMC issue, and reset the CX16.
             } else {
-                // SF-4 | SMC.BIN and all ok | Display the SMC.BIN file version and set SMC to Flash. | Flash
+                // SF4 | SMC.BIN and all ok | Display the SMC.BIN file version and set SMC to Flash. | Flash
                 // The first 3 bytes of the smc file header is the version of the SMC file.
                 smc_file_release = smc_file_header[0];
                 smc_file_major = smc_file_header[1];
@@ -228,19 +228,19 @@ void main() {
 
             // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
             if (!rom_bytes_read) {
-                // RF-1 | no ROM.BIN  | Ask the user to place the ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
-                // RF-2 | ROM.BIN size 0 | Ask the user to place a correct ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
-                // TODO: RF-4 | ROM.BIN size over 0x80000 | Ask the user to place a correct ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
+                // RF1 | no ROM.BIN  | Ask the user to place the ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
+                // RF2 | ROM.BIN size 0 | Ask the user to place a correct ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
+                // TODO: RF4 | ROM.BIN size over 0x80000 | Ask the user to place a correct ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
                 sprintf(info_text, "No %s", file);
                 display_info_rom(rom_chip, STATUS_SKIP, info_text); // No ROM flashing for this one.
             } else {
                 unsigned long rom_file_modulo = rom_bytes_read % 0x4000;
                 if(rom_file_modulo) {
-                    // RF-3 | ROM.BIN size not % 0x4000 | Ask the user to place a correct ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
+                    // RF3 | ROM.BIN size not % 0x4000 | Ask the user to place a correct ROM.BIN file onto the SDcard. Set ROM to Issue. | Issue
                     sprintf(info_text, "File %s size error!", file);
                     display_info_rom(rom_chip, STATUS_ISSUE, info_text); // No flash.
                 } else {
-                    // RF-5 | ROM.BIN all ok | Display the ROM.BIN release version and github commit id (if any) and set ROM to Flash | Flash
+                    // RF5 | ROM.BIN all ok | Display the ROM.BIN release version and github commit id (if any) and set ROM to Flash | Flash
                     // We know the file size, so we indicate it in the status panel.
                     file_sizes[rom_chip] = rom_bytes_read;
                     
@@ -268,7 +268,7 @@ void main() {
     bank_set_brom(4);
     CLI();
 
-    // VA-5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and don't flash. | Issue
+    // VA5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and don't flash. | Issue
     if(!check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
         display_action_progress("SMC update issue!");
         display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
@@ -277,7 +277,7 @@ void main() {
         util_wait_space();
     }
 
-    // VA-3 | SMC.BIN and CX16 ROM not Detected | Display issue and don't flash. Ask to close the J1 jumper pins on the CX16 main board. | Issue
+    // VA3 | SMC.BIN and CX16 ROM not Detected | Display issue and don't flash. Ask to close the J1 jumper pins on the CX16 main board. | Issue
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_NONE)) {
         display_action_progress("CX16 ROM update issue, ROM not detected!");
         display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
@@ -285,7 +285,7 @@ void main() {
         display_info_cx16_rom(STATUS_ISSUE, "Are J1 jumper pins closed?");
         util_wait_space();
     } else {
-        // VA-4 | SMC is Flash and CX16 is not Flash | Display CX16 ROM update issue and don't flash. | Issue
+        // VA4 | SMC is Flash and CX16 is not Flash | Display CX16 ROM update issue and don't flash. | Issue
         if(check_status_smc(STATUS_FLASH) && !check_status_cx16_rom(STATUS_FLASH)) {
             display_action_progress("CX16 ROM update issue!");
             display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
@@ -295,16 +295,8 @@ void main() {
         }
     }
 
-
-    // VA-1 | Version of SMC and SMC.BIN equal | Display that the SMC and SMC.BIN versions are equal and no flashing is required. Set SMC to Skip. | None
-    if(smc_release == smc_file_release && smc_major == smc_file_major && smc_minor == smc_file_minor) {
-        display_action_progress("The SMC chip and SMC.BIN versions are equal, no flash required!");
-        display_info_smc(STATUS_SKIP, NULL);
-        util_wait_space();
-    }
-
-    // VA-2 | SMC.BIN does not support ROM.BIN release | Display warning that SMC.BIN does not support the ROM.BIN release. Ask for user confirmation to continue flashing Y/N. If the users selects not to flash, set both the SMC and the ROM as an Issue and don't flash. | Issue
-    if(!smc_supported_rom(rom_release[0])) {
+    // VA2 | SMC.BIN does not support ROM.BIN release | Display warning that SMC.BIN does not support the ROM.BIN release. Ask for user confirmation to continue flashing Y/N. If the users selects not to flash, set both the SMC and the ROM as an Issue and don't flash. | Issue
+    if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) && !smc_supported_rom(rom_release[0])) {
         display_action_progress("The ROM.BIN isn't compatible with SMC.BIN, no flash allowed!");
         display_progress_text(display_smc_unsupported_rom_text, display_smc_unsupported_rom_count);
         unsigned char ch = util_wait_key("You still want to continue with flashing? [YN]", "YN");
@@ -315,11 +307,21 @@ void main() {
         }
     }
 
+    // VA1 | Version of SMC and SMC.BIN equal | Display that the SMC and SMC.BIN versions are equal and no flashing is required. Set SMC to Skip. | None
+    if(check_status_smc(STATUS_FLASH) && smc_release == smc_file_release && smc_major == smc_file_major && smc_minor == smc_file_minor) {
+        display_action_progress("The SMC chip and SMC.BIN versions are equal, no flash required!");
+        util_wait_space();
+        display_info_smc(STATUS_SKIP, "SMC.BIN and SMC equal.");
+    }
+
+    // VA6 | no SMC.BIN and no CX16 ROM.BIN
+
+
     if(!check_status_smc(STATUS_ISSUE) && !check_status_vera(STATUS_ISSUE) && !check_status_roms(STATUS_ISSUE) &&
        !check_status_smc(STATUS_ERROR) && !check_status_vera(STATUS_ERROR) && !check_status_roms(STATUS_ERROR)) {
 
         // If the SMC and CX16 ROM is ready to flash, or, if one of the ROMs can be flashed, ok, go ahead and flash.
-        if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
+        if(check_status_smc(STATUS_FLASH) || check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
             display_action_progress("Chipsets have been detected and update files validated!");
             unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY");        
             if(strchr("nN", ch)) {
@@ -352,14 +354,14 @@ void main() {
                 display_info_smc(STATUS_FLASHING, "Press POWER/RESET!");
                 unsigned int flashed_bytes = smc_flash(smc_file_size);
                 if(flashed_bytes) {
-                    // SF-1 | and POWER/RESET pressed
+                    // SFL1 | and POWER/RESET pressed
                     display_info_smc(STATUS_FLASHED, "");
                 } else {
                     if(flashed_bytes == (unsigned int)0xFFFF) {
-                        // SF-3 | errors during flash
+                        // SFL3 | errors during flash
                         display_info_smc(STATUS_ERROR, "SMC has errors!");
                     } else {
-                        // SF-2 | no action on POWER/RESET press request
+                        // SFL2 | no action on POWER/RESET press request
                         display_info_smc(STATUS_ISSUE, "POWER/RESET not pressed!");
                     }
                 }
@@ -385,7 +387,7 @@ void main() {
             if(check_status_rom(rom_chip, STATUS_FLASH)) {
 
                 // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
-                if((rom_chip == 0 && check_status_smc(STATUS_FLASHED)) || (rom_chip != 0)) {
+                if((rom_chip == 0 && (check_status_smc(STATUS_FLASHED) || check_status_smc(STATUS_SKIP))) || (rom_chip != 0)) {
 
                     bank_set_brom(0);
 
@@ -410,7 +412,7 @@ void main() {
                             rom_chip, rom_bank, file_sizes[rom_chip]);
                         
                         if (!rom_differences) {
-                            // RF-1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Flashed. | None
+                            // RFL1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Flashed. | None
                             display_info_rom(rom_chip, STATUS_FLASHED, "No update required");
                         } else {
                             // 
@@ -421,11 +423,11 @@ void main() {
                             unsigned long rom_flash_errors = rom_flash(
                                 rom_chip, rom_bank, file_sizes[rom_chip]);
                             if(rom_flash_errors) {
-                                // RF-2 | Flash ROM resulting in errors
+                                // RFL2 | Flash ROM resulting in errors
                                 sprintf(info_text, "%u flash errors!", rom_flash_errors);
                                 display_info_rom(rom_chip, STATUS_ERROR, info_text);
                             } else {
-                                // RF-3 | Flash ROM and all ok
+                                // RFL3 | Flash ROM and all ok
                                 display_info_rom(rom_chip, STATUS_FLASHED, "OK!");
                             }
                         }
@@ -442,19 +444,19 @@ void main() {
     }
 
     if(check_status_smc(STATUS_SKIP) && check_status_vera(STATUS_SKIP) && check_status_roms_all(STATUS_SKIP)) {
-        // DE-1 | All components skipped
+        // DE1 | All components skipped
         vera_display_set_border_color(BLACK);
         display_action_progress("The update has been cancelled!");
     } else {
         if(check_status_smc(STATUS_ERROR) || check_status_vera(STATUS_ERROR) || check_status_roms(STATUS_ERROR)) {
-            // DE-2 | There is an error with one of the components
+            // DE2 | There is an error with one of the components
             vera_display_set_border_color(RED);
             display_action_progress("Update Failure! Your CX16 may be bricked!");
             display_action_text("Take a foto of this screen. And shut down power ...");
             while(1);
         } else {
             if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE)) {
-                // DE-3 | There is an Issue with one of the components
+                // DE3 | There is an Issue with one of the components
                 vera_display_set_border_color(YELLOW);
                 display_action_progress("Update issues, your CX16 is not updated!");
             } else {
@@ -469,11 +471,11 @@ void main() {
                         display_action_text(info_text);
                     }
 
-                    // DE-4 | The components correctly updated, SMC bootloader 1
+                    // DE4 | The components correctly updated, SMC bootloader 1
                     sprintf(info_text, "Please disconnect your CX16 from power source ...");
                     display_action_text(info_text);
 
-                    // DE-5 | The components correctly updated, SMC bootloader 2
+                    // DE5 | The components correctly updated, SMC bootloader 2
                     // When bootloader 1, the CX16 won't shut down automatically and will hang! The user will see the above bootloader 1 action.
                     // When bootloader 2, the CX16 will shut down automatically. The user will never see the bootloader 1 action.
                     smc_reset(); // This call will reboot the SMC, which will reset the CX16 if bootloader R2.
@@ -486,7 +488,7 @@ void main() {
     }
 
     {
-        // DE-6 | Wait until reset
+        // DE6 | Wait until reset
         for (unsigned char w=200; w>0; w--) {
             wait_moment();
             sprintf(info_text, "(%u) Your CX16 will reset ...", w);
