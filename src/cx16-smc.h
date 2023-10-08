@@ -29,8 +29,19 @@
 #define FLASH_I2C_SMC_DEVICE 0x42
 
 extern unsigned int smc_bootloader;
-extern unsigned char smc_version_string[16];
+extern unsigned char smc_version_text[16];
 extern unsigned int smc_file_size;
+
+extern unsigned char smc_rom_releases[32];
+
+extern unsigned char smc_release;
+extern unsigned char smc_major;
+extern unsigned char smc_minor;
+
+extern unsigned char smc_file_release;
+extern unsigned char smc_file_major;
+extern unsigned char smc_file_minor;
+
 
 unsigned int smc_detect();
 unsigned long smc_get_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor);

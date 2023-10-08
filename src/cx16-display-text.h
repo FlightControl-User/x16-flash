@@ -60,17 +60,28 @@ const char* display_no_valid_smc_bootloader_text[9] = {
     "a CX16 community friend containing a valid bootloader!"
 };
 
-const char display_smc_rom_issue_count = 7;
-const char* display_smc_rom_issue__text[7] = {
+const char display_smc_rom_issue_count = 8;
+const char* display_smc_rom_issue_text[8] = {
     "There is an issue with the CX16 SMC or ROM flash readiness.",
     "",
     "Both the SMC and the main ROM must be updated together,",
     "to avoid possible conflicts of firmware, bricking your CX16.",
     "",
     "Therefore, ensure you have the correct SMC.BIN and ROM.BIN",
-    "files placed on your SDcard."
+    "files placed on your SDcard. Also ensure that the",
+    "J1 jumper pins on the CX16 board are closed."
 };
 
+const char display_smc_unsupported_rom_count = 7;
+const char* display_smc_unsupported_rom_text[7] = {
+    "There is an issue with the CX16 SMC or ROM flash versions.",
+    "",
+    "Both the SMC and the main ROM must be updated together,",
+    "to avoid possible conflicts of firmware, bricking your CX16.",
+    "",
+    "The SMC.BIN does not support the current ROM.BIN file",
+    "placed on your SDcard. Upgrade the CX16 upon your own risk!"
+};
 
 
 const char display_debriefing_count_smc = 12;

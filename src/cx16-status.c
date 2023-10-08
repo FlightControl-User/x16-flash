@@ -24,7 +24,7 @@ __mem unsigned char status_rom[8] = {0};
  * @param status The status to be checked.
  * @return unsigned char true if the status is equal.
  */
-inline unsigned char check_status_smc(unsigned char status) {
+unsigned char check_status_smc(unsigned char status) {
     return (unsigned char)(status_smc == status);
 }
 
@@ -34,7 +34,7 @@ inline unsigned char check_status_smc(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if the status is equal.
  */
-inline unsigned char check_status_vera(unsigned char status) {
+unsigned char check_status_vera(unsigned char status) {
     return (unsigned char)(status_vera == status);
 }
 
@@ -45,7 +45,7 @@ inline unsigned char check_status_vera(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if the status is equal.
  */
-inline unsigned char check_status_rom(unsigned char rom_chip, unsigned char status) {
+unsigned char check_status_rom(unsigned char rom_chip, unsigned char status) {
     return (unsigned char)(status_rom[rom_chip] == status);
 }
 
@@ -65,13 +65,13 @@ inline unsigned char check_status_cx16_rom(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if one chip is equal to the status.
  */
-inline unsigned char check_status_card_roms(unsigned char status) {
+unsigned char check_status_card_roms(unsigned char status) {
     for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++) {
         if(check_status_rom(rom_chip, status)) {
-            return status;
+            return 1;
         }        
     }
-    return STATUS_NONE;
+    return 0;
 }
 
 /**
@@ -80,13 +80,13 @@ inline unsigned char check_status_card_roms(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if one chip is equal to the status.
  */
-inline unsigned char check_status_roms(unsigned char status) {
+unsigned char check_status_roms(unsigned char status) {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
         if(check_status_rom(rom_chip, status)) {
-            return status;
+            return 1;
         }        
     }
-    return STATUS_NONE;
+    return 0;
 }
 
 /**
@@ -95,7 +95,7 @@ inline unsigned char check_status_roms(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if all chips are equal to the status.
  */
-inline unsigned char check_status_roms_all(unsigned char status) {
+unsigned char check_status_roms_all(unsigned char status) {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
         if(check_status_rom(rom_chip, status) != status) {
             return 0;

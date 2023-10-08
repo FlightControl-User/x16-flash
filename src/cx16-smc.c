@@ -24,7 +24,18 @@
 // Globals (to save zeropage and code overhead with parameter passing.)
 __mem unsigned int smc_bootloader = 0;
 __mem unsigned int smc_file_size = 0;
-__mem unsigned char smc_version_string[16];
+
+__mem unsigned char smc_rom_releases[32];
+
+__mem unsigned char smc_release;
+__mem unsigned char smc_major;
+__mem unsigned char smc_minor;
+
+__mem unsigned char smc_file_release;
+__mem unsigned char smc_file_major;
+__mem unsigned char smc_file_minor;
+
+__mem unsigned char smc_version_text[16];
 
 
 
@@ -67,7 +78,13 @@ unsigned long smc_get_version_text(unsigned char* version_string, unsigned char 
     return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, release));
 }
 
-
+unsigned char smc_supported_rom(unsigned char rom_release) {
+    for(unsigned char i=0; i<32; i++) {
+        if(smc_rom_releases[i] == rom_release)
+            return 1;
+    }
+    return 0;
+}
 
 /**
  * @brief Shut down the CX16 through an SMC reboot.
@@ -138,27 +155,34 @@ unsigned int smc_read(unsigned char display_progress) {
     FILE *fp = fopen("SMC.BIN", "r");
     if (fp) {
 
-        // We read block_size bytes at a time, and each block_size bytes we plot a dot.
-        // Every r bytes we move to the next line.
-        while (smc_file_read = fgets(ram_ptr, SMC_PROGRESS_CELL, fp)) {
+        // Read the ROM releases in the SMC.BIN header first.
+        smc_file_read = fgets(smc_rom_releases, 32, fp);
 
-            sprintf(info_text, "Reading SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_file_read, smc_file_size, 0, ram_ptr);
-            display_action_text(info_text);
+        // Has the header been read, all ok, otherwise the file size is wrong!
+        if(smc_file_read) {
 
-            if (progress_row_bytes == SMC_PROGRESS_ROW) {
-                gotoxy(x, ++y);
-                progress_row_bytes = 0;
+            // We read block_size bytes at a time, and each block_size bytes we plot a dot.
+            // Every r bytes we move to the next line.
+            while (smc_file_read = fgets(ram_ptr, SMC_PROGRESS_CELL, fp)) {
+
+                sprintf(info_text, "Reading SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_file_read, smc_file_size, 0, ram_ptr);
+                display_action_text(info_text);
+
+                if (progress_row_bytes == SMC_PROGRESS_ROW) {
+                    gotoxy(x, ++y);
+                    progress_row_bytes = 0;
+                }
+
+                if(display_progress)
+                    cputc('.');
+
+                ram_ptr += smc_file_read;
+                smc_file_size += smc_file_read;
+                progress_row_bytes += smc_file_read;
             }
 
-            if(display_progress)
-                cputc('.');
-
-            ram_ptr += smc_file_read;
-            smc_file_size += smc_file_read;
-            progress_row_bytes += smc_file_read;
+            fclose(fp);
         }
-
-        fclose(fp);
     }
 
     // We return the amount of bytes read.
@@ -277,7 +301,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
         if(smc_attempts_flashed >= 10) {
             sprintf(info_text, "There were too many attempts trying to flash the SMC at location %04x", smc_bytes_flashed);
             display_action_text(info_text);
-            return 0;
+            return 0xFFFFFFFF;
         }
     }
 
