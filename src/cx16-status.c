@@ -95,9 +95,9 @@ unsigned char check_status_roms(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if all chips are equal to the status.
  */
-unsigned char check_status_roms_all(unsigned char status) {
+unsigned char check_status_roms_less(unsigned char status) {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        if(check_status_rom(rom_chip, status) != status) {
+        if(check_status_rom(rom_chip, status) > status) {
             return 0;
         }        
     }

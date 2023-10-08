@@ -199,6 +199,8 @@ void main() {
 #endif
 #endif
 
+    display_info_vera(STATUS_SKIP, "VERA not yet supported."); // Set the info for the VERA to Detected.
+
 
 #ifdef __ROM_CHIP_PROCESS
 #ifdef __ROM_CHIP_CHECK
@@ -255,7 +257,7 @@ void main() {
                     char rom_file_release_text[13]; 
                     rom_get_version_text(rom_file_release_text, rom_file_prefix, rom_file_release, rom_file_github);
 
-                    sprintf(info_text, "%s %s", file, rom_file_release_text);
+                    sprintf(info_text, "%s:%s", file, rom_file_release_text);
                     display_info_rom(rom_chip, STATUS_FLASH, info_text);
                 }
             }
@@ -413,7 +415,7 @@ void main() {
                         
                         if (!rom_differences) {
                             // RFL1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Flashed. | None
-                            display_info_rom(rom_chip, STATUS_FLASHED, "No update required");
+                            display_info_rom(rom_chip, STATUS_SKIP, "No update required");
                         } else {
                             // 
                             // If there are differences, the ROM needs to be flashed.
@@ -443,16 +445,18 @@ void main() {
 
     }
 
-    if(check_status_smc(STATUS_SKIP) && check_status_vera(STATUS_SKIP) && check_status_roms_all(STATUS_SKIP)) {
+    if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
+       (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
+       check_status_roms_less(STATUS_SKIP)) {
         // DE1 | All components skipped
         vera_display_set_border_color(BLACK);
-        display_action_progress("The update has been cancelled!");
+        display_action_progress("No CX16 component has been updated with new firmware!");
     } else {
         if(check_status_smc(STATUS_ERROR) || check_status_vera(STATUS_ERROR) || check_status_roms(STATUS_ERROR)) {
             // DE2 | There is an error with one of the components
             vera_display_set_border_color(RED);
             display_action_progress("Update Failure! Your CX16 may be bricked!");
-            display_action_text("Take a foto of this screen. And shut down power ...");
+            display_action_text("Take a foto of this screen, shut down power and retry!");
             while(1);
         } else {
             if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE)) {

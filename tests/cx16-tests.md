@@ -59,7 +59,7 @@ SFL3 | errors during flash | Read the SMC.BIN again. Set SMC bootloader to wait,
 
 ID | Test Case | Action Description | Error Level
 --- | --- | --- | ---
-RFL1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Flashed. | None
+RFL1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Skipped. | None
 RFL2 | Flash ROM resulting in errors | Display ROM differences. Flash the ROM and set ROM to Flashing. When the ROM flash results with errors, display Flash errors and set ROM to Error | Error
 RFL3 | Flash ROM and all ok | Display ROM differences. Flash the ROM and set ROM to Flashing. When the ROM flash is ok, set ROM to Flashed | None
 

@@ -104,6 +104,6 @@ const char display_debriefing_count_rom = 4;
 const char* display_debriefing_text_rom[4] = {
     "Your CX16 system has been successfully updated!",
     "",
-    "Since your CX16 system SMC and main ROM chipset",
-    "have not been updated, your CX16 will just reset."
+    "Since your CX16 system SMC chip has not been updated",
+    "your CX16 will just reset automatically after count down."
 };
