@@ -352,12 +352,12 @@ void main() {
                 // Flash the SMC chip.
                 display_action_text("Press both POWER/RESET buttons on the CX16 board!");
                 display_info_smc(STATUS_FLASHING, "Press POWER/RESET!");
-                unsigned long flashed_bytes = smc_flash(smc_file_size);
+                unsigned int flashed_bytes = smc_flash(smc_file_size);
                 if(flashed_bytes) {
                     // SF-1 | and POWER/RESET pressed
                     display_info_smc(STATUS_FLASHED, "");
                 } else {
-                    if(flashed_bytes == (unsigned long)0xFFFFFFFF) {
+                    if(flashed_bytes == (unsigned int)0xFFFF) {
                         // SF-3 | errors during flash
                         display_info_smc(STATUS_ERROR, "SMC has errors!");
                     } else {

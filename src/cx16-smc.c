@@ -74,7 +74,7 @@ unsigned int smc_detect() {
  */
 unsigned long smc_get_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor) {
 
-    sprintf(version_string, "%u.%u.%u ", release, major, minor);
+    sprintf(version_string, "%u.%u.%u", release, major, minor);
     return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, release));
 }
 
@@ -301,7 +301,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
         if(smc_attempts_flashed >= 10) {
             sprintf(info_text, "There were too many attempts trying to flash the SMC at location %04x", smc_bytes_flashed);
             display_action_text(info_text);
-            return 0xFFFFFFFF;
+            return (unsigned int)0xFFFF;
         }
     }
 
