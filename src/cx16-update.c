@@ -201,7 +201,7 @@ void main() {
 #endif
 #endif
 
-    display_info_vera(STATUS_SKIP, "VERA not yet supported."); // Set the info for the VERA to Detected.
+    display_info_vera(STATUS_SKIP, "VERA not yet supported"); // Set the info for the VERA to Detected.
 
 
 #ifdef __ROM_CHIP_PROCESS
@@ -433,7 +433,7 @@ void main() {
                                 display_info_rom(rom_chip, STATUS_ERROR, info_text);
                             } else {
                                 // RFL3 | Flash ROM and all ok
-                                display_info_rom(rom_chip, STATUS_FLASHED, "OK!");
+                                display_info_rom(rom_chip, STATUS_FLASHED, NULL);
                             }
                         }
                     }
