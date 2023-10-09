@@ -126,7 +126,7 @@
   .const display_no_valid_smc_bootloader_count = 9
   .const display_smc_rom_issue_count = 8
   .const display_smc_unsupported_rom_count = 7
-  .const display_debriefing_count_smc = $c
+  .const display_debriefing_count_smc = $e
   .const display_debriefing_count_rom = 4
   .const OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS = 1
   .const STACK_BASE = $103
@@ -18117,8 +18117,8 @@ memcpy8_vram_vram: {
   display_no_valid_smc_bootloader_text: .word __44, info_text4, __46, __47, info_text4, __49, __50, __51, __52
   display_smc_rom_issue_text: .word __53, info_text4, __63, __64, info_text4, __58, __59, __60
   display_smc_unsupported_rom_text: .word __61, info_text4, __63, __64, info_text4, __66, __67
-  display_debriefing_text_smc: .word __80, info_text4, __70, __71, __72, info_text4, __74, info_text4, __76, __77, __78, __79
-  display_debriefing_text_rom: .word __80, info_text4, __82, __83
+  display_debriefing_text_smc: .word __82, info_text4, __70, info_text4, __72, __73, __74, info_text4, __76, info_text4, __78, __79, __80, __81
+  display_debriefing_text_rom: .word __82, info_text4, __84, __85
   smc_file_header: .fill $20, 0
   smc_version_text: .fill $10, 0
   // Globals
@@ -18240,27 +18240,29 @@ memcpy8_vram_vram: {
   .byte 0
   __67: .text "placed on your SDcard. Upgrade the CX16 upon your own risk!"
   .byte 0
-  __70: .text "Because your SMC chipset has been updated,"
+  __70: .text "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!"
   .byte 0
-  __71: .text "the restart process differs, depending on the"
+  __72: .text "Because your SMC chipset has been updated,"
   .byte 0
-  __72: .text "SMC boootloader version installed on your CX16 board:"
+  __73: .text "the restart process differs, depending on the"
   .byte 0
-  __74: .text "- SMC bootloader v2.0: your CX16 will automatically shut down."
+  __74: .text "SMC boootloader version installed on your CX16 board:"
   .byte 0
-  __76: .text "- SMC bootloader v1.0: you need to "
+  __76: .text "- SMC bootloader v2.0: your CX16 will automatically shut down."
   .byte 0
-  __77: .text "  COMPLETELY DISCONNECT your CX16 from the power source!"
+  __78: .text "- SMC bootloader v1.0: you need to "
   .byte 0
-  __78: .text "  The power-off button won't work!"
+  __79: .text "  COMPLETELY DISCONNECT your CX16 from the power source!"
   .byte 0
-  __79: .text "  Then, reconnect and start the CX16 normally."
+  __80: .text "  The power-off button won't work!"
   .byte 0
-  __80: .text "Your CX16 system has been successfully updated!"
+  __81: .text "  Then, reconnect and start the CX16 normally."
   .byte 0
-  __82: .text "Since your CX16 system SMC chip has not been updated"
+  __82: .text "Your CX16 system has been successfully updated!"
   .byte 0
-  __83: .text "your CX16 will just reset automatically after count down."
+  __84: .text "Since your CX16 system SMC chip has not been updated"
+  .byte 0
+  __85: .text "your CX16 will just reset automatically after count down."
   .byte 0
   s: .text " "
   .byte 0

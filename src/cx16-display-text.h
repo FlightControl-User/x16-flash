@@ -84,9 +84,11 @@ const char* display_smc_unsupported_rom_text[7] = {
 };
 
 
-const char display_debriefing_count_smc = 12;
-const char* display_debriefing_text_smc[12] = {
+const char display_debriefing_count_smc = 14;
+const char* display_debriefing_text_smc[14] = {
     "Your CX16 system has been successfully updated!",
+    "",
+    "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!",
     "",
     "Because your SMC chipset has been updated,",
     "the restart process differs, depending on the",
