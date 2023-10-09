@@ -74,6 +74,26 @@ void main() {
         display_info_rom(rom_chip, STATUS_NONE, NULL);
     }
 
+#ifdef __INTRO
+
+    bank_set_brom(4);
+    CLI();
+
+    display_progress_text(display_into_briefing_text, display_intro_briefing_count);
+    util_wait_space();
+
+    display_progress_text(display_into_colors_text, display_intro_colors_count);
+    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
+        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
+    }
+    util_wait_space();
+    display_progress_clear();
+
+    SEI();
+    bank_set_brom(0);
+
+#endif
+
 
 
 #ifdef __SMC_CHIP_PROCESS
@@ -137,26 +157,6 @@ void main() {
             // display_info_rom(rom_chip, STATUS_NONE, ""); // Set the info for the ROMs to None.
         }
     }
-
-#endif
-
-#ifdef __INTRO
-
-    bank_set_brom(4);
-    CLI();
-
-    display_progress_text(display_into_briefing_text, display_intro_briefing_count);
-    util_wait_space();
-
-    display_progress_text(display_into_colors_text, display_intro_colors_count);
-    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
-        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
-    }
-    util_wait_space();
-    display_progress_clear();
-
-    SEI();
-    bank_set_brom(0);
 
 #endif
 
@@ -443,12 +443,12 @@ void main() {
             }
         }
 
+    display_progress_clear();
+
 #endif
 #endif
 
     }
-
-    display_progress_clear();
 
     if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 

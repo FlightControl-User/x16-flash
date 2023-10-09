@@ -24,7 +24,7 @@ const char* display_into_briefing_text[14] = {
     "  Ensure your J1 jumpers are properly enabled on the CX16!",
     "",
     "Please read carefully the step by step instructions at ",
-    "https://flightcontrol-user.github.io/x16-flash",
+    "https://flightcontrol-user.github.io/x16-flash"
 };
 
 const char display_intro_colors_count = 16;
@@ -44,18 +44,18 @@ const char* display_into_colors_text[16] = {
     " -   Issue      Problem identified during update.",
     " -   Error      Error found during update.",
     "",
-    "Errors indicate your J1 jumpers are not properly set!",
+    "Errors indicate your J1 jumpers are not properly set!"
 };
 
 const char display_no_valid_smc_bootloader_count = 9;
 const char* display_no_valid_smc_bootloader_text[9] = {
-    "The SMC chip in your CX16 system does not contain a valid bootloader.",
+    "The SMC chip in your CX16 doesn't have a valid bootloader.",
     "",
     "A valid bootloader is needed to update the SMC chip.",
     "Unfortunately, your SMC chip cannot be updated using this tool!",
     "",
-    "You will either need to install or downgrade the bootloader onto",
-    "the SMC chip on your CX16 using an arduino device,",
+    "You will either need to install or downgrade the bootloader",
+    "onto the SMC chip on your CX16 using an arduino device,",
     "or alternatively to order a new SMC chip from TexElec or",
     "a CX16 community friend containing a valid bootloader!"
 };

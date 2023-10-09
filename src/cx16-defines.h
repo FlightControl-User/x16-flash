@@ -33,8 +33,8 @@
 #define __INTRO
 #define __SMC_CHIP_PROCESS
 #define __ROM_CHIP_PROCESS
-#define __ROM_CHIP_DETECT
 #define __SMC_CHIP_DETECT
+#define __ROM_CHIP_DETECT
 #define __SMC_CHIP_CHECK
 #define __ROM_CHIP_CHECK
 #define __SMC_CHIP_FLASH
