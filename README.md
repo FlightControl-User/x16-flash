@@ -3,15 +3,15 @@
 # Commander X16 Flashing Utility
 
 Contains the source code of the commander x16 update utility.
-This utility allows you to upgrade (or downgrade) your CX16 on-board SMC firmware and main ROM, and/or, to flash external ROMs etched on an ISA cardridge board.
+This utility allows you to upgrade (or downgrade) your CX16 on-board SMC firmware and main ROM, and/or, to flash external ROMs installed on a cartridge board.
 
-Please find below a short user manual.
+Please see below for a short user manual.
 
 ## Notice of caution
 
 Updating your on-board firmware requires you to carefully follow the instructions. There is a small risk that your on-board firmware may get damaged during the update process and may generate your CX16 unusable, resulting in a bricked CX16!
 
-Further steps to mitigate and recover from such situations are pending to be documented. However, please direct youself in such situations to the commander X16 [Discord]() or [Forum](https://www.commanderx16.com/forum)!
+Further steps to mitigate and recover from such situations are pending to be documented. However, please direct youself in such situations to the Commander X16 [Discord](https://discord.gg/nS2PqEC) or [Forum](https://www.commanderx16.com/forum)!
 
 # User Manual
 
@@ -20,11 +20,11 @@ Please consider this draft user manual as a first guide how to use the update to
 ## 0. What you need
 
 Depending on your configuration and the new release artefacts available from the CX16 community site,  
-specific hardware on your CX16 board will be upgraded. But in essence, the upgrade should be fairly straightforward and user friendly!
+specific hardware on your CX16 board will be updated. But in essence, the update should be fairly straightforward and user friendly!
 
 - Ensure you have a valid and working SDCARD that has sufficient free space and is formatted in FAT32.
 - You need a Commander X16 computer (the real thing).
-- You optionally can have an add-on ISA cardridge board, that is plugged in any of the 4 ISA slots. This ISA RA/ROM board can contain an extra 3.5 MB of RAM/ROM!
+- You optionally can have an add-on cartridge board, that is plugged in any of the 4 expansion slots. This RAM/ROM board can contain an extra 3.5 MB of RAM/ROM!
 
 On the Commander X16 main board, you have 3 important compontents that this utility can update:
 
@@ -39,7 +39,7 @@ The latest version of the program can be found on the [release page](https://git
 ## 2. Download the Commander X16 community firmware release files from the web site.
 
 Download the latest SMC.BIN and ROM.BIN file from the Commander X16 community web site.
-Any additional ROMs on the ISA expansion card to be flashed, require ROMn.BIN files to be added,  according your rom flashing strategy.  
+Any additional ROMs on the expansion card to be flashed, require ROMn.BIN files to be added,  according your rom flashing strategy.
 
 ### 2.1. Update your SMC and main ROM firmware on your CX16 board
 
@@ -54,33 +54,33 @@ Once you have the J1 jumper pins properly closed, the ROM on the main board of t
 
 Ensure that the J5 jumper pins on the Commander X16 main board are closed, to ensure that no issue occurs reading the contents of the SMC chipset. The update utility can flash the SMC with the J5 jumper pins open, but to ensure that no issue occurs, it is safer to have them also closed.
 
-### 2.2. Flash multiple ROMs on the external RAM/ROM ISA cardidge.
+### 2.2. Flash multiple ROMs on the external RAM/ROM board or cartridge.
 
-First for all clarity, find below a picture of such a ISA ROM expansion cardridge:
+First for all clarity, find below a picture of such a ROM expansion cartridge:
 
-![ROM-cardridge](https://user-images.githubusercontent.com/13690775/225110167-546596e6-998a-464f-b6a9-53fb598c19b4.jpg)
+![ROM-cartridge](https://user-images.githubusercontent.com/13690775/225110167-546596e6-998a-464f-b6a9-53fb598c19b4.jpg)
 
-On the ROM cardridge, 7 extra RAM/ROM chips can be placed for usage, and flashing. The cardridge is placed in one of the 4 CX16 extension slots, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
+On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and flashing. The cartridge is placed in one of the 4 CX16 extension slots, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
 
-Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM[N].BIN file(s), where N must be a number between 1 and 7! For example, ROM1.BIN will flash ROM#1 on the cardridge. ROM5.BIN will flash ROM#5. ROM devices are to be placed and counted, from left to right!
+Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM[N].BIN file(s), where N must be a number between 1 and 7! For example, ROM1.BIN will flash ROM#1 on the cartridge. ROM5.BIN will flash ROM#5. ROM devices are to be placed and counted, from left to right!
 
-To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on the cardridge are to be remained open. However, in order to flash the ROMs, close the relevant jumper pins.
+To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on the cartridge are to be remained open. However, in order to flash the ROMs, close the relevant jumper pins.
 
-Close the J1 jumper pins (at the left side of the ISA cardridge board) to remove the write-protection for ROM#1 till ROM#6. 
+Close the J1 jumper pins (at the left side of the cartridge board) to remove the write-protection for ROM#1 till ROM#6.
 
 ![ROM-DIP-J1](https://user-images.githubusercontent.com/13690775/225111120-56eeaca5-69a6-4812-a854-5cfc1246045a.jpg)
 
-Close the J2 jumper pins (at the right side of the ISA cardridge board) to remove the write-protection for ROM#7. 
+Close the J2 jumper pins (at the right side of the cartridge board) to remove the write-protection for ROM#7.
 
 ![ROM-DIP-J2](https://user-images.githubusercontent.com/13690775/225111150-c441812c-5331-46b1-805f-f769064507f7.jpg)
 
-Once you have the J1 and/or J2 jumper pins properly closed on the ISA cardridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
+Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
 
 ## 3. Proceed with updating your Commander X16 firmware or ROMs.
 
 Once you've copied the CX16-UPDATE.PRG and the relevant SMC.BIN and ROM[N].BIN files onto the SDcard, you are ready to update your Commander X16!
 
-Place the SDcard in the foreseen VERA card slot, and again, verify that all indicated J1 and J5 jumper pins are closed properly on the Commander X16 main board and optionally on the ISA cardridge board.
+Place the SDcard in the VERA card slot, and again, verify that all indicated J1 and J5 jumper pins are closed properly on the Commander X16 main board and optionally on the cartridge board.
 
 Boot/Start your Commander X16 computer.
 
@@ -108,16 +108,16 @@ Below are all the possible components shown that this update utility supports. A
 
 ![into-1](https://github.com/FlightControl-User/x16-flash/blob/main/images/intro-1.jpg)
 
-Please read carefully the text at the bottom panel of the screen, and press SPACE to continue ...
+Please carefully read the text at the bottom panel of the screen, and press SPACE to continue ...
 
-A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your ISA expansion cardridge board. Press SPACE to continue.
+A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your expansion cartridge board. Press SPACE to continue.
 
 ![intro-2](https://github.com/FlightControl-User/x16-flash/blob/main/images/intro-2.jpg)
 
 
 ### 3.2. Component detection
 
-Next, the update utility detects which components are upgradable. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the remaining 7 ROM chips (the most right chip is ROM#7), which would be the right most chip on the ISA expansion cardridge.
+Next, the update utility detects which components are upgradable. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the remaining 7 ROM chips (the most right chip is ROM#7), which would be the right most chip on the expansion cartridge.
 
 Each component detected will be highlighted with a Detected status and a WHITE led. The capacity of each detected ROM is shown in KBytes. Other components that are not detected are highlighed with a None staus and a BLACK led. These ROMs won't be considered for flashing.
 
@@ -201,6 +201,6 @@ The identified ROMs for flashing will be flashed from the highest ROM# number to
 
 The reason why this sequence was chosen, is to ensure that the program has the ROM routines available for allowing the user to view the flashing results and press the keyboard to continue the process.
 
-Once the onboard ROM has been flashed, the program will automatically reset.
+Once the onboard ROM has been flashed, the program will automatically reset the computer.
 
 Please find in more details this sequence explained visually, with an explanation of the screens and the meaning of the symbols/colors.

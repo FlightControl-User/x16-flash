@@ -9,27 +9,28 @@
  * 
  */
 
-const char display_intro_briefing_count = 14;
-const char* display_into_briefing_text[14] = {
-    "Welcome to the CX16 update tool! This program will update the",
-    "chipsets on your CX16 board and on your ROM expansion cardridge.",
+const char display_intro_briefing_count = 15;
+const char* display_into_briefing_text[15] = {
+    "Welcome to the CX16 update tool! This program updates the",
+    "chipsets on your CX16 and ROM expansion boards.",
     "",
-    "Depending on the type of files placed on your SDCard,",
-    "different chipsets will be updated of the CX16:",
-    "- The mandatory SMC.BIN file updates the SMC firmware.",
-    "- The mandatory ROM.BIN file updates the main ROM.",
-    "- An optional VERA.BIN file updates your VERA firmware.",
-    "- Any optional ROMn.BIN file found on your SDCard ",
-    "  updates the relevant ROMs on your ROM expansion cardridge.",
-    "  Ensure your J1 jumpers are properly enabled on the CX16!",
+    "Depending on the files found on the SDCard, various",
+    "components will be updated:",
+    "- Mandatory: SMC.BIN for the SMC firmware.",
+    "- Mandatory: ROM.BIN for the main ROM.",
+    "- Optional: VERA.BIN for the VERA firmware.",
+    "- Optional: ROMn.BIN for a ROM expansion board or cartridge.",
     "",
-    "Please read carefully the step by step instructions at ",
+    "  Important: Ensure J1 write-enable jumper is closed",
+    "  on both the main board and any ROM expansion board.",
+    "",
+    "Please carefully read the step-by-step instructions at ",
     "https://flightcontrol-user.github.io/x16-flash"
 };
 
 const char display_intro_colors_count = 16;
 const char* display_into_colors_text[16] = {
-    "The panels above indicate the update progress of your chipsets,",
+    "The panels above indicate the update progress,",
     "using status indicators and colors as specified below:",
     "",
     " -   None       Not detected, no action.",
@@ -44,7 +45,7 @@ const char* display_into_colors_text[16] = {
     " -   Issue      Problem identified during update.",
     " -   Error      Error found during update.",
     "",
-    "Errors indicate your J1 jumpers are not properly set!"
+    "Errors can indicate J1 jumpers are not closed!"
 };
 
 const char display_no_valid_smc_bootloader_count = 9;
@@ -54,10 +55,10 @@ const char* display_no_valid_smc_bootloader_text[9] = {
     "A valid bootloader is needed to update the SMC chip.",
     "Unfortunately, your SMC chip cannot be updated using this tool!",
     "",
-    "You will either need to install or downgrade the bootloader",
-    "onto the SMC chip on your CX16 using an arduino device,",
-    "or alternatively to order a new SMC chip from TexElec or",
-    "a CX16 community friend containing a valid bootloader!"
+    "A bootloader can be installed onto the SMC chip using an",
+    "an Arduino or an AVR ISP device.",
+    "Alternatively a new SMC chip with a valid bootloader can be",
+    "ordered from TexElec."
 };
 
 const char display_smc_rom_issue_count = 8;
@@ -77,10 +78,10 @@ const char* display_smc_unsupported_rom_text[7] = {
     "There is an issue with the CX16 SMC or ROM flash versions.",
     "",
     "Both the SMC and the main ROM must be updated together,",
-    "to avoid possible conflicts of firmware, bricking your CX16.",
+    "to avoid possible conflicts, risking bricking your CX16.",
     "",
-    "The SMC.BIN does not support the current ROM.BIN file",
-    "placed on your SDcard. Upgrade the CX16 upon your own risk!"
+    "The SMC.BIN and ROM.BIN found on your SDCard may not be",
+    "mutually compatible. Update the CX16 at your own risk!"
 };
 
 

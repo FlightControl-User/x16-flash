@@ -221,7 +221,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     unsigned int smc_row_bytes = 0;
     unsigned long flash_bytes = 0;
 
-    display_action_progress("To start the SMC update, do the below action ...");
+    display_action_progress("To start the SMC update, do the following ...");
 
     unsigned char smc_bootloader_start = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_BOOTLOADER_RESET, 0x31);
     if(smc_bootloader_start) {
