@@ -1,5 +1,12 @@
 # List of all test scenarios and expected results.
 
+## ST - Startup.
+
+ID | Test Case | Action Description | Error Level
+--- | --- | --- | ---
+ST1 | Reset canvas to 64 columns | Ensure that the scree mode is properly set. Disable sprites, disable layer 0, activate layer 1, set borders, set screen text white with blue background. | None
+ST2 | Ensure correct version | Ensure that the title contains the correct release, major, minor numbers.
+
 ## SD - SMC chip Detection.
 
 ID | Test Case | Action Description | Error Level
@@ -73,4 +80,5 @@ DE3 | There is an Issue with one of the components | Display the issue, which co
 DE4 | The components correctly updated, SMC bootloader 1 | Display success, set border to Green. Display message that power must be shut down and manual restart of the CX16 is required. | None
 DE5 | The components correctly updated, SMC bootloader 2 | Display success, set border to Green. Shut down CX16 automatically. | None
 DE6 | Wait until reset | In the cases where the debrief does not result in a hang or an endless loop, the CX16 will reset after the wait time. | None
+DE7 | Reset SMC when bootloader v1 | When the SMC contains bootloader 1, reset once the flash is a succes! This will prevent an unbootable CX16 when the user disconnects from power too early! | None
 

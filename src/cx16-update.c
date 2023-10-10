@@ -18,7 +18,7 @@
 #pragma encoding(screencode_mixed)
 
 // Uses all parameters to be passed using zero pages (fast).
-#pragma var_model(zp)
+#pragma var_model(mem)
 
 #include "cx16-defines.h"
 #include "cx16-globals.h"
@@ -58,11 +58,12 @@ void main() {
     }
     */
 
-    display_frame_init_64();
+    
+    display_frame_init_64(); // ST1 | Reset canvas to 64 columns
     display_frame_draw();
-    display_frame_title("Commander X16 Flash Utility!");
+    display_frame_title("Commander X16 Update Utility (v2.2.0)."); // ST2 | Ensure correct version
     display_info_title();
-    display_action_progress("Introduction ...");
+    display_action_progress("Introduction, please read carefully the below!");
     display_progress_clear();
     display_chip_smc();
     display_chip_vera();
@@ -471,12 +472,23 @@ void main() {
             } else {
                 vera_display_set_border_color(GREEN);
                 display_action_progress("Your CX16 update is a success!");
+
                 if(check_status_smc(STATUS_FLASHED)) {
+
+                    // DE7 | Reset SMC when bootloader v1
+                    // If SMC bootloader 1, reset the CX16 because the bootloader will hang anyway.
+                    if(smc_bootloader == 1)
+                        smc_reset();
+
                     display_progress_text(display_debriefing_text_smc, display_debriefing_count_smc);
 
-                    for (unsigned char w=240; w>0; w--) {
+                    textcolor(PINK);
+                    display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!");
+                    textcolor(WHITE);
+
+                    for (unsigned char w=120; w>0; w--) {
                         wait_moment();
-                        sprintf(info_text, "(%u) Please read carefully the below ...", w);
+                        sprintf(info_text, "[%03u] Please read carefully the below ...", w);
                         display_action_text(info_text);
                     }
 
@@ -488,7 +500,7 @@ void main() {
                     // When bootloader 1, the CX16 won't shut down automatically and will hang! The user will see the above bootloader 1 action.
                     // When bootloader 2, the CX16 will shut down automatically. The user will never see the bootloader 1 action.
                     smc_reset(); // This call will reboot the SMC, which will reset the CX16 if bootloader R2.
-
+                    while(1); // Wait until CX16 is disconnected from power or shuts down.
                 } else {
                     display_progress_text(display_debriefing_text_rom, display_debriefing_count_rom);
                 }
@@ -498,9 +510,13 @@ void main() {
 
     {
         // DE6 | Wait until reset
-        for (unsigned char w=200; w>0; w--) {
+        textcolor(PINK);
+        display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!");
+        textcolor(WHITE);
+
+        for (unsigned char w=120; w>0; w--) {
             wait_moment();
-            sprintf(info_text, "(%u) Your CX16 will reset ...", w);
+            sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w);
             display_action_text(info_text);
         }
 

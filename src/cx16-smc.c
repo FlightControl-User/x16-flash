@@ -107,8 +107,6 @@ void smc_reset() {
 
     // Reboot the SMC.
     cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0);
-
-    while(1); // Wait until CX16 shuts down.
 }
 
 /**

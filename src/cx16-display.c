@@ -194,17 +194,20 @@ void display_frame_draw() {
  * @brief Initialize the display and size the borders for 64 characters horizontally.
  */
 void display_frame_init_64() {
-    // Set the charset to lower case.
-    // screenlayer1();
-    textcolor(WHITE);
-    bgcolor(BLUE);
-    scroll(0);
-    clrscr();
-    vera_display_set_hstart(11);
-    vera_display_set_hstop(147);
-    vera_display_set_vstart(19);
-    vera_display_set_vstop(219);
-    cx16_k_screen_set_charset(3, (char *)0);
+    cx16_k_screen_set_mode(0);  // Default 80 columns mode.
+    cx16_k_screen_set_charset(3, (char *)0);  // Lower case characters.
+    vera_display_set_hstart(11);  // Set border.
+    vera_display_set_hstop(147);  // Set border.
+    vera_display_set_vstart(19);  // Set border.
+    vera_display_set_vstop(219);  // Set border.
+    vera_sprites_hide();  // Hide sprites.
+    vera_layer0_hide();  // Layer 0 deactivated.
+    vera_layer1_show();  // Layer 1 is the current text canvas.
+    textcolor(WHITE);  // Default text color is white.
+    bgcolor(BLUE);  // With a blue background.
+    // cx16-conio.c won't compile scrolling code for this program with the underlying define, resulting in less code overhead!
+    #define __CONIO_NOSCROLL
+    clrscr(); 
 }
 
 /**
