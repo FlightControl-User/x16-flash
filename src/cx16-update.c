@@ -301,9 +301,9 @@ void main() {
 
     // VA2 | SMC.BIN does not support ROM.BIN release | Display warning that SMC.BIN does not support the ROM.BIN release. Ask for user confirmation to continue flashing Y/N. If the users selects not to flash, set both the SMC and the ROM as an Issue and don't flash. | Issue
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) && !smc_supported_rom(rom_release[0])) {
-        display_action_progress("The ROM.BIN isn't compatible with SMC.BIN, no flash allowed!");
+        display_action_progress("Compatibility between ROM.BIN and SMC.BIN can't be assured!");
         display_progress_text(display_smc_unsupported_rom_text, display_smc_unsupported_rom_count);
-        unsigned char ch = util_wait_key("You still want to continue with flashing? [YN]", "YN");
+        unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN");
         if(ch == 'N') {
             // Cancel flash
             display_info_smc(STATUS_ISSUE, NULL);
@@ -438,7 +438,7 @@ void main() {
                         }
                     }
                 } else {
-                    display_info_rom(rom_chip, STATUS_ISSUE, "Update SMC failed!");
+                    display_info_rom(rom_chip, STATUS_ISSUE, "SMC Update failed!");
                 }
             }
         }
@@ -460,8 +460,8 @@ void main() {
         if(check_status_smc(STATUS_ERROR) || check_status_vera(STATUS_ERROR) || check_status_roms(STATUS_ERROR)) {
             // DE2 | There is an error with one of the components
             vera_display_set_border_color(RED);
-            display_action_progress("Update Failure! Your CX16 may be bricked!");
-            display_action_text("Take a foto of this screen, shut down power and retry!");
+            display_action_progress("Update Failure! Your CX16 may no longer boot!");
+            display_action_text("Take a photo of this screen, shut down power and retry!");
             while(1);
         } else {
             if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE)) {
