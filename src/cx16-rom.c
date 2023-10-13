@@ -503,7 +503,7 @@ unsigned long rom_verify(
 
         unsigned int equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
-        if (progress_row_current == ROM_PROGRESS_ROW) {
+        if (progress_row_current == VERA_PROGRESS_ROW) {
             gotoxy(x, ++y);
             progress_row_current = 0;
         }

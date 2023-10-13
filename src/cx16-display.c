@@ -15,6 +15,7 @@
 #include "cx16-smc.h"
 #include "cx16-rom.h"
 #include "cx16-status.h"
+#include "cx16-vera.h"
 
 /**
  * @brief 
@@ -195,6 +196,7 @@ void display_frame_draw() {
  */
 void display_frame_init_64() {
     cx16_k_screen_set_mode(0);  // Default 80 columns mode.
+    screenlayer1(); // Reset the screen layer values for conio.
     cx16_k_screen_set_charset(3, (char *)0);  // Lower case characters.
     vera_display_set_hstart(11);  // Set border.
     vera_display_set_hstop(147);  // Set border.
@@ -334,6 +336,7 @@ void display_print_chip(unsigned char x, unsigned char y, unsigned char w, unsig
     display_chip_line(x, y++, w, *text++);
     display_chip_end(x, y++, w);
 }
+
 
 /**
  * @brief Print SMC led above the SMC chip.
@@ -516,7 +519,7 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     status_vera = info_status;
     display_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
-    printf("VERA %-9s FPGA                 ", status_text[info_status]);
+    printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity);
     if(info_text) {
         printf("%-25s", info_text);
     }

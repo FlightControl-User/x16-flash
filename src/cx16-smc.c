@@ -149,11 +149,12 @@ unsigned int smc_read(unsigned char info_status) {
 
     unsigned char* smc_action_text;
 
-    if(info_status == STATUS_READING)
+    if(info_status == STATUS_READING) {
         smc_action_text = "Reading";
-    else
+    } else {
         smc_action_text = "Checking";
-
+    }
+    
     ram_ptr_t ram_ptr = (ram_ptr_t)RAM_BASE;  // It is assume that one RAM bank is 0X2000 bytes.
 
     textcolor(WHITE);

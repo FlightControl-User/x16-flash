@@ -65,5 +65,7 @@ const unsigned int ROM_PROGRESS_ROW = 0x8000;  // A progress frame row represent
 const unsigned char SMC_PROGRESS_CELL = 0x8;  // A progress frame cell represents about 8 bytes for a SMC update.
 const unsigned int SMC_PROGRESS_ROW = 0x200;  // A progress frame row represents about 512 bytes for a SMC update.
 
+const unsigned char VERA_PROGRESS_CELL = 0x80;  // A progress frame cell represents about 128 bytes for a VERA update.
+const unsigned int VERA_PROGRESS_ROW = 0x2000;  // A progress frame row represents about 8192 bytes for a VERA update.
 
 

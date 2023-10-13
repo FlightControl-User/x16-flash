@@ -133,9 +133,14 @@ void main() {
 
 #endif
 
+#ifdef __SMC_CHIP_PROCESS
+
     // Detecting VERA FPGA.
+    vera_detect();
     display_chip_vera();
-    display_info_vera(STATUS_DETECTED, "VERA installed, OK"); // Set the info for the VERA to Detected.
+    display_info_vera(STATUS_DETECTED, NULL); // Set the info for the VERA to Detected.
+
+#endif
 
 #ifdef __ROM_CHIP_PROCESS
 
@@ -202,7 +207,47 @@ void main() {
 #endif
 #endif
 
-    display_info_vera(STATUS_SKIP, "VERA not yet supported"); // Set the info for the VERA to Detected.
+#ifdef __VERA_CHIP_PROCESS
+#ifdef __VERA_CHIP_CHECK
+
+    SEI();
+
+    display_progress_clear();
+
+    display_action_progress("Checking VERA.BIN ...");
+
+    // Read the VERA.BIN file.
+    unsigned long vera_bytes_read = vera_read(STATUS_CHECKING);
+
+    // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
+    if (!vera_bytes_read) {
+        // VF1 | no VERA.BIN  | Ask the user to place the VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+        // VF2 | VERA.BIN size 0 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+        // TODO: VF4 | ROM.BIN size over 0x20000 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+        display_info_vera(STATUS_SKIP, "No VERA.BIN"); // No ROM flashing for this one.
+    } else {
+        // VF5 | VERA.BIN all ok | Display the VERA.BIN release version and github commit id (if any) and set VERA to Flash | Flash
+        // We know the file size, so we indicate it in the status panel.
+        vera_file_size = vera_bytes_read;
+        
+        // // Fill the version data ...
+        // unsigned char rom_file_github[8];
+        // rom_get_github_commit_id(rom_file_github, (char*)RAM_BASE);
+        // bank_push_set_bram(1);
+        // unsigned char rom_file_release = rom_get_release(*((char*)0xBF80));
+        // unsigned char rom_file_prefix = rom_get_prefix(*((char*)0xBF80));
+        // bank_pull_bram();
+
+        // char rom_file_release_text[13]; 
+        // rom_get_version_text(rom_file_release_text, rom_file_prefix, rom_file_release, rom_file_github);
+
+        // sprintf(info_text, "VERA.BIN:%s", rom_file_release_text);
+        sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO");
+        display_info_vera(STATUS_FLASH, info_text);
+    }
+
+#endif
+#endif
 
 
 #ifdef __ROM_CHIP_PROCESS
@@ -410,7 +455,7 @@ void main() {
                     if(rom_bytes_read) {
 
                         // Now we compare the RAM with the actual ROM contents.
-                        display_action_progress("Comparing ... (.) same, (*) different.");
+                        display_action_progress("Comparing ... (.) data, (=) same, (*) different.");
                         display_info_rom(rom_chip, STATUS_COMPARING, "");
 
                         // Verify the ROM...

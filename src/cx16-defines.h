@@ -29,16 +29,25 @@
 // Normally they should be all activated.
 #define __COLS_40
 #define __COLS_80
-#define __FLASH
+// #define __FLASH
 #define __INTRO
-#define __SMC_CHIP_PROCESS
-#define __ROM_CHIP_PROCESS
-#define __SMC_CHIP_DETECT
-#define __ROM_CHIP_DETECT
-#define __SMC_CHIP_CHECK
-#define __ROM_CHIP_CHECK
-#define __SMC_CHIP_FLASH
-#define __ROM_CHIP_FLASH
+
+#define __VERA_CHIP_PROCESS
+// #define __SMC_CHIP_PROCESS
+// #define __ROM_CHIP_PROCESS
+
+#define __VERA_CHIP_DETECT
+// #define __SMC_CHIP_DETECT
+// #define __ROM_CHIP_DETECT
+
+#define __VERA_CHIP_CHECK
+// #define __SMC_CHIP_CHECK
+// #define __ROM_CHIP_CHECK
+
+#define __VERA_CHIP_FLASH
+// #define __SMC_CHIP_FLASH
+// #define __ROM_CHIP_FLASH
+
 #define __FLASH_ERROR_DETECT
 
 #define CHIP_640_Y ((unsigned char)34)
