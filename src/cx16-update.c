@@ -20,6 +20,10 @@
 // Uses all parameters to be passed using zero pages (fast).
 #pragma var_model(mem)
 
+// Linkage
+#pragma link("cx16-update.ld")
+
+
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
@@ -31,6 +35,11 @@
 #include "cx16-display-text.h"
 #include "cx16-smc.h"
 #include "cx16-rom.h"
+
+#include "cx16-vera.h"
+
+#pragma code_seg(CodeIntro)
+#pragma data_seg(DataIntro)
 
 void main_intro() {
 
@@ -45,6 +54,8 @@ void main_intro() {
     display_progress_clear();
 }
 
+#pragma code_seg(CodeVera)
+#pragma data_seg(DataVera)
 
 void main_vera_detect() {
 
@@ -159,6 +170,9 @@ void main_vera_flash() {
                 // VFL3 | Flash VERA and all ok
                 sprintf(info_text, "%x bytes flashed!", vera_flashed);
                 display_info_vera(STATUS_FLASHED, info_text);
+                unsigned long vera_differences = vera_verify();
+                sprintf(info_text, "%05x differences!", vera_differences);
+                display_info_vera(STATUS_FLASHED, info_text);
             } else {
                 // VFL2 | Flash VERA resulting in errors
                 display_info_vera(STATUS_ERROR, info_text);
@@ -171,6 +185,7 @@ void main_vera_flash() {
                 spi_deselect();
                 return;
             }
+
         }
 
 
@@ -186,10 +201,10 @@ void main_vera_flash() {
             vera_detect();
             wait_moment(1);
             if(spi_manufacturer != 0xEF && spi_memory_type != 0x40 && spi_memory_capacity != 0x15) {
-                display_info_vera(STATUS_DETECTED, "JP1 jumper pins opened!");
+                display_info_vera(STATUS_DETECTED, NULL);
                 spi_ensure_detect++;
             } else {
-                display_info_vera(STATUS_WAITING, "Open JP1 jumper pins!");
+                display_info_vera(STATUS_WAITING, NULL);
                 spi_ensure_detect = 0;
             }
         }
@@ -199,6 +214,8 @@ void main_vera_flash() {
 
 }
 
+#pragma code_seg(Code)
+#pragma data_seg(Data)
 
 void main() {
 
@@ -244,7 +261,6 @@ void main() {
 #endif
 
 
-
 #ifdef __SMC_CHIP_PROCESS
 
     // Detect the SMC bootloader and turn the SMC chip led WHITE if there is a bootloader present.
@@ -281,11 +297,13 @@ void main() {
 
 #endif
 
+
 #ifdef __VERA_CHIP_PROCESS
 
     main_vera_detect();
 
 #endif
+
 
 #ifdef __ROM_CHIP_PROCESS
 
@@ -430,6 +448,8 @@ void main() {
 #endif
 #endif
 
+
+
     bank_set_brom(4);
     CLI();
 
@@ -512,6 +532,7 @@ void main() {
         if(check_status_vera(STATUS_FLASH)) {
             main_vera_flash();
         }
+
 
         SEI();
         bank_set_brom(0);

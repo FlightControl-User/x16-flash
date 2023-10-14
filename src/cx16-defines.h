@@ -29,7 +29,7 @@
 // Normally they should be all activated.
 #define __COLS_40
 #define __COLS_80
-// #define __FLASH
+#define __FLASH
 #define __INTRO
 
 #define __VERA_FLASH

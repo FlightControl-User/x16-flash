@@ -337,7 +337,7 @@ void main() {
 
     printf("\nloading kernal rom in main memory ...\n");
 
-    ram_ptr_t ram_addr = (ram_ptr_t)0x4000;
+    bram_ptr_t ram_addr = (bram_ptr_t)0x4000;
     unsigned long rom_addr = 0x00000;
 
     while(rom_addr < 0x4000) {
@@ -362,7 +362,7 @@ void main() {
     printf("\n\nloading remaining rom in banked memory ...\n");
 
     bank_set_bram(1); // read from bank 1 in bram.
-    ram_addr = (ram_ptr_t)0xA000;
+    ram_addr = (bram_ptr_t)0xA000;
 
     bytes = fgets(ram_addr, 128, fp); // this will load 128 bytes from the rom.bin file or less if EOF is reached.
 
@@ -395,7 +395,7 @@ void main() {
 
     printf("\nupgrading kernal rom from main memory ...\n");
 
-    ram_addr = (ram_ptr_t)0x4000;
+    ram_addr = (bram_ptr_t)0x4000;
     rom_addr = 0x00000;
 
     while(rom_addr < 0x4000) {
@@ -427,7 +427,7 @@ void main() {
 
     unsigned char bank = 1;
     bank_set_bram(bank); // read from bank 1 in bram.
-    ram_addr = (ram_ptr_t)0xA000;
+    ram_addr = (bram_ptr_t)0xA000;
 
     while(rom_addr < rom_total) {
         

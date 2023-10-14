@@ -116,7 +116,7 @@ void smc_reset() {
  * @return unsigned int The checksum of the bytes successfully flashed, if all OK.
  * @return unsigned int 0xFFFF If there was an error during the flashing of the bytes.
  */
-unsigned int smc_flash_block(ram_ptr_t ram_ptr) {
+unsigned int smc_flash_block(bram_ptr_t ram_ptr) {
     unsigned char smc_checksum = 0;
     for(unsigned char i=0; i<SMC_PROGRESS_CELL; i++) {
         unsigned char smc_write = *ram_ptr;
@@ -155,7 +155,8 @@ unsigned int smc_read(unsigned char info_status) {
         smc_action_text = "Checking";
     }
     
-    ram_ptr_t ram_ptr = (ram_ptr_t)RAM_BASE;  // It is assume that one RAM bank is 0X2000 bytes.
+    bram_ptr_t ram_ptr = (bram_ptr_t)BRAM_LOW;  // It is assume that one RAM bank is 0X2000 bytes.
+    bram_bank_t bram_bank = 1;
 
     textcolor(WHITE);
     gotoxy(x, y);
@@ -165,6 +166,8 @@ unsigned int smc_read(unsigned char info_status) {
     unsigned int smc_bytes_total = 0;
     FILE *fp = fopen("SMC.BIN", "r");
     if (fp) {
+
+        bank_set_bram(bram_bank);
 
         // Read the ROM releases in the SMC.BIN header first.
         smc_file_read = fgets(smc_file_header, 32, fp);
@@ -176,7 +179,7 @@ unsigned int smc_read(unsigned char info_status) {
             // Every r bytes we move to the next line.
             while (smc_file_read = fgets(ram_ptr, SMC_PROGRESS_CELL, fp)) {
 
-                sprintf(info_text, "%s SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_action_text, smc_file_read, smc_file_size, 0, ram_ptr);
+                sprintf(info_text, "%s SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_action_text, smc_file_read, smc_file_size, bram_bank, ram_ptr);
                 display_action_text(info_text);
 
                 if (progress_row_bytes == SMC_PROGRESS_ROW) {
@@ -214,7 +217,11 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W; 
 
-    ram_ptr_t smc_ram_ptr = (ram_ptr_t)RAM_BASE;
+    bram_ptr_t smc_ram_ptr = (bram_ptr_t)BRAM_LOW;
+    bram_bank_t smc_bram_bank = 1;
+
+    bank_set_bram(smc_bram_bank);
+
 
     unsigned int flash_address = 0;
     unsigned int smc_row_bytes = 0;

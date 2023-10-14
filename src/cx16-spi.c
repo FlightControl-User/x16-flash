@@ -18,6 +18,9 @@
 
 #include "cx16-spi.h"
 
+#pragma code_seg(CodeVera)
+#pragma data_seg(DataVera)
+
 __mem unsigned char spi_buffer[256];
 
 __mem unsigned char spi_manufacturer;
@@ -405,3 +408,5 @@ void spi_select() {
     return;
 }
 
+#pragma code_seg(Code)
+#pragma data_seg(Data)

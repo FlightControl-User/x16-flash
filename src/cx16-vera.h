@@ -8,6 +8,9 @@
  * @copyright Copyright (c) 2023
  */
 
+#pragma code_seg(CodeVera)
+#pragma data_seg(DataVera)
+
 #include "cx16-spi.h"
 
 extern char* const vera_file_name;
@@ -18,6 +21,10 @@ void vera_detect();
 unsigned char vera_preamable_RAM();
 unsigned char vera_preamable_SPI();
 unsigned long vera_read(unsigned char info_status);
+unsigned long vera_verify();
 unsigned char vera_erase();
 unsigned long vera_flash();
+
+#pragma code_seg(Code)
+#pragma data_seg(Data)
 

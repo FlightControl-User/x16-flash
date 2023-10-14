@@ -9,6 +9,9 @@
  * 
  */
 
+#pragma code_seg(CodeIntro)
+#pragma data_seg(DataIntro)
+
 const char display_intro_briefing_count = 15;
 const char* display_into_briefing_text[15] = {
     "Welcome to the CX16 update tool! This program updates the",
@@ -48,6 +51,8 @@ const char* display_into_colors_text[16] = {
     "Errors can indicate J1 jumpers are not closed!"
 };
 
+#pragma code_seg(CodeVera)
+#pragma data_seg(DataVera)
 const char display_close_jp1_spi_vera_count = 2;
 const char* display_close_jp1_spi_vera_text[2] = {
     "Closing the JP1 jumper pins on the VERA board is required",
@@ -62,6 +67,8 @@ const char* display_open_jp1_spi_vera_text[4] = {
     "SDCard for the remaining CX16 components to be updated!"
 };
 
+#pragma code_seg(Code)
+#pragma data_seg(Data)
 const char display_no_valid_smc_bootloader_count = 9;
 const char* display_no_valid_smc_bootloader_text[9] = {
     "The SMC chip in your CX16 doesn't have a valid bootloader.",

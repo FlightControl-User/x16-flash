@@ -378,7 +378,7 @@ unsigned long rom_read(
     unsigned char w = PROGRESS_W;
 
     unsigned char bram_bank = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_ptr_t ram_address = (bram_ptr_t)RAM_BASE;
 
     unsigned long rom_address = rom_address_from_bank(brom_bank_start);
     unsigned long rom_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
@@ -434,13 +434,13 @@ unsigned long rom_read(
             rom_file_size += rom_package_read;
             rom_row_current += rom_package_read;
 
-            if (ram_address == (ram_ptr_t)BRAM_HIGH) {
-                ram_address = (ram_ptr_t)BRAM_LOW;
+            if (ram_address == (bram_ptr_t)BRAM_HIGH) {
+                ram_address = (bram_ptr_t)BRAM_LOW;
                 bram_bank++;
             }
 
-            if (ram_address == (ram_ptr_t)RAM_HIGH) {
-                ram_address = (ram_ptr_t)BRAM_LOW;
+            if (ram_address == (bram_ptr_t)RAM_HIGH) {
+                ram_address = (bram_ptr_t)BRAM_LOW;
                 bram_bank = 1; // This is required to continue the reading into bram from bank 1.
             }
         }
@@ -450,7 +450,7 @@ unsigned long rom_read(
     return rom_file_size;
 }
 
-unsigned int rom_compare(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long rom_compare_address, unsigned int rom_compare_size) {
+unsigned int rom_compare(bram_bank_t bank_ram, bram_ptr_t ptr_ram, unsigned long rom_compare_address, unsigned int rom_compare_size) {
 
     unsigned int compared_bytes = 0; /// Holds the amount of bytes actually verified between the ROM and the RAM.
     unsigned int equal_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the ROM.
@@ -485,7 +485,7 @@ unsigned long rom_verify(
     unsigned char w = PROGRESS_W;
 
     bram_bank_t bram_bank = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_ptr_t ram_address = (bram_ptr_t)RAM_BASE;
 
     unsigned long rom_address = rom_address_from_bank(rom_bank_start);
     unsigned long rom_boundary = rom_address + file_size;
@@ -501,7 +501,7 @@ unsigned long rom_verify(
 
         // {asm{.byte $db}}
 
-        unsigned int equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
+        unsigned int equal_bytes = rom_compare(bram_bank, (bram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
         if (progress_row_current == VERA_PROGRESS_ROW) {
             gotoxy(x, ++y);
@@ -519,13 +519,13 @@ unsigned long rom_verify(
         progress_row_current += ROM_PROGRESS_CELL;
 
         if (ram_address == BRAM_HIGH) {
-            ram_address = (ram_ptr_t)BRAM_LOW;
+            ram_address = (bram_ptr_t)BRAM_LOW;
             bram_bank++;
             // {asm{.byte $db}}
         }
 
         if (ram_address == RAM_HIGH) {
-            ram_address = (ram_ptr_t)BRAM_LOW;
+            ram_address = (bram_ptr_t)BRAM_LOW;
             bram_bank = 1;
         }
 
@@ -552,7 +552,7 @@ unsigned long rom_verify(
 }
 
 
-/* inline */ unsigned long rom_write(unsigned char flash_ram_bank, ram_ptr_t flash_ram_address, unsigned long flash_rom_address, unsigned int flash_rom_size) {
+/* inline */ unsigned long rom_write(unsigned char flash_ram_bank, bram_ptr_t flash_ram_address, unsigned long flash_rom_address, unsigned int flash_rom_size) {
 
     unsigned long flashed_bytes = 0; /// Holds the amount of bytes actually flashed in the ROM.
 
@@ -582,7 +582,7 @@ unsigned long rom_flash(
     unsigned char w_sector = PROGRESS_W;
 
     bram_bank_t bram_bank_sector = 0;
-    ram_ptr_t ram_address_sector = (ram_ptr_t)RAM_BASE;
+    bram_ptr_t ram_address_sector = (bram_ptr_t)RAM_BASE;
 
     // Now we compare the RAM with the actual ROM contents.
     display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
@@ -601,7 +601,7 @@ unsigned long rom_flash(
 
         // {asm{.byte $db}}
 
-        unsigned int equal_bytes = rom_compare(bram_bank_sector, (ram_ptr_t)ram_address_sector, rom_address_sector, ROM_SECTOR);
+        unsigned int equal_bytes = rom_compare(bram_bank_sector, (bram_ptr_t)ram_address_sector, rom_address_sector, ROM_SECTOR);
 
         if (equal_bytes != ROM_SECTOR) {
 
@@ -614,7 +614,7 @@ unsigned long rom_flash(
 
                 unsigned long rom_sector_boundary = rom_address_sector + ROM_SECTOR;
                 unsigned long rom_address = rom_address_sector;
-                ram_ptr_t ram_address = (ram_ptr_t)ram_address_sector;
+                bram_ptr_t ram_address = (bram_ptr_t)ram_address_sector;
                 bram_bank_t bram_bank = bram_bank_sector;
 
                 unsigned char x = x_sector;
@@ -627,9 +627,9 @@ unsigned long rom_flash(
                     sprintf(info_text, "Flashing ... RAM:%02x:%04p -> ROM:%05x ... %u flash errors ...", bram_bank_sector, ram_address_sector, rom_address_sector, flash_errors_sector + flash_errors);
                     display_action_text(info_text);
 
-                    unsigned long written_bytes = rom_write(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
+                    unsigned long written_bytes = rom_write(bram_bank, (bram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
-                    equal_bytes = rom_compare(bram_bank, (ram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
+                    equal_bytes = rom_compare(bram_bank, (bram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
                     gotoxy(x, y);
 
@@ -664,13 +664,13 @@ unsigned long rom_flash(
         rom_address_sector += ROM_SECTOR;
 
         if (ram_address_sector == BRAM_HIGH) {
-            ram_address_sector = (ram_ptr_t)BRAM_LOW;
+            ram_address_sector = (bram_ptr_t)BRAM_LOW;
             bram_bank_sector++;
             // {asm{.byte $db}}
         }
 
         if (ram_address_sector == RAM_HIGH) {
-            ram_address_sector = (ram_ptr_t)BRAM_LOW;
+            ram_address_sector = (bram_ptr_t)BRAM_LOW;
             bram_bank_sector = 1;
         }
 

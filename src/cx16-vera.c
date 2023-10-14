@@ -21,6 +21,9 @@
 #include "cx16-spi.h"
 #include "cx16-display.h"
 
+#pragma code_seg(CodeVera)
+#pragma data_seg(DataVera)
+
 __mem char* const vera_file_name = "VERA.BIN";
 __mem unsigned long vera_file_size = 0;
 __mem unsigned long const vera_size = (unsigned long)0x20000;
@@ -53,13 +56,13 @@ unsigned long vera_read(unsigned char info_status) {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    unsigned char bram_bank = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
+    bram_bank_t vera_bram_bank = 1;
+    bank_set_bram(vera_bram_bank);
 
     unsigned long vera_address = 0;
     unsigned long vera_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
 
-    bank_set_bram(bram_bank);
     bank_set_brom(0);
 
     unsigned int progress_row_current = 0;
@@ -81,14 +84,14 @@ unsigned long vera_read(unsigned char info_status) {
 
         while (vera_file_size < vera_size) {
 
-            sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address);
+            sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, vera_bram_bank, vera_bram_ptr);
             display_action_text(info_text);
 
             // __DEBUG
 
-            bank_set_bram(bram_bank);
+            bank_set_bram(vera_bram_bank);
 
-            unsigned int vera_package_read = fgets(ram_address, VERA_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
+            unsigned int vera_package_read = fgets(vera_bram_ptr, VERA_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
             if (!vera_package_read) {
                 break;
             }
@@ -101,19 +104,19 @@ unsigned long vera_read(unsigned char info_status) {
             if(info_status == STATUS_READING)
                 cputc('.');
 
-            ram_address += vera_package_read;
+            vera_bram_ptr += vera_package_read;
             vera_address += vera_package_read;
             vera_file_size += vera_package_read;
             progress_row_current += vera_package_read;
 
-            if (ram_address == (ram_ptr_t)BRAM_HIGH) {
-                ram_address = (ram_ptr_t)BRAM_LOW;
-                bram_bank++;
+            if (vera_bram_ptr == (bram_ptr_t)BRAM_HIGH) {
+                vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
+                vera_bram_bank++;
             }
 
-            if (ram_address == (ram_ptr_t)RAM_HIGH) {
-                ram_address = (ram_ptr_t)BRAM_LOW;
-                bram_bank = 1; // This is required to continue the reading into bram from bank 1.
+            if (vera_bram_ptr == (bram_ptr_t)RAM_HIGH) {
+                vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
+                vera_bram_bank = 1; // This is required to continue the reading into bram from bank 1.
             }
         }
 
@@ -123,7 +126,7 @@ unsigned long vera_read(unsigned char info_status) {
     return vera_file_size;
 }
 
-unsigned int vera_compare(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned int vera_compare_size) {
+unsigned int vera_compare(bram_bank_t bank_ram, bram_ptr_t bram_ptr, unsigned int vera_compare_size) {
 
     unsigned int compared_bytes = 0; /// Holds the amount of bytes actually verified between the VERA and the RAM.
     unsigned int equal_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the VERA.
@@ -133,10 +136,10 @@ unsigned int vera_compare(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned int 
     while (compared_bytes < vera_compare_size) {
 
         unsigned char vera_byte = spi_read();
-        if (vera_byte == *ptr_ram) {
+        if (vera_byte == *bram_ptr) {
             equal_bytes++;
         }
-        ptr_ram++;
+        bram_ptr++;
         compared_bytes++;
     }
 
@@ -149,8 +152,9 @@ unsigned char vera_preamable_RAM() {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    bram_bank_t bram_bank = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_bank_t vera_bram_bank = 1;
+    bram_ptr_t vera_bram_address = (bram_ptr_t)BRAM_LOW;
+    bank_set_bram(vera_bram_bank);
 
     unsigned long vera_address = 0;
     unsigned long vera_boundary = vera_file_size;
@@ -162,7 +166,7 @@ unsigned char vera_preamable_RAM() {
 
     // Display the header until the preamable has been found.
 
-    unsigned char* vera_file_preamable_byte = (ram_ptr_t)RAM_BASE; 
+    unsigned char* vera_file_preamable_byte = (bram_ptr_t)RAM_BASE; 
 
     unsigned char vera_file_preamable_pos = 0;
     unsigned int vera_file_pos = 0;
@@ -214,7 +218,7 @@ unsigned char vera_preamable_SPI() {
     unsigned char w = PROGRESS_W;
 
     bram_bank_t bram_bank = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_ptr_t ram_address = (bram_ptr_t)RAM_BASE;
 
     unsigned long vera_address = 0;
     unsigned long vera_boundary = vera_file_size;
@@ -226,7 +230,7 @@ unsigned char vera_preamable_SPI() {
 
     // Display the header until the preamable has been found.
 
-    unsigned char* vera_file_preamable_byte = (ram_ptr_t)RAM_BASE; 
+    unsigned char* vera_file_preamable_byte = (bram_ptr_t)RAM_BASE; 
 
     unsigned char vera_file_preamable_pos = 0;
     unsigned int vera_file_pos = 0;
@@ -275,8 +279,9 @@ unsigned long vera_verify() {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    bram_bank_t bram_bank = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_bank_t vera_bram_bank = 0;
+    bram_ptr_t vera_bram_address = (bram_ptr_t)BRAM_LOW;
+    bank_set_bram(vera_bram_bank);
 
     unsigned long vera_address = 0;
     unsigned long vera_boundary = vera_file_size;
@@ -294,7 +299,7 @@ unsigned long vera_verify() {
 
         // {asm{.byte $db}}
 
-        unsigned int equal_bytes = vera_compare(bram_bank, (ram_ptr_t)ram_address, VERA_PROGRESS_CELL);
+        unsigned int equal_bytes = vera_compare(vera_bram_bank, (bram_ptr_t)vera_bram_address, VERA_PROGRESS_CELL);
 
         if (progress_row_current == VERA_PROGRESS_ROW) {
             gotoxy(x, ++y);
@@ -307,24 +312,24 @@ unsigned long vera_verify() {
             cputc('=');
         }
 
-        ram_address += VERA_PROGRESS_CELL;
+        vera_bram_address += VERA_PROGRESS_CELL;
         vera_address += VERA_PROGRESS_CELL;
         progress_row_current += VERA_PROGRESS_CELL;
 
-        if (ram_address == BRAM_HIGH) {
-            ram_address = (ram_ptr_t)BRAM_LOW;
-            bram_bank++;
+        if (vera_bram_address == BRAM_HIGH) {
+            vera_bram_address = (bram_ptr_t)BRAM_LOW;
+            vera_bram_bank++;
             // {asm{.byte $db}}
         }
 
-        if (ram_address == RAM_HIGH) {
-            ram_address = (ram_ptr_t)BRAM_LOW;
-            bram_bank = 1;
+        if (vera_bram_address == RAM_HIGH) {
+            vera_bram_address = (bram_ptr_t)BRAM_LOW;
+            vera_bram_bank = 1;
         }
 
         vera_different_bytes += (VERA_PROGRESS_CELL - equal_bytes);
 
-        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address);
+        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, vera_bram_bank, vera_bram_address, vera_address);
         display_action_text(info_text);
     }
 
@@ -365,8 +370,8 @@ unsigned long vera_flash() {
 
     unsigned long vera_address_page = 0;
 
-    bram_bank_t bram_bank_sector = 0;
-    ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
+    bram_bank_t vera_bram_bank = 1;
+    bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
 
     // Now we compare the RAM with the actual ROM contents.
     display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
@@ -381,8 +386,6 @@ unsigned long vera_flash() {
 
         unsigned long vera_page_boundary = vera_address_page + VERA_PROGRESS_PAGE;
         unsigned long vera_address = vera_address_page;
-        ram_ptr_t ram_address = (ram_ptr_t)RAM_BASE;
-        bram_bank_t bram_bank = 0;
 
         unsigned char x = x_sector;
         unsigned char y = y_sector;
@@ -390,45 +393,45 @@ unsigned long vera_flash() {
         cputc('.');
 
         if(!spi_wait_non_busy()) {
+
+            bank_set_bram(vera_bram_bank);
+
 #ifdef __VERA_FLASH
             spi_write_page_begin(vera_address_page);
 #endif
             while (vera_address < vera_page_boundary) {
 
-                sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page);
+                sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", vera_bram_bank, vera_bram_ptr, vera_address_page);
                 display_action_text(info_text);
                 
-                for(unsigned char i=0; i<255; i++) {
+                for(unsigned int i=0; i<=255; i++) {
 #ifdef __VERA_FLASH
-                    spi_write(ram_address[i]);
+                    spi_write(vera_bram_ptr[i]);
 #endif
                 }
 
                 cputcxy(x,y,'+');
                 cputc('+');
-                ram_address += VERA_PROGRESS_PAGE;
+
+                vera_bram_ptr += VERA_PROGRESS_PAGE;
                 vera_address += VERA_PROGRESS_PAGE;
-
-                x++; // This should never exceed the 64 char boundary.
-
+                vera_address_page += VERA_PROGRESS_PAGE;
             }
         } else {
             // TODO: ERROR!!!
             return 0;
         }
 
-        ram_address += VERA_PROGRESS_PAGE;
-        vera_address_page += VERA_PROGRESS_PAGE;
 
-        if (ram_address == BRAM_HIGH) {
-            ram_address = (ram_ptr_t)BRAM_LOW;
-            bram_bank_sector++;
+        if (vera_bram_ptr == BRAM_HIGH) {
+            vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
+            vera_bram_bank++;
             // {asm{.byte $db}}
         }
 
-        if (ram_address == RAM_HIGH) {
-            ram_address = (ram_ptr_t)BRAM_LOW;
-            bram_bank_sector = 1;
+        if (vera_bram_ptr == RAM_HIGH) {
+            vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
+            vera_bram_bank = 1;
         }
 
         x_sector += 2;
@@ -446,3 +449,6 @@ unsigned long vera_flash() {
 
     return vera_address_page;
 }
+
+#pragma code_seg(Code)
+#pragma data_seg(Data)

@@ -1,3 +1,7 @@
+#pragma code_seg(CodeVera)
+#pragma data_seg(DataVera)
+
+
 extern unsigned char spi_manufacturer;
 extern unsigned char spi_memory_type;
 extern unsigned char spi_memory_capacity;
@@ -19,3 +23,5 @@ void spi_select();
 unsigned char* const vera_reg_SPIData = (unsigned char*)0x9F3E;
 unsigned char* const vera_reg_SPICtrl = (unsigned char*)0x9F3F;
 
+#pragma code_seg(Code)
+#pragma data_seg(Data)

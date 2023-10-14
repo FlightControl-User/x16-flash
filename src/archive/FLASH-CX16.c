@@ -552,7 +552,7 @@ unsigned char rom_byte_compare(brom_ptr_t ptr_rom, unsigned char value) {
 #endif
 }
 
-unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned long read_size) {
+unsigned long flash_read(FILE *fp, bram_ptr_t flash_ram_address, unsigned char rom_bank_start, unsigned long read_size) {
 
     unsigned long flash_rom_address = rom_address_from_bank(rom_bank_start);
     unsigned long flash_bytes = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
@@ -590,7 +590,7 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
     return flash_bytes;
 }
 
-/* inline */ unsigned long flash_write(unsigned char flash_ram_bank, ram_ptr_t flash_ram_address, unsigned long flash_rom_address) {
+/* inline */ unsigned long flash_write(unsigned char flash_ram_bank, bram_ptr_t flash_ram_address, unsigned long flash_rom_address) {
 
     unsigned long flashed_bytes = 0; /// Holds the amount of bytes actually flashed in the ROM.
 
@@ -611,7 +611,7 @@ unsigned long flash_read(FILE *fp, ram_ptr_t flash_ram_address, unsigned char ro
     return flashed_bytes;
 }
 
-unsigned int flash_verify(bram_bank_t bank_ram, ram_ptr_t ptr_ram, unsigned long verify_rom_address, unsigned int verify_rom_size) {
+unsigned int flash_verify(bram_bank_t bank_ram, bram_ptr_t ptr_ram, unsigned long verify_rom_address, unsigned int verify_rom_size) {
 
     unsigned int verified_bytes = 0; /// Holds the amount of bytes actually verified between the ROM and the RAM.
     unsigned int correct_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the ROM.
@@ -819,7 +819,7 @@ void main() {
                 unsigned long flash_rom_address_boundary = rom_address_from_bank(flash_rom_bank);
 
                 unsigned long size = 0x4000;
-                unsigned long flash_bytes = flash_read(fp, (ram_ptr_t)0x4000, flash_rom_bank, size);
+                unsigned long flash_bytes = flash_read(fp, (bram_ptr_t)0x4000, flash_rom_bank, size);
                 if (flash_bytes != rom_size(1)) {
                     return;
                 }
@@ -828,7 +828,7 @@ void main() {
                 bank_set_bram(1); // read from bank 1 in bram.
                 size = rom_sizes[flash_chip];
                 size -= 0x4000;
-                flash_bytes = flash_read(fp, (ram_ptr_t)0xA000, flash_rom_bank + 1, size);
+                flash_bytes = flash_read(fp, (bram_ptr_t)0xA000, flash_rom_bank + 1, size);
                 flash_rom_address_boundary += flash_bytes;
 
                 fclose(fp);
@@ -842,12 +842,12 @@ void main() {
                 printf("verifying rom%u with file ... (.) same, (*) different.", flash_chip);
 
                 unsigned long flash_rom_address_sector = rom_address_from_bank(flash_rom_bank);
-                ram_ptr_t read_ram_address_sector = (ram_ptr_t)0x4000;
+                bram_ptr_t read_ram_address_sector = (bram_ptr_t)0x4000;
                 bram_bank_t read_ram_bank_sector = 0;
 
                 {
                     unsigned long flash_rom_address = flash_rom_address_sector;
-                    ram_ptr_t read_ram_address = (ram_ptr_t)read_ram_address_sector;
+                    bram_ptr_t read_ram_address = (bram_ptr_t)read_ram_address_sector;
                     bram_bank_t read_ram_bank = read_ram_bank_sector;
 
                     unsigned char x_sector = 14;
@@ -867,7 +867,7 @@ void main() {
                     while (flash_rom_address < flash_rom_address_boundary) {
 
 
-                        unsigned int equal_bytes = flash_verify(read_ram_bank, (ram_ptr_t)read_ram_address, flash_rom_address, 0x0100);
+                        unsigned int equal_bytes = flash_verify(read_ram_bank, (bram_ptr_t)read_ram_address, flash_rom_address, 0x0100);
                         // unsigned long equal_bytes = 0x100;
 
                         if (equal_bytes != 0x0100) {
@@ -887,12 +887,12 @@ void main() {
                         x_sector++;
 
                         if (read_ram_address == 0x8000) {
-                            read_ram_address = (ram_ptr_t)0xA000;
+                            read_ram_address = (bram_ptr_t)0xA000;
                             read_ram_bank = 1;
                         }
 
                         if (read_ram_address == 0xC000) {
-                            read_ram_address = (ram_ptr_t)0xA000;
+                            read_ram_address = (bram_ptr_t)0xA000;
                             read_ram_bank++;
                         }
 
@@ -916,7 +916,7 @@ void main() {
                 SEI();
 
                 flash_rom_address_sector = rom_address_from_bank(flash_rom_bank);
-                read_ram_address_sector = (ram_ptr_t)0x4000;
+                read_ram_address_sector = (bram_ptr_t)0x4000;
                 read_ram_bank_sector = 0;
 
                 textcolor(WHITE);
@@ -936,7 +936,7 @@ void main() {
 
                     // rom_sector_erase(flash_rom_address_sector);
 
-                    unsigned int equal_bytes = flash_verify(read_ram_bank_sector, (ram_ptr_t)read_ram_address_sector, flash_rom_address_sector, ROM_SECTOR);
+                    unsigned int equal_bytes = flash_verify(read_ram_bank_sector, (bram_ptr_t)read_ram_address_sector, flash_rom_address_sector, ROM_SECTOR);
                     if (equal_bytes != ROM_SECTOR) {
 
                         unsigned char flash_errors = 0;
@@ -948,7 +948,7 @@ void main() {
 
                             unsigned long flash_rom_address_boundary = flash_rom_address_sector + ROM_SECTOR;
                             unsigned long flash_rom_address = flash_rom_address_sector;
-                            ram_ptr_t read_ram_address = (ram_ptr_t)read_ram_address_sector;
+                            bram_ptr_t read_ram_address = (bram_ptr_t)read_ram_address_sector;
                             bram_bank_t read_ram_bank = read_ram_bank_sector;
 
                             unsigned char x = x_sector;
@@ -962,9 +962,9 @@ void main() {
 
                                 print_address(read_ram_bank, read_ram_address, flash_rom_address);
 
-                                unsigned long written_bytes = flash_write(read_ram_bank, (ram_ptr_t)read_ram_address, flash_rom_address);
+                                unsigned long written_bytes = flash_write(read_ram_bank, (bram_ptr_t)read_ram_address, flash_rom_address);
 
-                                equal_bytes = flash_verify(read_ram_bank, (ram_ptr_t)read_ram_address, flash_rom_address, 0x0100);
+                                equal_bytes = flash_verify(read_ram_bank, (bram_ptr_t)read_ram_address, flash_rom_address, 0x0100);
 
 #ifdef __FLASH_ERROR_DETECT
                                 if (equal_bytes != 0x0100)
@@ -1004,12 +1004,12 @@ void main() {
                     flash_rom_address_sector += ROM_SECTOR;
 
                     if (read_ram_address_sector == 0x8000) {
-                        read_ram_address_sector = (ram_ptr_t)0xA000;
+                        read_ram_address_sector = (bram_ptr_t)0xA000;
                         read_ram_bank_sector = 1;
                     }
 
                     if (read_ram_address_sector == 0xC000) {
-                        read_ram_address_sector = (ram_ptr_t)0xA000;
+                        read_ram_address_sector = (bram_ptr_t)0xA000;
                         read_ram_bank_sector++;
                     }
 
