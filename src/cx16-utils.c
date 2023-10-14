@@ -73,6 +73,7 @@ void util_wait_space() {
  * @brief 
  * 
  */
-void wait_moment() {
-    for(unsigned int i=65535; i>0; i--);
+void wait_moment(unsigned char w) {
+    for(unsigned char j=0; j<w; j++)
+        for(unsigned int i=65535; i>0; i--);
 }

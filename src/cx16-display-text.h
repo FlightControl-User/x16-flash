@@ -48,6 +48,20 @@ const char* display_into_colors_text[16] = {
     "Errors can indicate J1 jumpers are not closed!"
 };
 
+const char display_close_jp1_spi_vera_count = 2;
+const char* display_close_jp1_spi_vera_text[2] = {
+    "Closing the JP1 jumper pins on the VERA board is required",
+    "to direct the SPI to the VERA flash memory instead of the SDCard",
+};
+
+const char display_open_jp1_spi_vera_count = 4;
+const char* display_open_jp1_spi_vera_text[4] = {
+    "Opening the JP1 jumper pins on the VERA board is required",
+    "to direct the SPI to the SDCard. The update utility needs",
+    "the SDCard to further read the update .BIN files from the",
+    "SDCard for the remaining CX16 components to be updated!"
+};
+
 const char display_no_valid_smc_bootloader_count = 9;
 const char* display_no_valid_smc_bootloader_text[9] = {
     "The SMC chip in your CX16 doesn't have a valid bootloader.",

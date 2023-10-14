@@ -15,4 +15,4 @@
 void system_reset();
 unsigned char util_wait_key(unsigned char* info_text, unsigned char* filter);
 void util_wait_space();
-void wait_moment();
+void wait_moment(unsigned char w);

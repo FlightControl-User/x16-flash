@@ -236,7 +236,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     while(smc_bootloader_activation_countdown) {
         unsigned int smc_bootloader_not_activated = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
         if(smc_bootloader_not_activated) {
-            wait_moment();
+            wait_moment(1);
             sprintf(info_text, "[%03u] Press POWER and RESET on the CX16 to start the SMC update!", smc_bootloader_activation_countdown);
             display_action_text(info_text);
         } else {
@@ -248,7 +248,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     // Waiting a bit to ensure the bootloader is activated.
     smc_bootloader_activation_countdown = 10;
     while(smc_bootloader_activation_countdown) {
-        wait_moment();
+        wait_moment(1);
         sprintf(info_text, "Updating SMC in %u ...", smc_bootloader_activation_countdown);
         display_action_text(info_text);
         smc_bootloader_activation_countdown--;

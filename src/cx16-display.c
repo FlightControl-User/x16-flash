@@ -504,6 +504,7 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     gotoxy(INFO_X, INFO_Y);
     printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader);
     if(info_text) {
+        gotoxy(INFO_X+64-28, INFO_Y+1);
         printf("%-25s", info_text);
     }
     gotoxy(x, y);
@@ -519,8 +520,9 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     status_vera = info_status;
     display_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
-    printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity);
+    printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity);
     if(info_text) {
+        gotoxy(INFO_X+64-28, INFO_Y+1);
         printf("%-25s", info_text);
     }
     gotoxy(x, y);
@@ -540,9 +542,16 @@ void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigne
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
     printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13]);
     if(info_text) {
+        gotoxy(INFO_X+64-28, INFO_Y+1);
         printf("%-25s", info_text);
     }
     gotoxy(x,y);
+}
+
+void display_info_roms(unsigned char info_status, unsigned char* info_text) {
+    for(unsigned char rom_chip=0; rom_chip<8; rom_chip++) {
+        display_info_rom(rom_chip, info_status, info_text);
+    }
 }
 
 /**
@@ -554,3 +563,4 @@ void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigne
 void display_info_cx16_rom(unsigned char info_status, unsigned char* info_text) {
     display_info_rom(0, info_status, info_text);
 }
+

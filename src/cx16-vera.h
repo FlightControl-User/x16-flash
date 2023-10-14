@@ -15,4 +15,9 @@ extern unsigned long vera_file_size;
 extern unsigned long const vera_size;
 
 void vera_detect();
+unsigned char vera_preamable_RAM();
+unsigned char vera_preamable_SPI();
 unsigned long vera_read(unsigned char info_status);
+unsigned char vera_erase();
+unsigned long vera_flash();
+

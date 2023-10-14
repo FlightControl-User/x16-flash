@@ -32,13 +32,175 @@
 #include "cx16-smc.h"
 #include "cx16-rom.h"
 
+void main_intro() {
+
+    display_progress_text(display_into_briefing_text, display_intro_briefing_count);
+    util_wait_space();
+
+    display_progress_text(display_into_colors_text, display_intro_colors_count);
+    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
+        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
+    }
+    util_wait_space();
+    display_progress_clear();
+}
+
+
+void main_vera_detect() {
+
+    vera_detect();
+    display_chip_vera();
+    display_info_vera(STATUS_DETECTED, NULL); // Set the info for the VERA to Detected.
+}
+
+
+void main_vera_check() {
+
+    display_action_progress("Checking VERA.BIN ...");
+
+    // Read the VERA.BIN file.
+    unsigned long vera_bytes_read = vera_read(STATUS_CHECKING);
+
+    wait_moment(10);
+
+    // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
+    if (!vera_bytes_read) {
+        // VF1 | no VERA.BIN  | Ask the user to place the VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+        // VF2 | VERA.BIN size 0 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+        // TODO: VF4 | ROM.BIN size over 0x20000 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+        display_info_vera(STATUS_SKIP, "No VERA.BIN"); // No ROM flashing for this one.
+    } else {
+        // VF5 | VERA.BIN all ok | Display the VERA.BIN release version and github commit id (if any) and set VERA to Flash | Flash
+        // We know the file size, so we indicate it in the status panel.
+        vera_file_size = vera_bytes_read;
+        
+        // // Fill the version data ...
+        // unsigned char rom_file_github[8];
+        // rom_get_github_commit_id(rom_file_github, (char*)RAM_BASE);
+        // bank_push_set_bram(1);
+        // unsigned char rom_file_release = rom_get_release(*((char*)0xBF80));
+        // unsigned char rom_file_prefix = rom_get_prefix(*((char*)0xBF80));
+        // bank_pull_bram();
+
+        // char rom_file_release_text[13]; 
+        // rom_get_version_text(rom_file_release_text, rom_file_prefix, rom_file_release, rom_file_github);
+
+        // sprintf(info_text, "VERA.BIN:%s", rom_file_release_text);
+        sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO");
+        display_info_vera(STATUS_FLASH, info_text);
+    }
+
+    vera_preamable_SPI();
+
+    wait_moment(16);
+}
+
+void main_vera_flash() {
+
+    display_progress_clear();
+
+    sprintf(info_text, "Reading VERA.BIN ... (.) data ( ) empty");
+    display_action_progress(info_text);
+
+    unsigned long vera_bytes_read = vera_read(STATUS_READING);
+
+    // If the ROM file was correctly read, verify the file ...
+    if(vera_bytes_read) {
+
+        // Now we loop until jumper JP1 has been placed!
+        display_action_progress("VERA SPI activation ...");
+        display_action_text("Please close the jumper JP1 on the VERA board!");
+        display_progress_text(display_close_jp1_spi_vera_text, display_close_jp1_spi_vera_count);
+        vera_detect();
+        unsigned char spi_ensure_detect = 0;
+        while(spi_ensure_detect < 16) {
+            vera_detect();
+            wait_moment(1);
+            if(spi_manufacturer == 0xEF && spi_memory_type == 0x40 && spi_memory_capacity == 0x15) {
+                display_info_vera(STATUS_DETECTED, "JP1 jumper pins closed!");
+                spi_ensure_detect++;
+            } else {
+                spi_ensure_detect = 0;
+                display_info_vera(STATUS_WAITING, "Close JP1 jumper pins!");
+            }
+        }
+        display_action_text("The jumper JP1 has been closed on the VERA!");
+
+        display_progress_clear();
+
+        // Now we compare the RAM with the actual VERA contents.
+        display_action_progress("Comparing VERA ... (.) data, (=) same, (*) different.");
+        display_info_vera(STATUS_COMPARING, NULL);
+
+        // Verify VERA ...
+        unsigned long vera_differences = vera_verify();
+        
+        if (!vera_differences) {
+            // VFL1 | VERA and VERA.BIN equal | Display that there are no differences between the VERA and VERA.BIN. Set VERA to Flashed. | None
+            display_info_vera(STATUS_SKIP, "No update required");
+        } else {
+            // If there are differences, the VERA needs to be flashed.
+            sprintf(info_text, "%05x differences!", vera_differences);
+            display_info_vera(STATUS_FLASH, info_text);
+            unsigned char vera_erase_error = vera_erase();
+            if(vera_erase_error) {
+                display_action_progress("There was an error cleaning your VERA flash memory!");
+                display_action_text("DO NOT RESET or REBOOT YOUR CX16 AND WAIT!");
+                display_info_vera(STATUS_ERROR, "ERASE ERROR!");
+                display_info_smc(STATUS_ERROR, NULL);
+                display_info_roms(STATUS_ERROR, NULL);
+                wait_moment(32);
+                spi_deselect();
+                return;
+            }
+
+            unsigned long vera_flashed = vera_flash();
+            if(vera_flashed) {
+                // VFL3 | Flash VERA and all ok
+                sprintf(info_text, "%x bytes flashed!", vera_flashed);
+                display_info_vera(STATUS_FLASHED, info_text);
+            } else {
+                // VFL2 | Flash VERA resulting in errors
+                display_info_vera(STATUS_ERROR, info_text);
+                display_action_progress("There was an error updating your VERA flash memory!");
+                display_action_text("DO NOT RESET or REBOOT YOUR CX16 AND WAIT!");
+                display_info_vera(STATUS_ERROR, "FLASH ERROR!");
+                display_info_smc(STATUS_ERROR, NULL);
+                display_info_roms(STATUS_ERROR, NULL);
+                wait_moment(32);
+                spi_deselect();
+                return;
+            }
+        }
+
+
+        wait_moment(32);
+
+        // Now we loop until jumper JP1 is open again!
+        display_action_progress("VERA SPI de-activation ...");
+        display_action_text("Please OPEN the jumper JP1 on the VERA board!");
+        display_progress_text(display_open_jp1_spi_vera_text, display_open_jp1_spi_vera_count);
+        vera_detect();
+        spi_ensure_detect = 0;
+        while(spi_ensure_detect < 16) {
+            vera_detect();
+            wait_moment(1);
+            if(spi_manufacturer != 0xEF && spi_memory_type != 0x40 && spi_memory_capacity != 0x15) {
+                display_info_vera(STATUS_DETECTED, "JP1 jumper pins opened!");
+                spi_ensure_detect++;
+            } else {
+                display_info_vera(STATUS_WAITING, "Open JP1 jumper pins!");
+                spi_ensure_detect = 0;
+            }
+        }
+        display_action_text("The jumper JP1 has been opened on the VERA!");
+    }
+    spi_deselect();
+
+}
+
 
 void main() {
-
-    SEI();
-
-    bank_set_bram(0);
-    bank_set_brom(0);
 
     // Get the current screen mode ...
     /**
@@ -77,21 +239,7 @@ void main() {
 
 #ifdef __INTRO
 
-    bank_set_brom(4);
-    CLI();
-
-    display_progress_text(display_into_briefing_text, display_intro_briefing_count);
-    util_wait_space();
-
-    display_progress_text(display_into_colors_text, display_intro_colors_count);
-    for(unsigned char intro_status=0; intro_status<11; intro_status++) {
-        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
-    }
-    util_wait_space();
-    display_progress_clear();
-
-    SEI();
-    bank_set_brom(0);
+    main_intro();
 
 #endif
 
@@ -133,12 +281,9 @@ void main() {
 
 #endif
 
-#ifdef __SMC_CHIP_PROCESS
+#ifdef __VERA_CHIP_PROCESS
 
-    // Detecting VERA FPGA.
-    vera_detect();
-    display_chip_vera();
-    display_info_vera(STATUS_DETECTED, NULL); // Set the info for the VERA to Detected.
+    main_vera_detect();
 
 #endif
 
@@ -169,8 +314,6 @@ void main() {
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_CHECK
-
-    SEI();
 
     if(check_status_smc(STATUS_DETECTED)) {
 
@@ -210,41 +353,13 @@ void main() {
 #ifdef __VERA_CHIP_PROCESS
 #ifdef __VERA_CHIP_CHECK
 
-    SEI();
 
+    bank_set_brom(4);
+    CLI();    
     display_progress_clear();
-
-    display_action_progress("Checking VERA.BIN ...");
-
-    // Read the VERA.BIN file.
-    unsigned long vera_bytes_read = vera_read(STATUS_CHECKING);
-
-    // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
-    if (!vera_bytes_read) {
-        // VF1 | no VERA.BIN  | Ask the user to place the VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
-        // VF2 | VERA.BIN size 0 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
-        // TODO: VF4 | ROM.BIN size over 0x20000 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
-        display_info_vera(STATUS_SKIP, "No VERA.BIN"); // No ROM flashing for this one.
-    } else {
-        // VF5 | VERA.BIN all ok | Display the VERA.BIN release version and github commit id (if any) and set VERA to Flash | Flash
-        // We know the file size, so we indicate it in the status panel.
-        vera_file_size = vera_bytes_read;
-        
-        // // Fill the version data ...
-        // unsigned char rom_file_github[8];
-        // rom_get_github_commit_id(rom_file_github, (char*)RAM_BASE);
-        // bank_push_set_bram(1);
-        // unsigned char rom_file_release = rom_get_release(*((char*)0xBF80));
-        // unsigned char rom_file_prefix = rom_get_prefix(*((char*)0xBF80));
-        // bank_pull_bram();
-
-        // char rom_file_release_text[13]; 
-        // rom_get_version_text(rom_file_release_text, rom_file_prefix, rom_file_release, rom_file_github);
-
-        // sprintf(info_text, "VERA.BIN:%s", rom_file_release_text);
-        sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO");
-        display_info_vera(STATUS_FLASH, info_text);
-    }
+    main_vera_check();
+    bank_set_brom(0);
+    SEI();
 
 #endif
 #endif
@@ -371,7 +486,7 @@ void main() {
        !check_status_smc(STATUS_ERROR) && !check_status_vera(STATUS_ERROR) && !check_status_roms(STATUS_ERROR)) {
 
         // If the SMC and CX16 ROM is ready to flash, or, if one of the ROMs can be flashed, ok, go ahead and flash.
-        if(check_status_smc(STATUS_FLASH) || check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
+        if(check_status_vera(STATUS_FLASH) || check_status_smc(STATUS_FLASH) || check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH)) {
             display_action_progress("Chipsets have been detected and update files validated!");
             unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY");        
             if(strchr("nN", ch)) {
@@ -387,6 +502,24 @@ void main() {
 
         bank_set_bram(0);
         SEI();
+
+#ifdef __VERA_CHIP_PROCESS
+#ifdef __VERA_CHIP_FLASH
+
+        bank_set_brom(4);
+        CLI();
+
+        if(check_status_vera(STATUS_FLASH)) {
+            main_vera_flash();
+        }
+
+        SEI();
+        bank_set_brom(0);
+
+        display_progress_clear();
+
+#endif
+#endif
 
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_FLASH
@@ -496,6 +629,28 @@ void main() {
 
     }
 
+    if(check_status_vera(STATUS_ERROR)) {
+        // DE8 | There is a flash error with the VERA! We cannot reset the CX16!
+
+        bank_set_brom(4);
+        CLI();
+
+        vera_display_set_border_color(RED);
+        textcolor(WHITE);
+        bgcolor(BLUE);
+        clrscr();
+
+        printf("There was a severe error updating your VERA!");
+        printf("You are back at the READY prompt without resetting your CX16.\n\n");
+        printf("Please don't reset or shut down your VERA until you've\n"),
+        printf("managed to either reflash your VERA with the previous firmware ");
+        printf("or have update successs retrying!\n\n");
+        printf("PLEASE REMOVE THE JP1 JUMPER OR YOUR SDCARD WON'T WORK!\n");
+        wait_moment(32);
+        system_reset();
+        return;
+    }
+
     if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
        check_status_roms_less(STATUS_SKIP)) {
@@ -532,7 +687,7 @@ void main() {
                     textcolor(WHITE);
 
                     for (unsigned char w=120; w>0; w--) {
-                        wait_moment();
+                        wait_moment(1);
                         sprintf(info_text, "[%03u] Please read carefully the below ...", w);
                         display_action_text(info_text);
                     }
@@ -560,7 +715,7 @@ void main() {
         textcolor(WHITE);
 
         for (unsigned char w=120; w>0; w--) {
-            wait_moment();
+            wait_moment(1);
             sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w);
             display_action_text(info_text);
         }

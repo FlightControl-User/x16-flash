@@ -100,14 +100,6 @@ void spi_get_uniq() {
     return;
 }
 
-void spi_() {
-
-#ifndef __INTELLISENSE__
-    asm {
-    }
-#endif
-    return;
-}
 
 void spi_read_flash(unsigned long spi_data) {
 
@@ -156,96 +148,10 @@ void spi_read_flash_to_bank(unsigned long data) {
 }
 
 
-void spi_spi_read_flash_to_bank_continue() {
-
-/* 
-.proc spi_read_flash_to_bank_continue
-    stz ptr
-    lda #$A0
-    sta ptr+1
-
-    ldy #0
-pageloop:
-    jsr spi_read
-    sta (ptr),y
-    iny
-    bne pageloop
-
-    inc ptr+1
-    lda ptr+1
-    cmp #$C0
-    bcc pageloop
-    inc X16::Reg::RAMBank
-
-    rts
-.endproc
- */
-
-    bram_ptr_t ptr = (bram_ptr_t)0xA000;
-    do {
-        for(unsigned char y=0; y<255; y++) {
-            ptr[y] = spi_read();
-            y++;
-        }
-        (ptr+1)++;
-    } while(*(ptr+1) < 0xC0);
-
-    bank_set_bram(bank_get_bram()+1);
-    
-    return;
-}
-
-
-void spi_sector_erase(unsigned long data) {
-
-/* 
-; .X [7:0]
-; .Y [15:8]
-; .A [23:16]
-.proc spi_sector_erase
-    pha
-
-    ; write enable
-    jsr spi_select
-    lda #$06
-    jsr spi_write
-
-    jsr spi_select
-    lda #$20
-    jsr spi_write
-
-    pla
-    jsr spi_write
-    tya
-    jsr spi_write
-    txa
-    jsr spi_write
-
-    jsr spi_deselect
-
-    rts
-.endproc
- */
-
-    spi_select();
-    spi_write(0x06);
-    
-    spi_select();
-    spi_write(0x20);
-
-    spi_write(BYTE2(data));
-    spi_write(BYTE1(data));
-    spi_write(BYTE0(data));
-
-    spi_deselect();
-
-    return;
-}
-
 
 void spi_block_erase(unsigned long data) {
 
-/* 
+/** 
 ; .X [7:0]
 ; .Y [15:8]
 ; .A [23:16]
@@ -287,12 +193,14 @@ void spi_block_erase(unsigned long data) {
     spi_deselect();
 
     return;
+
+    return;
 }
 
 
 void spi_write_page_begin(unsigned long data) {
 
-/* 
+/** 
 ; .X [7:0]
 ; .Y [15:8]
 ; .A [23:16]
@@ -334,7 +242,7 @@ void spi_write_page_begin(unsigned long data) {
 
 unsigned char spi_wait_non_busy() {
 
-/* 
+/** 
 .proc spi_wait_non_busy
     ldy #0
 top:
@@ -358,7 +266,7 @@ wait_restart:
 .endproc
  */
 
-    unsigned char r = 0;
+    unsigned char y = 0;
 
     while(1) {
 
@@ -368,23 +276,24 @@ wait_restart:
         unsigned char w = spi_read();
         w &= 1;
 
-        if(!w) {
-            return 1;
+        if(w == 0) {
+            return 0;
         } else {
-            r++;
-            if(!r) {
+            y++;
+            if(y == 0) {
                 return 1;
             }
 #ifndef __INTELLISENSE__
+            // WAI
             asm {
-                wai
+                .byte $CB 
             }
 #endif
         }
     }
 
-
     return 0;
+
 }
 
 unsigned char spi_read() {

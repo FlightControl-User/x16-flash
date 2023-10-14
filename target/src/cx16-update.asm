@@ -26,18 +26,6 @@
 :BasicUpstart(__start)
 
   // Global Constants & labels
-  // Some addressing constants.
-  // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
-  // Normally they should be all activated.
-  // #define __FLASH
-  // #define __SMC_CHIP_PROCESS
-  // #define __ROM_CHIP_PROCESS
-  // #define __SMC_CHIP_DETECT
-  // #define __ROM_CHIP_DETECT
-  // #define __SMC_CHIP_CHECK
-  // #define __ROM_CHIP_CHECK
-  // #define __SMC_CHIP_FLASH
-  // #define __ROM_CHIP_FLASH
   // To print the graphics on the vera.
   .const PROGRESS_X = 2
   .const PROGRESS_Y = $20
@@ -55,8 +43,33 @@
   .const PINK = $a
   .const GREY = $c
   .const LIGHT_BLUE = $e
+  /**
+ * @file kernal.h
+ * @author your name (you@domain.com)
+ * @brief Most common CBM Kernal calls with it's dialects in the different CBM kernal family platforms.
+ * Please refer to http://sta.c64.org/cbm64krnfunc.html for the list of standard CBM C64 kernal functions.
+ *
+ * @version 1.0
+ * @date 2023-03-22
+ *
+ * @copyright Copyright (c) 2023
+ *
+ */
+  .const CBM_SETNAM = $ffbd
+  ///< Set the name of a file.
+  .const CBM_SETLFS = $ffba
+  ///< Set the logical file.
+  .const CBM_OPEN = $ffc0
+  ///< Open the file for the current logical file.
+  .const CBM_CHKIN = $ffc6
+  ///< Set the logical channel for input.
+  .const CBM_READST = $ffb7
+  ///< Check I/O errors.
+  .const CBM_CHRIN = $ffcf
   ///< Read a character from the current channel for input.
   .const CBM_GETIN = $ffe4
+  ///< Scan a character from the keyboard.
+  .const CBM_CLOSE = $ffc3
   ///< Close a logical file.
   .const CBM_CLRCHN = $ffcc
   ///< Load a logical file.
@@ -64,6 +77,8 @@
   .const CX16_SCREEN_MODE = $ff5f
   ///< CX16 Set/Get screen mode.
   .const CX16_SCREEN_SET_CHARSET = $ff62
+  ///< CX16 Set character set.
+  .const CX16_MACPTR = $ff44
   ///< CX16 I2C read byte.
   .const CX16_I2C_WRITE_BYTE = $fec9
   .const BINARY = 2
@@ -78,13 +93,6 @@
   .const VERA_LAYER0_ENABLE = $10
   .const VERA_LAYER_WIDTH_MASK = $30
   .const VERA_LAYER_HEIGHT_MASK = $c0
-  .const STATUS_NONE = 0
-  .const STATUS_SKIP = 1
-  .const STATUS_DETECTED = 2
-  .const STATUS_FLASH = 6
-  .const STATUS_FLASHED = 8
-  .const STATUS_ISSUE = 9
-  .const STATUS_ERROR = $a
   /**
  * @file cx16-display-text.h
  * @author your name (you@domain.com)
@@ -97,16 +105,38 @@
  */
   .const display_intro_briefing_count = $f
   .const display_intro_colors_count = $10
+  .const display_close_jp1_spi_vera_count = 2
+  .const display_open_jp1_spi_vera_count = 4
   .const display_smc_rom_issue_count = 8
   .const display_smc_unsupported_rom_count = 7
   .const display_debriefing_count_smc = $e
   .const display_debriefing_count_rom = 4
+  .const vera_size = $20000
+  .const STATUS_NONE = 0
+  .const STATUS_SKIP = 1
+  .const STATUS_DETECTED = 2
+  .const STATUS_CHECKING = 3
+  .const STATUS_READING = 4
+  .const STATUS_COMPARING = 5
+  .const STATUS_FLASH = 6
+  .const STATUS_FLASHING = 7
+  .const STATUS_FLASHED = 8
+  .const STATUS_ISSUE = 9
+  .const STATUS_ERROR = $a
+  .const STATUS_WAITING = $b
+  // A progress frame row represents about 512 bytes for a SMC update.
+  .const VERA_PROGRESS_CELL = $80
+  // A progress frame cell represents about 128 bytes for a VERA compare.
+  .const VERA_PROGRESS_PAGE = $100
+  // A progress frame cell represents about 256 bytes for a VERA flash.
+  .const VERA_PROGRESS_ROW = $2000
   .const OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS = 1
   // Globals (to save zeropage and code overhead with parameter passing.)
   .const smc_bootloader = 0
   .const STACK_BASE = $103
   .const SIZEOF_STRUCT___1 = $8f
   .const SIZEOF_STRUCT_PRINTF_BUFFER_NUMBER = $c
+  .const SIZEOF_STRUCT___2 = $48
   /// $9F20 VRAM Address (7:0)
   .label VERA_ADDRX_L = $9f20
   /// $9F21 VRAM Address (15:8)
@@ -158,7 +188,7 @@
   .label BROM = 1
   /// Current position in the buffer being filled ( initially *s passed to snprintf()
   /// Used to hold state while printing
-  .label __snprintf_buffer = $b9
+  .label __snprintf_buffer = $63
 .segment Code
   // __start
 __start: {
@@ -262,10 +292,10 @@ snputc: {
   // conio_x16_init
 /// Set initial screen values.
 conio_x16_init: {
-    .label conio_x16_init__4 = $bf
-    .label conio_x16_init__5 = $55
-    .label conio_x16_init__6 = $c1
-    .label conio_x16_init__7 = $c3
+    .label conio_x16_init__4 = $bd
+    .label conio_x16_init__5 = $62
+    .label conio_x16_init__6 = $bf
+    .label conio_x16_init__7 = $c1
     // screenlayer1()
     // [19] call screenlayer1
     jsr screenlayer1
@@ -273,8 +303,8 @@ conio_x16_init: {
     // conio_x16_init::@1
     // textcolor(CONIO_TEXTCOLOR_DEFAULT)
     // [21] call textcolor
-    // [417] phi from conio_x16_init::@1 to textcolor [phi:conio_x16_init::@1->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:conio_x16_init::@1->textcolor#0] -- vbum1=vbuc1 
+    // [436] phi from conio_x16_init::@1 to textcolor [phi:conio_x16_init::@1->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:conio_x16_init::@1->textcolor#0] -- vbum1=vbuc1 
     lda #WHITE
     sta textcolor.color
     jsr textcolor
@@ -282,8 +312,8 @@ conio_x16_init: {
     // conio_x16_init::@2
     // bgcolor(CONIO_BACKCOLOR_DEFAULT)
     // [23] call bgcolor
-    // [422] phi from conio_x16_init::@2 to bgcolor [phi:conio_x16_init::@2->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:conio_x16_init::@2->bgcolor#0] -- vbum1=vbuc1 
+    // [441] phi from conio_x16_init::@2 to bgcolor [phi:conio_x16_init::@2->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:conio_x16_init::@2->bgcolor#0] -- vbum1=vbuc1 
     lda #BLUE
     sta bgcolor.color
     jsr bgcolor
@@ -335,9 +365,9 @@ conio_x16_init: {
     lda __conio+1
     sta gotoxy.y
     // [39] call gotoxy
-    // [435] phi from conio_x16_init::@6 to gotoxy [phi:conio_x16_init::@6->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#2 [phi:conio_x16_init::@6->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#2 [phi:conio_x16_init::@6->gotoxy#1] -- register_copy 
+    // [454] phi from conio_x16_init::@6 to gotoxy [phi:conio_x16_init::@6->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#2 [phi:conio_x16_init::@6->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#2 [phi:conio_x16_init::@6->gotoxy#1] -- register_copy 
     jsr gotoxy
     // conio_x16_init::@7
     // __conio.scroll[0] = 1
@@ -359,8 +389,8 @@ conio_x16_init: {
 cputc: {
     .const OFFSET_STACK_C = 0
     .label cputc__1 = $22
-    .label cputc__2 = $33
-    .label cputc__3 = $34
+    .label cputc__2 = $42
+    .label cputc__3 = $43
     // [43] cputc::c#0 = stackidx(char,cputc::OFFSET_STACK_C) -- vbum1=_stackidxbyte_vbuc1 
     tsx
     lda STACK_BASE+OFFSET_STACK_C,x
@@ -487,97 +517,60 @@ cputc: {
 .segment Code
   // main
 main: {
+    .const bank_set_brom1_bank = 4
+    .const bank_set_brom2_bank = 0
+    .const bank_set_brom3_bank = 4
     .const bank_set_bram1_bank = 0
-    .const bank_set_brom1_bank = 0
-    .const bank_set_brom2_bank = 4
-    .const bank_set_brom3_bank = 0
     .const bank_set_brom4_bank = 4
-    .const bank_set_bram2_bank = 0
-    .label main__40 = $56
-    .label main__57 = $7a
-    .label main__66 = $b1
-    .label main__77 = $b8
-    .label main__80 = $b0
-    .label main__120 = $6b
-    .label main__125 = $37
-    .label main__137 = $b1
-    .label main__142 = $b1
-    .label check_status_smc1_main__0 = $5f
-    .label check_status_cx16_rom1_check_status_rom1_main__0 = $6d
-    .label check_status_smc2_main__0 = $65
-    .label check_status_cx16_rom2_check_status_rom1_main__0 = $6a
-    .label check_status_smc3_main__0 = $69
-    .label check_status_cx16_rom3_check_status_rom1_main__0 = $ae
-    .label check_status_smc4_main__0 = $af
-    .label check_status_cx16_rom4_check_status_rom1_main__0 = $79
-    .label check_status_smc5_main__0 = $42
-    .label check_status_smc6_main__0 = $41
-    .label check_status_vera1_main__0 = $68
-    .label check_status_smc7_main__0 = $50
-    .label check_status_vera2_main__0 = $5a
-    .label check_status_smc8_main__0 = $3f
-    .label check_status_smc9_main__0 = $3e
-    .label check_status_vera3_main__0 = $5c
-    .label check_status_vera4_main__0 = $7f
-    .label check_status_smc10_main__0 = $60
-    .label check_status_cx16_rom5_check_status_rom1_main__0 = $5b
-    .label check_status_smc11_main__0 = $ab
-    .label check_status_vera5_main__0 = $7e
-    .label check_status_smc12_main__0 = $6f
-    .label check_status_vera6_main__0 = $70
-    .label check_status_smc13_main__0 = $51
-    .label rom_chip = $b4
-    .label intro_status = $b2
-    .label check_status_smc1_return = $5f
-    .label check_status_cx16_rom1_check_status_rom1_return = $6d
-    .label check_status_smc2_return = $65
-    .label check_status_cx16_rom2_check_status_rom1_return = $6a
-    .label check_status_smc3_return = $69
-    .label check_status_cx16_rom3_check_status_rom1_return = $ae
-    .label check_status_smc4_return = $af
-    .label check_status_cx16_rom4_check_status_rom1_return = $79
-    .label check_status_smc5_return = $42
-    .label ch = $be
-    .label check_status_smc6_return = $41
-    .label check_status_vera1_return = $68
-    .label check_status_smc7_return = $50
-    .label check_status_vera2_return = $5a
-    .label check_status_smc8_return = $3f
-    .label check_status_smc9_return = $3e
-    .label check_status_vera3_return = $5c
-    .label check_status_vera4_return = $7f
-    .label check_status_smc10_return = $60
-    .label check_status_cx16_rom5_check_status_rom1_return = $5b
-    .label ch1 = $aa
-    .label rom_chip1 = $b3
-    .label check_status_smc11_return = $ab
-    .label check_status_vera5_return = $7e
-    .label check_status_smc12_return = $6f
-    .label check_status_vera6_return = $70
-    .label check_status_smc13_return = $51
-    .label w = $b7
-    .label w1 = $b6
-    .label main__212 = $b0
-    .label main__213 = $b0
-    .label main__214 = $b0
-    // main::SEI1
-    // asm
-    // asm { sei  }
-    sei
-    // main::bank_set_bram1
-    // BRAM = bank
-    // [72] BRAM = main::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
-    lda #bank_set_bram1_bank
-    sta.z BRAM
-    // main::bank_set_brom1
-    // BROM = bank
-    // [73] BROM = main::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
-    lda #bank_set_brom1_bank
-    sta.z BROM
-    // [74] phi from main::bank_set_brom1 to main::@28 [phi:main::bank_set_brom1->main::@28]
-    // main::@28
+    .const bank_set_brom5_bank = 0
+    .const bank_set_brom6_bank = 4
+    .label main__32 = $dc
+    .label main__49 = $e2
+    .label main__58 = $e1
+    .label main__71 = $e0
+    .label main__74 = $aa
+    .label main__113 = $df
+    .label main__118 = $3f
+    .label main__152 = $dd
+    .label main__157 = $de
+    .label check_status_smc1_main__0 = $7f
+    .label check_status_cx16_rom1_check_status_rom1_main__0 = $a9
+    .label check_status_smc2_main__0 = $60
+    .label check_status_cx16_rom2_check_status_rom1_main__0 = $c4
+    .label check_status_smc3_main__0 = $c5
+    .label check_status_cx16_rom3_check_status_rom1_main__0 = $c6
+    .label check_status_smc4_main__0 = $c7
+    .label check_status_cx16_rom4_check_status_rom1_main__0 = $c8
+    .label check_status_smc5_main__0 = $c9
+    .label check_status_smc6_main__0 = $ca
+    .label check_status_vera1_main__0 = $cb
+    .label check_status_smc7_main__0 = $cc
+    .label check_status_vera2_main__0 = $cd
+    .label check_status_vera3_main__0 = $ce
+    .label check_status_vera4_main__0 = $d8
+    .label check_status_smc8_main__0 = $d9
+    .label check_status_cx16_rom5_check_status_rom1_main__0 = $da
+    .label check_status_vera5_main__0 = $db
+    .label check_status_smc9_main__0 = $cf
+    .label check_status_smc10_main__0 = $d0
+    .label check_status_vera6_main__0 = $d1
+    .label check_status_vera7_main__0 = $d2
+    .label check_status_smc11_main__0 = $d3
+    .label check_status_vera8_main__0 = $d4
+    .label check_status_smc12_main__0 = $d5
+    .label check_status_vera9_main__0 = $d6
+    .label check_status_smc13_main__0 = $d7
+    .label rom_chip = $b0
+    .label ch = $c3
+    .label ch1 = $c2
+    .label rom_chip1 = $ab
+    .label w = $b2
+    .label w1 = $b1
+    .label main__230 = $aa
+    .label main__231 = $aa
+    .label main__232 = $aa
     // display_frame_init_64()
-    // [75] call display_frame_init_64
+    // [71] call display_frame_init_64
     // Get the current screen mode ...
     /**
     screen_mode = cx16_k_screen_get_mode();
@@ -596,278 +589,179 @@ main: {
     }
     */
     jsr display_frame_init_64
-    // [76] phi from main::@28 to main::@48 [phi:main::@28->main::@48]
-    // main::@48
-    // display_frame_draw()
-    // [77] call display_frame_draw
-  // ST1 | Reset canvas to 64 columns
-    // [484] phi from main::@48 to display_frame_draw [phi:main::@48->display_frame_draw]
-    jsr display_frame_draw
-    // [78] phi from main::@48 to main::@49 [phi:main::@48->main::@49]
+    // [72] phi from main to main::@49 [phi:main->main::@49]
     // main::@49
+    // display_frame_draw()
+    // [73] call display_frame_draw
+  // ST1 | Reset canvas to 64 columns
+    // [503] phi from main::@49 to display_frame_draw [phi:main::@49->display_frame_draw]
+    jsr display_frame_draw
+    // [74] phi from main::@49 to main::@50 [phi:main::@49->main::@50]
+    // main::@50
     // display_frame_title("Commander X16 Update Utility (v2.2.0).")
-    // [79] call display_frame_title
-    // [525] phi from main::@49 to display_frame_title [phi:main::@49->display_frame_title]
+    // [75] call display_frame_title
+    // [544] phi from main::@50 to display_frame_title [phi:main::@50->display_frame_title]
     jsr display_frame_title
-    // [80] phi from main::@49 to main::display_info_title1 [phi:main::@49->main::display_info_title1]
+    // [76] phi from main::@50 to main::display_info_title1 [phi:main::@50->main::display_info_title1]
     // main::display_info_title1
     // cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   Curr. Release Update Info")
-    // [81] call cputsxy
-    // [530] phi from main::display_info_title1 to cputsxy [phi:main::display_info_title1->cputsxy]
-    // [530] phi cputsxy::s#3 = main::s [phi:main::display_info_title1->cputsxy#0] -- pbuz1=pbuc1 
+    // [77] call cputsxy
+    // [549] phi from main::display_info_title1 to cputsxy [phi:main::display_info_title1->cputsxy]
+    // [549] phi cputsxy::s#3 = main::s [phi:main::display_info_title1->cputsxy#0] -- pbuz1=pbuc1 
     lda #<s
     sta.z cputsxy.s
     lda #>s
     sta.z cputsxy.s+1
-    // [530] phi cputsxy::y#3 = $11-2 [phi:main::display_info_title1->cputsxy#1] -- vbum1=vbuc1 
+    // [549] phi cputsxy::y#3 = $11-2 [phi:main::display_info_title1->cputsxy#1] -- vbum1=vbuc1 
     lda #$11-2
     sta cputsxy.y
-    // [530] phi cputsxy::x#3 = 4-2 [phi:main::display_info_title1->cputsxy#2] -- vbum1=vbuc1 
+    // [549] phi cputsxy::x#3 = 4-2 [phi:main::display_info_title1->cputsxy#2] -- vbum1=vbuc1 
     lda #4-2
     sta cputsxy.x
     jsr cputsxy
-    // [82] phi from main::display_info_title1 to main::@50 [phi:main::display_info_title1->main::@50]
-    // main::@50
+    // [78] phi from main::display_info_title1 to main::@51 [phi:main::display_info_title1->main::@51]
+    // main::@51
     // cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ------------- --------------------------")
-    // [83] call cputsxy
-    // [530] phi from main::@50 to cputsxy [phi:main::@50->cputsxy]
-    // [530] phi cputsxy::s#3 = main::s1 [phi:main::@50->cputsxy#0] -- pbuz1=pbuc1 
+    // [79] call cputsxy
+    // [549] phi from main::@51 to cputsxy [phi:main::@51->cputsxy]
+    // [549] phi cputsxy::s#3 = main::s1 [phi:main::@51->cputsxy#0] -- pbuz1=pbuc1 
     lda #<s1
     sta.z cputsxy.s
     lda #>s1
     sta.z cputsxy.s+1
-    // [530] phi cputsxy::y#3 = $11-1 [phi:main::@50->cputsxy#1] -- vbum1=vbuc1 
+    // [549] phi cputsxy::y#3 = $11-1 [phi:main::@51->cputsxy#1] -- vbum1=vbuc1 
     lda #$11-1
     sta cputsxy.y
-    // [530] phi cputsxy::x#3 = 4-2 [phi:main::@50->cputsxy#2] -- vbum1=vbuc1 
+    // [549] phi cputsxy::x#3 = 4-2 [phi:main::@51->cputsxy#2] -- vbum1=vbuc1 
     lda #4-2
     sta cputsxy.x
     jsr cputsxy
-    // [84] phi from main::@50 to main::@29 [phi:main::@50->main::@29]
-    // main::@29
+    // [80] phi from main::@51 to main::@27 [phi:main::@51->main::@27]
+    // main::@27
     // display_action_progress("Introduction, please read carefully the below!")
-    // [85] call display_action_progress
-    // [537] phi from main::@29 to display_action_progress [phi:main::@29->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text [phi:main::@29->display_action_progress#0] -- pbuz1=pbuc1 
+    // [81] call display_action_progress
+    // [556] phi from main::@27 to display_action_progress [phi:main::@27->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text [phi:main::@27->display_action_progress#0] -- pbuz1=pbuc1 
     lda #<info_text
     sta.z display_action_progress.info_text
     lda #>info_text
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [86] phi from main::@29 to main::@51 [phi:main::@29->main::@51]
-    // main::@51
-    // display_progress_clear()
-    // [87] call display_progress_clear
-    // [551] phi from main::@51 to display_progress_clear [phi:main::@51->display_progress_clear]
-    jsr display_progress_clear
-    // [88] phi from main::@51 to main::@52 [phi:main::@51->main::@52]
+    // [82] phi from main::@27 to main::@52 [phi:main::@27->main::@52]
     // main::@52
-    // display_chip_smc()
-    // [89] call display_chip_smc
-    // [566] phi from main::@52 to display_chip_smc [phi:main::@52->display_chip_smc]
-    jsr display_chip_smc
-    // [90] phi from main::@52 to main::@53 [phi:main::@52->main::@53]
+    // display_progress_clear()
+    // [83] call display_progress_clear
+    // [570] phi from main::@52 to display_progress_clear [phi:main::@52->display_progress_clear]
+    jsr display_progress_clear
+    // [84] phi from main::@52 to main::@53 [phi:main::@52->main::@53]
     // main::@53
-    // display_chip_vera()
-    // [91] call display_chip_vera
-    // [571] phi from main::@53 to display_chip_vera [phi:main::@53->display_chip_vera]
-    jsr display_chip_vera
-    // [92] phi from main::@53 to main::@54 [phi:main::@53->main::@54]
+    // display_chip_smc()
+    // [85] call display_chip_smc
+    // [585] phi from main::@53 to display_chip_smc [phi:main::@53->display_chip_smc]
+    jsr display_chip_smc
+    // [86] phi from main::@53 to main::@54 [phi:main::@53->main::@54]
     // main::@54
-    // display_chip_rom()
-    // [93] call display_chip_rom
-    // [576] phi from main::@54 to display_chip_rom [phi:main::@54->display_chip_rom]
-    jsr display_chip_rom
-    // [94] phi from main::@54 to main::@55 [phi:main::@54->main::@55]
+    // display_chip_vera()
+    // [87] call display_chip_vera
+    // [590] phi from main::@54 to display_chip_vera [phi:main::@54->display_chip_vera]
+    jsr display_chip_vera
+    // [88] phi from main::@54 to main::@55 [phi:main::@54->main::@55]
     // main::@55
+    // display_chip_rom()
+    // [89] call display_chip_rom
+    // [595] phi from main::@55 to display_chip_rom [phi:main::@55->display_chip_rom]
+    jsr display_chip_rom
+    // [90] phi from main::@55 to main::@56 [phi:main::@55->main::@56]
+    // main::@56
     // display_info_smc(STATUS_COLOR_NONE, NULL)
-    // [95] call display_info_smc
-    // [595] phi from main::@55 to display_info_smc [phi:main::@55->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = 0 [phi:main::@55->display_info_smc#0] -- pbuz1=vbuc1 
+    // [91] call display_info_smc
+    // [614] phi from main::@56 to display_info_smc [phi:main::@56->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = 0 [phi:main::@56->display_info_smc#0] -- pbuz1=vbuc1 
     lda #<0
     sta.z display_info_smc.info_text
     sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = BLACK [phi:main::@55->display_info_smc#1] -- vbuz1=vbuc1 
+    // [614] phi display_info_smc::info_status#10 = BLACK [phi:main::@56->display_info_smc#1] -- vbum1=vbuc1 
     lda #BLACK
-    sta.z display_info_smc.info_status
+    sta display_info_smc.info_status
     jsr display_info_smc
-    // [96] phi from main::@55 to main::@56 [phi:main::@55->main::@56]
-    // main::@56
+    // [92] phi from main::@56 to main::@57 [phi:main::@56->main::@57]
+    // main::@57
     // display_info_vera(STATUS_NONE, NULL)
-    // [97] call display_info_vera
-    // [629] phi from main::@56 to display_info_vera [phi:main::@56->display_info_vera]
-    // [629] phi display_info_vera::info_text#10 = 0 [phi:main::@56->display_info_vera#0] -- pbuz1=vbuc1 
+    // [93] call display_info_vera
+    // [650] phi from main::@57 to display_info_vera [phi:main::@57->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = 0 [phi:main::@57->display_info_vera#0] -- pbuz1=vbuc1 
     lda #<0
     sta.z display_info_vera.info_text
     sta.z display_info_vera.info_text+1
-    // [629] phi spi_memory_capacity#12 = 0 [phi:main::@56->display_info_vera#1] -- vbum1=vbuc1 
+    // [650] phi spi_memory_capacity#109 = 0 [phi:main::@57->display_info_vera#1] -- vbum1=vbuc1 
     sta spi_memory_capacity
-    // [629] phi spi_memory_type#12 = 0 [phi:main::@56->display_info_vera#2] -- vbum1=vbuc1 
+    // [650] phi spi_memory_type#110 = 0 [phi:main::@57->display_info_vera#2] -- vbum1=vbuc1 
     sta spi_memory_type
-    // [629] phi spi_manufacturer#12 = 0 [phi:main::@56->display_info_vera#3] -- vbum1=vbuc1 
+    // [650] phi spi_manufacturer#100 = 0 [phi:main::@57->display_info_vera#3] -- vbum1=vbuc1 
     sta spi_manufacturer
-    // [629] phi display_info_vera::info_status#4 = STATUS_NONE [phi:main::@56->display_info_vera#4] -- vbuz1=vbuc1 
+    // [650] phi display_info_vera::info_status#18 = STATUS_NONE [phi:main::@57->display_info_vera#4] -- vbum1=vbuc1 
     lda #STATUS_NONE
-    sta.z display_info_vera.info_status
+    sta display_info_vera.info_status
     jsr display_info_vera
-    // [98] phi from main::@56 to main::@10 [phi:main::@56->main::@10]
-    // [98] phi main::rom_chip#2 = 0 [phi:main::@56->main::@10#0] -- vbuz1=vbuc1 
+    // [94] phi from main::@57 to main::@10 [phi:main::@57->main::@10]
+    // [94] phi main::rom_chip#2 = 0 [phi:main::@57->main::@10#0] -- vbuz1=vbuc1 
     lda #0
     sta.z rom_chip
     // main::@10
   __b10:
     // for(unsigned char rom_chip=0; rom_chip<8; rom_chip++)
-    // [99] if(main::rom_chip#2<8) goto main::@11 -- vbuz1_lt_vbuc1_then_la1 
+    // [95] if(main::rom_chip#2<8) goto main::@11 -- vbuz1_lt_vbuc1_then_la1 
     lda.z rom_chip
     cmp #8
     bcs !__b11+
     jmp __b11
   !__b11:
-    // main::bank_set_brom2
+    // [96] phi from main::@10 to main::@12 [phi:main::@10->main::@12]
+    // main::@12
+    // main_intro()
+    // [97] call main_intro
+    // [690] phi from main::@12 to main_intro [phi:main::@12->main_intro]
+    jsr main_intro
+    // [98] phi from main::@12 to main::@60 [phi:main::@12->main::@60]
+    // main::@60
+    // main_vera_detect()
+    // [99] call main_vera_detect
+    // [707] phi from main::@60 to main_vera_detect [phi:main::@60->main_vera_detect]
+    jsr main_vera_detect
+    // main::bank_set_brom1
     // BROM = bank
-    // [100] BROM = main::bank_set_brom2_bank#0 -- vbuz1=vbuc1 
-    lda #bank_set_brom2_bank
+    // [100] BROM = main::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_brom1_bank
     sta.z BROM
     // main::CLI1
     // asm
     // asm { cli  }
     cli
-    // [102] phi from main::CLI1 to main::@30 [phi:main::CLI1->main::@30]
-    // main::@30
-    // display_progress_text(display_into_briefing_text, display_intro_briefing_count)
-    // [103] call display_progress_text
-    // [663] phi from main::@30 to display_progress_text [phi:main::@30->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_into_briefing_text [phi:main::@30->display_progress_text#0] -- qbuz1=qbuc1 
-    lda #<display_into_briefing_text
-    sta.z display_progress_text.text
-    lda #>display_into_briefing_text
-    sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_intro_briefing_count [phi:main::@30->display_progress_text#1] -- vbuz1=vbuc1 
-    lda #display_intro_briefing_count
-    sta.z display_progress_text.lines
-    jsr display_progress_text
-    // [104] phi from main::@30 to main::@59 [phi:main::@30->main::@59]
-    // main::@59
-    // util_wait_space()
-    // [105] call util_wait_space
-    // [673] phi from main::@59 to util_wait_space [phi:main::@59->util_wait_space]
-    jsr util_wait_space
-    // [106] phi from main::@59 to main::@60 [phi:main::@59->main::@60]
-    // main::@60
-    // display_progress_text(display_into_colors_text, display_intro_colors_count)
-    // [107] call display_progress_text
-    // [663] phi from main::@60 to display_progress_text [phi:main::@60->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_into_colors_text [phi:main::@60->display_progress_text#0] -- qbuz1=qbuc1 
-    lda #<display_into_colors_text
-    sta.z display_progress_text.text
-    lda #>display_into_colors_text
-    sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_intro_colors_count [phi:main::@60->display_progress_text#1] -- vbuz1=vbuc1 
-    lda #display_intro_colors_count
-    sta.z display_progress_text.lines
-    jsr display_progress_text
-    // [108] phi from main::@60 to main::@12 [phi:main::@60->main::@12]
-    // [108] phi main::intro_status#2 = 0 [phi:main::@60->main::@12#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z intro_status
-    // main::@12
-  __b12:
-    // for(unsigned char intro_status=0; intro_status<11; intro_status++)
-    // [109] if(main::intro_status#2<$b) goto main::@13 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z intro_status
-    cmp #$b
-    bcs !__b13+
-    jmp __b13
-  !__b13:
-    // [110] phi from main::@12 to main::@14 [phi:main::@12->main::@14]
-    // main::@14
-    // util_wait_space()
-    // [111] call util_wait_space
-    // [673] phi from main::@14 to util_wait_space [phi:main::@14->util_wait_space]
-    jsr util_wait_space
-    // [112] phi from main::@14 to main::@62 [phi:main::@14->main::@62]
-    // main::@62
+    // [102] phi from main::CLI1 to main::@28 [phi:main::CLI1->main::@28]
+    // main::@28
     // display_progress_clear()
-    // [113] call display_progress_clear
-    // [551] phi from main::@62 to display_progress_clear [phi:main::@62->display_progress_clear]
+    // [103] call display_progress_clear
+    // [570] phi from main::@28 to display_progress_clear [phi:main::@28->display_progress_clear]
     jsr display_progress_clear
-    // main::SEI2
+    // [104] phi from main::@28 to main::@61 [phi:main::@28->main::@61]
+    // main::@61
+    // main_vera_check()
+    // [105] call main_vera_check
+    // [716] phi from main::@61 to main_vera_check [phi:main::@61->main_vera_check]
+    jsr main_vera_check
+    // main::bank_set_brom2
+    // BROM = bank
+    // [106] BROM = main::bank_set_brom2_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_brom2_bank
+    sta.z BROM
+    // main::SEI1
     // asm
     // asm { sei  }
     sei
     // main::bank_set_brom3
     // BROM = bank
-    // [115] BROM = main::bank_set_brom3_bank#0 -- vbuz1=vbuc1 
+    // [108] BROM = main::bank_set_brom3_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_brom3_bank
-    sta.z BROM
-    // [116] phi from main::bank_set_brom3 to main::@31 [phi:main::bank_set_brom3->main::@31]
-    // main::@31
-    // vera_detect()
-    // [117] call vera_detect
-  // Detecting VERA FPGA.
-    // [676] phi from main::@31 to vera_detect [phi:main::@31->vera_detect]
-    jsr vera_detect
-    // [118] phi from main::@31 to main::@63 [phi:main::@31->main::@63]
-    // main::@63
-    // display_chip_vera()
-    // [119] call display_chip_vera
-    // [571] phi from main::@63 to display_chip_vera [phi:main::@63->display_chip_vera]
-    jsr display_chip_vera
-    // main::@64
-    // [120] spi_manufacturer#281 = spi_read::return#0 -- vbum1=vbum2 
-    lda spi_read.return
-    sta spi_manufacturer
-    // [121] spi_memory_type#281 = spi_read::return#1 -- vbum1=vbum2 
-    lda spi_read.return_1
-    sta spi_memory_type
-    // [122] spi_memory_capacity#281 = spi_read::return#2 -- vbum1=vbum2 
-    lda spi_read.return_2
-    sta spi_memory_capacity
-    // display_info_vera(STATUS_DETECTED, "VERA installed, OK")
-    // [123] call display_info_vera
-    // [629] phi from main::@64 to display_info_vera [phi:main::@64->display_info_vera]
-    // [629] phi display_info_vera::info_text#10 = main::info_text1 [phi:main::@64->display_info_vera#0] -- pbuz1=pbuc1 
-    lda #<info_text1
-    sta.z display_info_vera.info_text
-    lda #>info_text1
-    sta.z display_info_vera.info_text+1
-    // [629] phi spi_memory_capacity#12 = spi_memory_capacity#281 [phi:main::@64->display_info_vera#1] -- register_copy 
-    // [629] phi spi_memory_type#12 = spi_memory_type#281 [phi:main::@64->display_info_vera#2] -- register_copy 
-    // [629] phi spi_manufacturer#12 = spi_manufacturer#281 [phi:main::@64->display_info_vera#3] -- register_copy 
-    // [629] phi display_info_vera::info_status#4 = STATUS_DETECTED [phi:main::@64->display_info_vera#4] -- vbuz1=vbuc1 
-    lda #STATUS_DETECTED
-    sta.z display_info_vera.info_status
-    jsr display_info_vera
-    // main::@65
-    // [124] spi_manufacturer#282 = spi_read::return#0 -- vbum1=vbum2 
-    lda spi_read.return
-    sta spi_manufacturer
-    // [125] spi_memory_type#282 = spi_read::return#1 -- vbum1=vbum2 
-    lda spi_read.return_1
-    sta spi_memory_type
-    // [126] spi_memory_capacity#282 = spi_read::return#2 -- vbum1=vbum2 
-    lda spi_read.return_2
-    sta spi_memory_capacity
-    // display_info_vera(STATUS_SKIP, "VERA not yet supported")
-    // [127] call display_info_vera
-  // Set the info for the VERA to Detected.
-    // [629] phi from main::@65 to display_info_vera [phi:main::@65->display_info_vera]
-    // [629] phi display_info_vera::info_text#10 = main::info_text2 [phi:main::@65->display_info_vera#0] -- pbuz1=pbuc1 
-    lda #<info_text2
-    sta.z display_info_vera.info_text
-    lda #>info_text2
-    sta.z display_info_vera.info_text+1
-    // [629] phi spi_memory_capacity#12 = spi_memory_capacity#282 [phi:main::@65->display_info_vera#1] -- register_copy 
-    // [629] phi spi_memory_type#12 = spi_memory_type#282 [phi:main::@65->display_info_vera#2] -- register_copy 
-    // [629] phi spi_manufacturer#12 = spi_manufacturer#282 [phi:main::@65->display_info_vera#3] -- register_copy 
-    // [629] phi display_info_vera::info_status#4 = STATUS_SKIP [phi:main::@65->display_info_vera#4] -- vbuz1=vbuc1 
-    lda #STATUS_SKIP
-    sta.z display_info_vera.info_status
-    jsr display_info_vera
-    // main::bank_set_brom4
-    // BROM = bank
-    // [128] BROM = main::bank_set_brom4_bank#0 -- vbuz1=vbuc1 
-    lda #bank_set_brom4_bank
     sta.z BROM
     // main::CLI2
     // asm
@@ -875,7 +769,7 @@ main: {
     cli
     // main::check_status_smc1
     // status_smc == status
-    // [130] main::check_status_smc1_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [110] main::check_status_smc1_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
@@ -884,12 +778,13 @@ main: {
     eor #1
     sta.z check_status_smc1_main__0
     // return (unsigned char)(status_smc == status);
-    // [131] main::check_status_smc1_return#0 = (char)main::check_status_smc1_$0
-    // [132] phi from main::check_status_smc1 to main::check_status_cx16_rom1 [phi:main::check_status_smc1->main::check_status_cx16_rom1]
+    // [111] main::check_status_smc1_return#0 = (char)main::check_status_smc1_$0 -- vbum1=vbuz2 
+    sta check_status_smc1_return
+    // [112] phi from main::check_status_smc1 to main::check_status_cx16_rom1 [phi:main::check_status_smc1->main::check_status_cx16_rom1]
     // main::check_status_cx16_rom1
     // main::check_status_cx16_rom1_check_status_rom1
     // status_rom[rom_chip] == status
-    // [133] main::check_status_cx16_rom1_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [113] main::check_status_cx16_rom1_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_FLASH
     beq !+
@@ -898,22 +793,23 @@ main: {
     eor #1
     sta.z check_status_cx16_rom1_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [134] main::check_status_cx16_rom1_check_status_rom1_return#0 = (char)main::check_status_cx16_rom1_check_status_rom1_$0
-    // main::@32
+    // [114] main::check_status_cx16_rom1_check_status_rom1_return#0 = (char)main::check_status_cx16_rom1_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom1_check_status_rom1_return
+    // main::@29
     // if(!check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH))
-    // [135] if(0!=main::check_status_smc1_return#0) goto main::check_status_smc2 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc1_return
+    // [115] if(0!=main::check_status_smc1_return#0) goto main::check_status_smc2 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc1_return
     bne check_status_smc2
-    // main::@117
-    // [136] if(0!=main::check_status_cx16_rom1_check_status_rom1_return#0) goto main::@15 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_cx16_rom1_check_status_rom1_return
-    beq !__b15+
-    jmp __b15
-  !__b15:
+    // main::@123
+    // [116] if(0!=main::check_status_cx16_rom1_check_status_rom1_return#0) goto main::@13 -- 0_neq_vbum1_then_la1 
+    lda check_status_cx16_rom1_check_status_rom1_return
+    beq !__b13+
+    jmp __b13
+  !__b13:
     // main::check_status_smc2
   check_status_smc2:
     // status_smc == status
-    // [137] main::check_status_smc2_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [117] main::check_status_smc2_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
@@ -922,12 +818,13 @@ main: {
     eor #1
     sta.z check_status_smc2_main__0
     // return (unsigned char)(status_smc == status);
-    // [138] main::check_status_smc2_return#0 = (char)main::check_status_smc2_$0
-    // [139] phi from main::check_status_smc2 to main::check_status_cx16_rom2 [phi:main::check_status_smc2->main::check_status_cx16_rom2]
+    // [118] main::check_status_smc2_return#0 = (char)main::check_status_smc2_$0 -- vbum1=vbuz2 
+    sta check_status_smc2_return
+    // [119] phi from main::check_status_smc2 to main::check_status_cx16_rom2 [phi:main::check_status_smc2->main::check_status_cx16_rom2]
     // main::check_status_cx16_rom2
     // main::check_status_cx16_rom2_check_status_rom1
     // status_rom[rom_chip] == status
-    // [140] main::check_status_cx16_rom2_check_status_rom1_$0 = *status_rom == STATUS_NONE -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [120] main::check_status_cx16_rom2_check_status_rom1_$0 = *status_rom == STATUS_NONE -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_NONE
     beq !+
@@ -936,23 +833,24 @@ main: {
     eor #1
     sta.z check_status_cx16_rom2_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [141] main::check_status_cx16_rom2_check_status_rom1_return#0 = (char)main::check_status_cx16_rom2_check_status_rom1_$0
-    // main::@33
+    // [121] main::check_status_cx16_rom2_check_status_rom1_return#0 = (char)main::check_status_cx16_rom2_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom2_check_status_rom1_return
+    // main::@30
     // if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_NONE))
-    // [142] if(0==main::check_status_smc2_return#0) goto main::check_status_smc3 -- 0_eq_vbuz1_then_la1 
+    // [122] if(0==main::check_status_smc2_return#0) goto main::check_status_smc3 -- 0_eq_vbum1_then_la1 
     // VA3 | SMC.BIN and CX16 ROM not Detected | Display issue and don't flash. Ask to close the J1 jumper pins on the CX16 main board. | Issue
-    lda.z check_status_smc2_return
+    lda check_status_smc2_return
     beq check_status_smc3
-    // main::@118
-    // [143] if(0!=main::check_status_cx16_rom2_check_status_rom1_return#0) goto main::@1 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_cx16_rom2_check_status_rom1_return
+    // main::@124
+    // [123] if(0!=main::check_status_cx16_rom2_check_status_rom1_return#0) goto main::@1 -- 0_neq_vbum1_then_la1 
+    lda check_status_cx16_rom2_check_status_rom1_return
     beq !__b1+
     jmp __b1
   !__b1:
     // main::check_status_smc3
   check_status_smc3:
     // status_smc == status
-    // [144] main::check_status_smc3_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [124] main::check_status_smc3_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
@@ -961,12 +859,13 @@ main: {
     eor #1
     sta.z check_status_smc3_main__0
     // return (unsigned char)(status_smc == status);
-    // [145] main::check_status_smc3_return#0 = (char)main::check_status_smc3_$0
-    // [146] phi from main::check_status_smc3 to main::check_status_cx16_rom3 [phi:main::check_status_smc3->main::check_status_cx16_rom3]
+    // [125] main::check_status_smc3_return#0 = (char)main::check_status_smc3_$0 -- vbum1=vbuz2 
+    sta check_status_smc3_return
+    // [126] phi from main::check_status_smc3 to main::check_status_cx16_rom3 [phi:main::check_status_smc3->main::check_status_cx16_rom3]
     // main::check_status_cx16_rom3
     // main::check_status_cx16_rom3_check_status_rom1
     // status_rom[rom_chip] == status
-    // [147] main::check_status_cx16_rom3_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [127] main::check_status_cx16_rom3_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_FLASH
     beq !+
@@ -975,22 +874,23 @@ main: {
     eor #1
     sta.z check_status_cx16_rom3_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [148] main::check_status_cx16_rom3_check_status_rom1_return#0 = (char)main::check_status_cx16_rom3_check_status_rom1_$0
-    // main::@34
+    // [128] main::check_status_cx16_rom3_check_status_rom1_return#0 = (char)main::check_status_cx16_rom3_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom3_check_status_rom1_return
+    // main::@31
     // if(check_status_smc(STATUS_FLASH) && !check_status_cx16_rom(STATUS_FLASH))
-    // [149] if(0==main::check_status_smc3_return#0) goto main::check_status_smc4 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_smc3_return
+    // [129] if(0==main::check_status_smc3_return#0) goto main::check_status_smc4 -- 0_eq_vbum1_then_la1 
+    lda check_status_smc3_return
     beq check_status_smc4
-    // main::@119
-    // [150] if(0==main::check_status_cx16_rom3_check_status_rom1_return#0) goto main::@3 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_cx16_rom3_check_status_rom1_return
+    // main::@125
+    // [130] if(0==main::check_status_cx16_rom3_check_status_rom1_return#0) goto main::@3 -- 0_eq_vbum1_then_la1 
+    lda check_status_cx16_rom3_check_status_rom1_return
     bne !__b3+
     jmp __b3
   !__b3:
     // main::check_status_smc4
   check_status_smc4:
     // status_smc == status
-    // [151] main::check_status_smc4_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [131] main::check_status_smc4_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
@@ -999,12 +899,13 @@ main: {
     eor #1
     sta.z check_status_smc4_main__0
     // return (unsigned char)(status_smc == status);
-    // [152] main::check_status_smc4_return#0 = (char)main::check_status_smc4_$0
-    // [153] phi from main::check_status_smc4 to main::check_status_cx16_rom4 [phi:main::check_status_smc4->main::check_status_cx16_rom4]
+    // [132] main::check_status_smc4_return#0 = (char)main::check_status_smc4_$0 -- vbum1=vbuz2 
+    sta check_status_smc4_return
+    // [133] phi from main::check_status_smc4 to main::check_status_cx16_rom4 [phi:main::check_status_smc4->main::check_status_cx16_rom4]
     // main::check_status_cx16_rom4
     // main::check_status_cx16_rom4_check_status_rom1
     // status_rom[rom_chip] == status
-    // [154] main::check_status_cx16_rom4_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [134] main::check_status_cx16_rom4_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_FLASH
     beq !+
@@ -1013,37 +914,40 @@ main: {
     eor #1
     sta.z check_status_cx16_rom4_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [155] main::check_status_cx16_rom4_check_status_rom1_return#0 = (char)main::check_status_cx16_rom4_check_status_rom1_$0
-    // main::@35
+    // [135] main::check_status_cx16_rom4_check_status_rom1_return#0 = (char)main::check_status_cx16_rom4_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom4_check_status_rom1_return
+    // main::@32
     // smc_supported_rom(rom_release[0])
-    // [156] smc_supported_rom::rom_release#0 = *rom_release -- vbuz1=_deref_pbuc1 
+    // [136] smc_supported_rom::rom_release#0 = *rom_release -- vbum1=_deref_pbuc1 
     lda rom_release
-    sta.z smc_supported_rom.rom_release
-    // [157] call smc_supported_rom
-    // [679] phi from main::@35 to smc_supported_rom [phi:main::@35->smc_supported_rom]
+    sta smc_supported_rom.rom_release
+    // [137] call smc_supported_rom
+    // [746] phi from main::@32 to smc_supported_rom [phi:main::@32->smc_supported_rom]
     jsr smc_supported_rom
     // smc_supported_rom(rom_release[0])
-    // [158] smc_supported_rom::return#3 = smc_supported_rom::return#2
-    // main::@78
-    // [159] main::$40 = smc_supported_rom::return#3
+    // [138] smc_supported_rom::return#3 = smc_supported_rom::return#2
+    // main::@74
+    // [139] main::$32 = smc_supported_rom::return#3 -- vbuz1=vbum2 
+    lda smc_supported_rom.return
+    sta.z main__32
     // if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) && !smc_supported_rom(rom_release[0]))
-    // [160] if(0==main::check_status_smc4_return#0) goto main::check_status_smc5 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_smc4_return
+    // [140] if(0==main::check_status_smc4_return#0) goto main::check_status_smc5 -- 0_eq_vbum1_then_la1 
+    lda check_status_smc4_return
     beq check_status_smc5
-    // main::@121
-    // [161] if(0==main::check_status_cx16_rom4_check_status_rom1_return#0) goto main::check_status_smc5 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_cx16_rom4_check_status_rom1_return
+    // main::@127
+    // [141] if(0==main::check_status_cx16_rom4_check_status_rom1_return#0) goto main::check_status_smc5 -- 0_eq_vbum1_then_la1 
+    lda check_status_cx16_rom4_check_status_rom1_return
     beq check_status_smc5
-    // main::@120
-    // [162] if(0==main::$40) goto main::@4 -- 0_eq_vbuz1_then_la1 
-    lda.z main__40
+    // main::@126
+    // [142] if(0==main::$32) goto main::@4 -- 0_eq_vbuz1_then_la1 
+    lda.z main__32
     bne !__b4+
     jmp __b4
   !__b4:
     // main::check_status_smc5
   check_status_smc5:
     // status_smc == status
-    // [163] main::check_status_smc5_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [143] main::check_status_smc5_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
@@ -1052,18 +956,18 @@ main: {
     eor #1
     sta.z check_status_smc5_main__0
     // return (unsigned char)(status_smc == status);
-    // [164] main::check_status_smc5_return#0 = (char)main::check_status_smc5_$0
-    // main::@36
+    // [144] main::check_status_smc5_return#0 = (char)main::check_status_smc5_$0 -- vbum1=vbuz2 
+    sta check_status_smc5_return
+    // main::@33
     // if(check_status_smc(STATUS_FLASH) && smc_release == smc_file_release && smc_major == smc_file_major && smc_minor == smc_file_minor)
-    // [165] if(0!=main::check_status_smc5_return#0) goto main::@6 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc5_return
+    // [145] if(0!=main::check_status_smc5_return#0) goto main::@6 -- 0_neq_vbum1_then_la1 
     beq !__b6+
     jmp __b6
   !__b6:
     // main::check_status_smc6
   check_status_smc6:
     // status_smc == status
-    // [166] main::check_status_smc6_$0 = status_smc#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
+    // [146] main::check_status_smc6_$0 = status_smc#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_ISSUE
     beq !+
@@ -1072,10 +976,11 @@ main: {
     eor #1
     sta.z check_status_smc6_main__0
     // return (unsigned char)(status_smc == status);
-    // [167] main::check_status_smc6_return#0 = (char)main::check_status_smc6_$0
+    // [147] main::check_status_smc6_return#0 = (char)main::check_status_smc6_$0 -- vbum1=vbuz2 
+    sta check_status_smc6_return
     // main::check_status_vera1
     // status_vera == status
-    // [168] main::check_status_vera1_$0 = status_vera#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
+    // [148] main::check_status_vera1_$0 = status_vera#120 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_ISSUE
     beq !+
@@ -1084,25 +989,26 @@ main: {
     eor #1
     sta.z check_status_vera1_main__0
     // return (unsigned char)(status_vera == status);
-    // [169] main::check_status_vera1_return#0 = (char)main::check_status_vera1_$0
-    // [170] phi from main::check_status_vera1 to main::@37 [phi:main::check_status_vera1->main::@37]
-    // main::@37
+    // [149] main::check_status_vera1_return#0 = (char)main::check_status_vera1_$0 -- vbum1=vbuz2 
+    sta check_status_vera1_return
+    // [150] phi from main::check_status_vera1 to main::@34 [phi:main::check_status_vera1->main::@34]
+    // main::@34
     // check_status_roms(STATUS_ISSUE)
-    // [171] call check_status_roms
-    // [686] phi from main::@37 to check_status_roms [phi:main::@37->check_status_roms]
-    // [686] phi check_status_roms::status#6 = STATUS_ISSUE [phi:main::@37->check_status_roms#0] -- vbuz1=vbuc1 
+    // [151] call check_status_roms
+    // [753] phi from main::@34 to check_status_roms [phi:main::@34->check_status_roms]
+    // [753] phi check_status_roms::status#6 = STATUS_ISSUE [phi:main::@34->check_status_roms#0] -- vbum1=vbuc1 
     lda #STATUS_ISSUE
-    sta.z check_status_roms.status
+    sta check_status_roms.status
     jsr check_status_roms
     // check_status_roms(STATUS_ISSUE)
-    // [172] check_status_roms::return#3 = check_status_roms::return#2
-    // main::@83
-    // [173] main::$57 = check_status_roms::return#3 -- vbuz1=vbuz2 
-    lda.z check_status_roms.return
-    sta.z main__57
+    // [152] check_status_roms::return#3 = check_status_roms::return#2
+    // main::@79
+    // [153] main::$49 = check_status_roms::return#3 -- vbuz1=vbum2 
+    lda check_status_roms.return
+    sta.z main__49
     // main::check_status_smc7
     // status_smc == status
-    // [174] main::check_status_smc7_$0 = status_smc#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
+    // [154] main::check_status_smc7_$0 = status_smc#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_ERROR
     beq !+
@@ -1111,10 +1017,11 @@ main: {
     eor #1
     sta.z check_status_smc7_main__0
     // return (unsigned char)(status_smc == status);
-    // [175] main::check_status_smc7_return#0 = (char)main::check_status_smc7_$0
+    // [155] main::check_status_smc7_return#0 = (char)main::check_status_smc7_$0 -- vbum1=vbuz2 
+    sta check_status_smc7_return
     // main::check_status_vera2
     // status_vera == status
-    // [176] main::check_status_vera2_$0 = status_vera#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
+    // [156] main::check_status_vera2_$0 = status_vera#120 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_ERROR
     beq !+
@@ -1123,108 +1030,294 @@ main: {
     eor #1
     sta.z check_status_vera2_main__0
     // return (unsigned char)(status_vera == status);
-    // [177] main::check_status_vera2_return#0 = (char)main::check_status_vera2_$0
-    // [178] phi from main::check_status_vera2 to main::@38 [phi:main::check_status_vera2->main::@38]
-    // main::@38
+    // [157] main::check_status_vera2_return#0 = (char)main::check_status_vera2_$0 -- vbum1=vbuz2 
+    sta check_status_vera2_return
+    // [158] phi from main::check_status_vera2 to main::@35 [phi:main::check_status_vera2->main::@35]
+    // main::@35
     // check_status_roms(STATUS_ERROR)
-    // [179] call check_status_roms
-    // [686] phi from main::@38 to check_status_roms [phi:main::@38->check_status_roms]
-    // [686] phi check_status_roms::status#6 = STATUS_ERROR [phi:main::@38->check_status_roms#0] -- vbuz1=vbuc1 
+    // [159] call check_status_roms
+    // [753] phi from main::@35 to check_status_roms [phi:main::@35->check_status_roms]
+    // [753] phi check_status_roms::status#6 = STATUS_ERROR [phi:main::@35->check_status_roms#0] -- vbum1=vbuc1 
     lda #STATUS_ERROR
-    sta.z check_status_roms.status
+    sta check_status_roms.status
     jsr check_status_roms
     // check_status_roms(STATUS_ERROR)
-    // [180] check_status_roms::return#4 = check_status_roms::return#2
-    // main::@84
-    // [181] main::$66 = check_status_roms::return#4
+    // [160] check_status_roms::return#4 = check_status_roms::return#2
+    // main::@80
+    // [161] main::$58 = check_status_roms::return#4 -- vbuz1=vbum2 
+    lda check_status_roms.return
+    sta.z main__58
     // if(!check_status_smc(STATUS_ISSUE) && !check_status_vera(STATUS_ISSUE) && !check_status_roms(STATUS_ISSUE) &&
     //        !check_status_smc(STATUS_ERROR) && !check_status_vera(STATUS_ERROR) && !check_status_roms(STATUS_ERROR))
-    // [182] if(0!=main::check_status_smc6_return#0) goto main::check_status_smc8 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc6_return
-    bne check_status_smc8
-    // main::@126
-    // [183] if(0==main::check_status_vera1_return#0) goto main::@125 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_vera1_return
-    bne !__b125+
-    jmp __b125
-  !__b125:
-    // main::check_status_smc8
-  check_status_smc8:
-    // status_smc == status
-    // [184] main::check_status_smc8_$0 = status_smc#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
-    lda status_smc
-    eor #STATUS_SKIP
-    beq !+
-    lda #1
-  !:
-    eor #1
-    sta.z check_status_smc8_main__0
-    // return (unsigned char)(status_smc == status);
-    // [185] main::check_status_smc8_return#0 = (char)main::check_status_smc8_$0
-    // main::check_status_smc9
-    // status_smc == status
-    // [186] main::check_status_smc9_$0 = status_smc#0 == STATUS_NONE -- vboz1=vbum2_eq_vbuc1 
-    lda status_smc
-    eor #STATUS_NONE
-    beq !+
-    lda #1
-  !:
-    eor #1
-    sta.z check_status_smc9_main__0
-    // return (unsigned char)(status_smc == status);
-    // [187] main::check_status_smc9_return#0 = (char)main::check_status_smc9_$0
+    // [162] if(0!=main::check_status_smc6_return#0) goto main::check_status_vera3 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc6_return
+    bne check_status_vera3
+    // main::@132
+    // [163] if(0==main::check_status_vera1_return#0) goto main::@131 -- 0_eq_vbum1_then_la1 
+    lda check_status_vera1_return
+    bne !__b131+
+    jmp __b131
+  !__b131:
     // main::check_status_vera3
+  check_status_vera3:
     // status_vera == status
-    // [188] main::check_status_vera3_$0 = status_vera#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
+    // [164] main::check_status_vera3_$0 = status_vera#120 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
-    eor #STATUS_SKIP
+    eor #STATUS_ERROR
     beq !+
     lda #1
   !:
     eor #1
     sta.z check_status_vera3_main__0
     // return (unsigned char)(status_vera == status);
-    // [189] main::check_status_vera3_return#0 = (char)main::check_status_vera3_$0
-    // main::check_status_vera4
+    // [165] main::check_status_vera3_return#0 = (char)main::check_status_vera3_$0 -- vbum1=vbuz2 
+    sta check_status_vera3_return
+    // main::@36
+    // if(check_status_vera(STATUS_ERROR))
+    // [166] if(0==main::check_status_vera3_return#0) goto main::check_status_smc9 -- 0_eq_vbum1_then_la1 
+    bne !check_status_smc9+
+    jmp check_status_smc9
+  !check_status_smc9:
+    // main::bank_set_brom6
+    // BROM = bank
+    // [167] BROM = main::bank_set_brom6_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_brom6_bank
+    sta.z BROM
+    // main::CLI4
+    // asm
+    // asm { cli  }
+    cli
+    // main::vera_display_set_border_color1
+    // *VERA_CTRL &= ~VERA_DCSEL
+    // [169] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    lda #VERA_DCSEL^$ff
+    and VERA_CTRL
+    sta VERA_CTRL
+    // *VERA_DC_BORDER = color
+    // [170] *VERA_DC_BORDER = RED -- _deref_pbuc1=vbuc2 
+    lda #RED
+    sta VERA_DC_BORDER
+    // [171] phi from main::vera_display_set_border_color1 to main::@41 [phi:main::vera_display_set_border_color1->main::@41]
+    // main::@41
+    // textcolor(WHITE)
+    // [172] call textcolor
+    // [436] phi from main::@41 to textcolor [phi:main::@41->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:main::@41->textcolor#0] -- vbum1=vbuc1 
+    lda #WHITE
+    sta textcolor.color
+    jsr textcolor
+    // [173] phi from main::@41 to main::@90 [phi:main::@41->main::@90]
+    // main::@90
+    // bgcolor(BLUE)
+    // [174] call bgcolor
+    // [441] phi from main::@90 to bgcolor [phi:main::@90->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:main::@90->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // [175] phi from main::@90 to main::@91 [phi:main::@90->main::@91]
+    // main::@91
+    // clrscr()
+    // [176] call clrscr
+    jsr clrscr
+    // [177] phi from main::@91 to main::@92 [phi:main::@91->main::@92]
+    // main::@92
+    // printf("There was a severe error updating your VERA!")
+    // [178] call printf_str
+    // [785] phi from main::@92 to printf_str [phi:main::@92->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:main::@92->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main::s2 [phi:main::@92->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s2
+    sta.z printf_str.s
+    lda #>s2
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [179] phi from main::@92 to main::@93 [phi:main::@92->main::@93]
+    // main::@93
+    // printf("You are back at the READY prompt without resetting your CX16.\n\n")
+    // [180] call printf_str
+    // [785] phi from main::@93 to printf_str [phi:main::@93->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:main::@93->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main::s3 [phi:main::@93->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s3
+    sta.z printf_str.s
+    lda #>s3
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [181] phi from main::@93 to main::@94 [phi:main::@93->main::@94]
+    // main::@94
+    // printf("Please don't reset or shut down your VERA until you've\n")
+    // [182] call printf_str
+    // [785] phi from main::@94 to printf_str [phi:main::@94->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:main::@94->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main::s4 [phi:main::@94->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s4
+    sta.z printf_str.s
+    lda #>s4
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [183] phi from main::@94 to main::@95 [phi:main::@94->main::@95]
+    // main::@95
+    // printf("managed to either reflash your VERA with the previous firmware ")
+    // [184] call printf_str
+    // [785] phi from main::@95 to printf_str [phi:main::@95->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:main::@95->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main::s5 [phi:main::@95->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s5
+    sta.z printf_str.s
+    lda #>s5
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [185] phi from main::@95 to main::@96 [phi:main::@95->main::@96]
+    // main::@96
+    // printf("or have update successs retrying!\n\n")
+    // [186] call printf_str
+    // [785] phi from main::@96 to printf_str [phi:main::@96->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:main::@96->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main::s6 [phi:main::@96->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s6
+    sta.z printf_str.s
+    lda #>s6
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [187] phi from main::@96 to main::@97 [phi:main::@96->main::@97]
+    // main::@97
+    // printf("PLEASE REMOVE THE JP1 JUMPER OR YOUR SDCARD WON'T WORK!\n")
+    // [188] call printf_str
+    // [785] phi from main::@97 to printf_str [phi:main::@97->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:main::@97->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main::s7 [phi:main::@97->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s7
+    sta.z printf_str.s
+    lda #>s7
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [189] phi from main::@97 to main::@98 [phi:main::@97->main::@98]
+    // main::@98
+    // wait_moment(32)
+    // [190] call wait_moment
+    // [794] phi from main::@98 to wait_moment [phi:main::@98->wait_moment]
+    // [794] phi wait_moment::w#12 = $20 [phi:main::@98->wait_moment#0] -- vbum1=vbuc1 
+    lda #$20
+    sta wait_moment.w
+    jsr wait_moment
+    // [191] phi from main::@98 to main::@99 [phi:main::@98->main::@99]
+    // main::@99
+    // system_reset()
+    // [192] call system_reset
+    // [802] phi from main::@99 to system_reset [phi:main::@99->system_reset]
+    jsr system_reset
+    // main::@return
+    // }
+    // [193] return 
+    rts
+    // main::check_status_smc9
+  check_status_smc9:
+    // status_smc == status
+    // [194] main::check_status_smc9_$0 = status_smc#0 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
+    lda status_smc
+    eor #STATUS_SKIP
+    beq !+
+    lda #1
+  !:
+    eor #1
+    sta.z check_status_smc9_main__0
+    // return (unsigned char)(status_smc == status);
+    // [195] main::check_status_smc9_return#0 = (char)main::check_status_smc9_$0 -- vbum1=vbuz2 
+    sta check_status_smc9_return
+    // main::check_status_smc10
+    // status_smc == status
+    // [196] main::check_status_smc10_$0 = status_smc#0 == STATUS_NONE -- vboz1=vbum2_eq_vbuc1 
+    lda status_smc
+    eor #STATUS_NONE
+    beq !+
+    lda #1
+  !:
+    eor #1
+    sta.z check_status_smc10_main__0
+    // return (unsigned char)(status_smc == status);
+    // [197] main::check_status_smc10_return#0 = (char)main::check_status_smc10_$0 -- vbum1=vbuz2 
+    sta check_status_smc10_return
+    // main::check_status_vera6
     // status_vera == status
-    // [190] main::check_status_vera4_$0 = status_vera#0 == STATUS_NONE -- vboz1=vbum2_eq_vbuc1 
+    // [198] main::check_status_vera6_$0 = status_vera#120 == STATUS_SKIP -- vboz1=vbum2_eq_vbuc1 
+    lda status_vera
+    eor #STATUS_SKIP
+    beq !+
+    lda #1
+  !:
+    eor #1
+    sta.z check_status_vera6_main__0
+    // return (unsigned char)(status_vera == status);
+    // [199] main::check_status_vera6_return#0 = (char)main::check_status_vera6_$0 -- vbum1=vbuz2 
+    sta check_status_vera6_return
+    // main::check_status_vera7
+    // status_vera == status
+    // [200] main::check_status_vera7_$0 = status_vera#120 == STATUS_NONE -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_NONE
     beq !+
     lda #1
   !:
     eor #1
-    sta.z check_status_vera4_main__0
+    sta.z check_status_vera7_main__0
     // return (unsigned char)(status_vera == status);
-    // [191] main::check_status_vera4_return#0 = (char)main::check_status_vera4_$0
-    // [192] phi from main::check_status_vera4 to main::@39 [phi:main::check_status_vera4->main::@39]
-    // main::@39
+    // [201] main::check_status_vera7_return#0 = (char)main::check_status_vera7_$0 -- vbum1=vbuz2 
+    sta check_status_vera7_return
+    // [202] phi from main::check_status_vera7 to main::@40 [phi:main::check_status_vera7->main::@40]
+    // main::@40
     // check_status_roms_less(STATUS_SKIP)
-    // [193] call check_status_roms_less
-    // [695] phi from main::@39 to check_status_roms_less [phi:main::@39->check_status_roms_less]
+    // [203] call check_status_roms_less
+    // [807] phi from main::@40 to check_status_roms_less [phi:main::@40->check_status_roms_less]
     jsr check_status_roms_less
     // check_status_roms_less(STATUS_SKIP)
-    // [194] check_status_roms_less::return#3 = check_status_roms_less::return#2
-    // main::@87
-    // [195] main::$77 = check_status_roms_less::return#3
+    // [204] check_status_roms_less::return#3 = check_status_roms_less::return#2
+    // main::@89
+    // [205] main::$71 = check_status_roms_less::return#3 -- vbuz1=vbum2 
+    lda check_status_roms_less.return
+    sta.z main__71
     // if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
     //        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
     //        check_status_roms_less(STATUS_SKIP))
-    // [196] if(0!=main::check_status_smc8_return#0) goto main::@128 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc8_return
-    beq !__b128+
-    jmp __b128
-  !__b128:
-    // main::@129
-    // [197] if(0!=main::check_status_smc9_return#0) goto main::@128 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc9_return
-    beq !__b128+
-    jmp __b128
-  !__b128:
+    // [206] if(0!=main::check_status_smc9_return#0) goto main::@137 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc9_return
+    beq !__b137+
+    jmp __b137
+  !__b137:
+    // main::@138
+    // [207] if(0!=main::check_status_smc10_return#0) goto main::@137 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc10_return
+    beq !__b137+
+    jmp __b137
+  !__b137:
     // main::check_status_smc11
   check_status_smc11:
     // status_smc == status
-    // [198] main::check_status_smc11_$0 = status_smc#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
+    // [208] main::check_status_smc11_$0 = status_smc#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_ERROR
     beq !+
@@ -1233,53 +1326,57 @@ main: {
     eor #1
     sta.z check_status_smc11_main__0
     // return (unsigned char)(status_smc == status);
-    // [199] main::check_status_smc11_return#0 = (char)main::check_status_smc11_$0
-    // main::check_status_vera5
+    // [209] main::check_status_smc11_return#0 = (char)main::check_status_smc11_$0 -- vbum1=vbuz2 
+    sta check_status_smc11_return
+    // main::check_status_vera8
     // status_vera == status
-    // [200] main::check_status_vera5_$0 = status_vera#0 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
+    // [210] main::check_status_vera8_$0 = status_vera#120 == STATUS_ERROR -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_ERROR
     beq !+
     lda #1
   !:
     eor #1
-    sta.z check_status_vera5_main__0
+    sta.z check_status_vera8_main__0
     // return (unsigned char)(status_vera == status);
-    // [201] main::check_status_vera5_return#0 = (char)main::check_status_vera5_$0
-    // [202] phi from main::check_status_vera5 to main::@42 [phi:main::check_status_vera5->main::@42]
-    // main::@42
+    // [211] main::check_status_vera8_return#0 = (char)main::check_status_vera8_$0 -- vbum1=vbuz2 
+    sta check_status_vera8_return
+    // [212] phi from main::check_status_vera8 to main::@43 [phi:main::check_status_vera8->main::@43]
+    // main::@43
     // check_status_roms(STATUS_ERROR)
-    // [203] call check_status_roms
-    // [686] phi from main::@42 to check_status_roms [phi:main::@42->check_status_roms]
-    // [686] phi check_status_roms::status#6 = STATUS_ERROR [phi:main::@42->check_status_roms#0] -- vbuz1=vbuc1 
+    // [213] call check_status_roms
+    // [753] phi from main::@43 to check_status_roms [phi:main::@43->check_status_roms]
+    // [753] phi check_status_roms::status#6 = STATUS_ERROR [phi:main::@43->check_status_roms#0] -- vbum1=vbuc1 
     lda #STATUS_ERROR
-    sta.z check_status_roms.status
+    sta check_status_roms.status
     jsr check_status_roms
     // check_status_roms(STATUS_ERROR)
-    // [204] check_status_roms::return#10 = check_status_roms::return#2
-    // main::@94
-    // [205] main::$137 = check_status_roms::return#10
+    // [214] check_status_roms::return#10 = check_status_roms::return#2
+    // main::@100
+    // [215] main::$152 = check_status_roms::return#10 -- vbuz1=vbum2 
+    lda check_status_roms.return
+    sta.z main__152
     // if(check_status_smc(STATUS_ERROR) || check_status_vera(STATUS_ERROR) || check_status_roms(STATUS_ERROR))
-    // [206] if(0!=main::check_status_smc11_return#0) goto main::vera_display_set_border_color2 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc11_return
-    beq !vera_display_set_border_color2+
-    jmp vera_display_set_border_color2
-  !vera_display_set_border_color2:
-    // main::@133
-    // [207] if(0!=main::check_status_vera5_return#0) goto main::vera_display_set_border_color2 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_vera5_return
-    beq !vera_display_set_border_color2+
-    jmp vera_display_set_border_color2
-  !vera_display_set_border_color2:
-    // main::@132
-    // [208] if(0!=main::$137) goto main::vera_display_set_border_color2 -- 0_neq_vbuz1_then_la1 
-    lda.z main__137
-    beq !vera_display_set_border_color2+
-    jmp vera_display_set_border_color2
-  !vera_display_set_border_color2:
+    // [216] if(0!=main::check_status_smc11_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc11_return
+    beq !vera_display_set_border_color3+
+    jmp vera_display_set_border_color3
+  !vera_display_set_border_color3:
+    // main::@140
+    // [217] if(0!=main::check_status_vera8_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera8_return
+    beq !vera_display_set_border_color3+
+    jmp vera_display_set_border_color3
+  !vera_display_set_border_color3:
+    // main::@139
+    // [218] if(0!=main::$152) goto main::vera_display_set_border_color3 -- 0_neq_vbuz1_then_la1 
+    lda.z main__152
+    beq !vera_display_set_border_color3+
+    jmp vera_display_set_border_color3
+  !vera_display_set_border_color3:
     // main::check_status_smc12
     // status_smc == status
-    // [209] main::check_status_smc12_$0 = status_smc#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
+    // [219] main::check_status_smc12_$0 = status_smc#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_ISSUE
     beq !+
@@ -1288,74 +1385,78 @@ main: {
     eor #1
     sta.z check_status_smc12_main__0
     // return (unsigned char)(status_smc == status);
-    // [210] main::check_status_smc12_return#0 = (char)main::check_status_smc12_$0
-    // main::check_status_vera6
+    // [220] main::check_status_smc12_return#0 = (char)main::check_status_smc12_$0 -- vbum1=vbuz2 
+    sta check_status_smc12_return
+    // main::check_status_vera9
     // status_vera == status
-    // [211] main::check_status_vera6_$0 = status_vera#0 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
+    // [221] main::check_status_vera9_$0 = status_vera#120 == STATUS_ISSUE -- vboz1=vbum2_eq_vbuc1 
     lda status_vera
     eor #STATUS_ISSUE
     beq !+
     lda #1
   !:
     eor #1
-    sta.z check_status_vera6_main__0
+    sta.z check_status_vera9_main__0
     // return (unsigned char)(status_vera == status);
-    // [212] main::check_status_vera6_return#0 = (char)main::check_status_vera6_$0
-    // [213] phi from main::check_status_vera6 to main::@44 [phi:main::check_status_vera6->main::@44]
-    // main::@44
+    // [222] main::check_status_vera9_return#0 = (char)main::check_status_vera9_$0 -- vbum1=vbuz2 
+    sta check_status_vera9_return
+    // [223] phi from main::check_status_vera9 to main::@45 [phi:main::check_status_vera9->main::@45]
+    // main::@45
     // check_status_roms(STATUS_ISSUE)
-    // [214] call check_status_roms
-    // [686] phi from main::@44 to check_status_roms [phi:main::@44->check_status_roms]
-    // [686] phi check_status_roms::status#6 = STATUS_ISSUE [phi:main::@44->check_status_roms#0] -- vbuz1=vbuc1 
+    // [224] call check_status_roms
+    // [753] phi from main::@45 to check_status_roms [phi:main::@45->check_status_roms]
+    // [753] phi check_status_roms::status#6 = STATUS_ISSUE [phi:main::@45->check_status_roms#0] -- vbum1=vbuc1 
     lda #STATUS_ISSUE
-    sta.z check_status_roms.status
+    sta check_status_roms.status
     jsr check_status_roms
     // check_status_roms(STATUS_ISSUE)
-    // [215] check_status_roms::return#11 = check_status_roms::return#2
-    // main::@96
-    // [216] main::$142 = check_status_roms::return#11
+    // [225] check_status_roms::return#11 = check_status_roms::return#2
+    // main::@102
+    // [226] main::$157 = check_status_roms::return#11 -- vbuz1=vbum2 
+    lda check_status_roms.return
+    sta.z main__157
     // if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE))
-    // [217] if(0!=main::check_status_smc12_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc12_return
-    beq !vera_display_set_border_color3+
-    jmp vera_display_set_border_color3
-  !vera_display_set_border_color3:
-    // main::@135
-    // [218] if(0!=main::check_status_vera6_return#0) goto main::vera_display_set_border_color3 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_vera6_return
-    beq !vera_display_set_border_color3+
-    jmp vera_display_set_border_color3
-  !vera_display_set_border_color3:
-    // main::@134
-    // [219] if(0!=main::$142) goto main::vera_display_set_border_color3 -- 0_neq_vbuz1_then_la1 
-    lda.z main__142
-    beq !vera_display_set_border_color3+
-    jmp vera_display_set_border_color3
-  !vera_display_set_border_color3:
-    // main::vera_display_set_border_color4
+    // [227] if(0!=main::check_status_smc12_return#0) goto main::vera_display_set_border_color4 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc12_return
+    beq !vera_display_set_border_color4+
+    jmp vera_display_set_border_color4
+  !vera_display_set_border_color4:
+    // main::@142
+    // [228] if(0!=main::check_status_vera9_return#0) goto main::vera_display_set_border_color4 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera9_return
+    beq !vera_display_set_border_color4+
+    jmp vera_display_set_border_color4
+  !vera_display_set_border_color4:
+    // main::@141
+    // [229] if(0!=main::$157) goto main::vera_display_set_border_color4 -- 0_neq_vbuz1_then_la1 
+    lda.z main__157
+    beq !vera_display_set_border_color4+
+    jmp vera_display_set_border_color4
+  !vera_display_set_border_color4:
+    // main::vera_display_set_border_color5
     // *VERA_CTRL &= ~VERA_DCSEL
-    // [220] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [230] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_DCSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_BORDER = color
-    // [221] *VERA_DC_BORDER = GREEN -- _deref_pbuc1=vbuc2 
+    // [231] *VERA_DC_BORDER = GREEN -- _deref_pbuc1=vbuc2 
     lda #GREEN
     sta VERA_DC_BORDER
-    // [222] phi from main::vera_display_set_border_color4 to main::@46 [phi:main::vera_display_set_border_color4->main::@46]
-    // main::@46
+    // [232] phi from main::vera_display_set_border_color5 to main::@47 [phi:main::vera_display_set_border_color5->main::@47]
+    // main::@47
     // display_action_progress("Your CX16 update is a success!")
-    // [223] call display_action_progress
-    // [537] phi from main::@46 to display_action_progress [phi:main::@46->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text24 [phi:main::@46->display_action_progress#0] -- pbuz1=pbuc1 
-    lda #<info_text24
+    // [233] call display_action_progress
+    // [556] phi from main::@47 to display_action_progress [phi:main::@47->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text22 [phi:main::@47->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text22
     sta.z display_action_progress.info_text
-    lda #>info_text24
+    lda #>info_text22
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
     // main::check_status_smc13
     // status_smc == status
-    // [224] main::check_status_smc13_$0 = status_smc#0 == STATUS_FLASHED -- vboz1=vbum2_eq_vbuc1 
+    // [234] main::check_status_smc13_$0 = status_smc#0 == STATUS_FLASHED -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASHED
     beq !+
@@ -1364,522 +1465,539 @@ main: {
     eor #1
     sta.z check_status_smc13_main__0
     // return (unsigned char)(status_smc == status);
-    // [225] main::check_status_smc13_return#0 = (char)main::check_status_smc13_$0
-    // main::@47
+    // [235] main::check_status_smc13_return#0 = (char)main::check_status_smc13_$0 -- vbum1=vbuz2 
+    sta check_status_smc13_return
+    // main::@48
     // if(check_status_smc(STATUS_FLASHED))
-    // [226] if(0!=main::check_status_smc13_return#0) goto main::@19 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc13_return
-    beq !__b19+
-    jmp __b19
-  !__b19:
-    // [227] phi from main::@47 to main::@9 [phi:main::@47->main::@9]
+    // [236] if(0!=main::check_status_smc13_return#0) goto main::@18 -- 0_neq_vbum1_then_la1 
+    beq !__b18+
+    jmp __b18
+  !__b18:
+    // [237] phi from main::@48 to main::@9 [phi:main::@48->main::@9]
     // main::@9
     // display_progress_text(display_debriefing_text_rom, display_debriefing_count_rom)
-    // [228] call display_progress_text
-    // [663] phi from main::@9 to display_progress_text [phi:main::@9->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_debriefing_text_rom [phi:main::@9->display_progress_text#0] -- qbuz1=qbuc1 
+    // [238] call display_progress_text
+    // [816] phi from main::@9 to display_progress_text [phi:main::@9->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_debriefing_text_rom [phi:main::@9->display_progress_text#0] -- qbuz1=qbuc1 
     lda #<display_debriefing_text_rom
     sta.z display_progress_text.text
     lda #>display_debriefing_text_rom
     sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_debriefing_count_rom [phi:main::@9->display_progress_text#1] -- vbuz1=vbuc1 
+    // [816] phi display_progress_text::lines#11 = display_debriefing_count_rom [phi:main::@9->display_progress_text#1] -- vbum1=vbuc1 
     lda #display_debriefing_count_rom
-    sta.z display_progress_text.lines
+    sta display_progress_text.lines
     jsr display_progress_text
-    // [229] phi from main::@41 main::@45 main::@9 to main::@2 [phi:main::@41/main::@45/main::@9->main::@2]
+    // [239] phi from main::@42 main::@46 main::@9 to main::@2 [phi:main::@42/main::@46/main::@9->main::@2]
     // main::@2
   __b2:
     // textcolor(PINK)
-    // [230] call textcolor
+    // [240] call textcolor
   // DE6 | Wait until reset
-    // [417] phi from main::@2 to textcolor [phi:main::@2->textcolor]
-    // [417] phi textcolor::color#20 = PINK [phi:main::@2->textcolor#0] -- vbum1=vbuc1 
+    // [436] phi from main::@2 to textcolor [phi:main::@2->textcolor]
+    // [436] phi textcolor::color#21 = PINK [phi:main::@2->textcolor#0] -- vbum1=vbuc1 
     lda #PINK
     sta textcolor.color
     jsr textcolor
-    // [231] phi from main::@2 to main::@109 [phi:main::@2->main::@109]
-    // main::@109
+    // [241] phi from main::@2 to main::@115 [phi:main::@2->main::@115]
+    // main::@115
     // display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!")
-    // [232] call display_progress_line
-    // [704] phi from main::@109 to display_progress_line [phi:main::@109->display_progress_line]
-    // [704] phi display_progress_line::text#3 = main::text [phi:main::@109->display_progress_line#0] -- pbuz1=pbuc1 
+    // [242] call display_progress_line
+    // [826] phi from main::@115 to display_progress_line [phi:main::@115->display_progress_line]
+    // [826] phi display_progress_line::text#3 = main::text [phi:main::@115->display_progress_line#0] -- pbuz1=pbuc1 
     lda #<text
     sta.z display_progress_line.text
     lda #>text
     sta.z display_progress_line.text+1
-    // [704] phi display_progress_line::line#3 = 2 [phi:main::@109->display_progress_line#1] -- vbuz1=vbuc1 
+    // [826] phi display_progress_line::line#3 = 2 [phi:main::@115->display_progress_line#1] -- vbum1=vbuc1 
     lda #2
-    sta.z display_progress_line.line
+    sta display_progress_line.line
     jsr display_progress_line
-    // [233] phi from main::@109 to main::@110 [phi:main::@109->main::@110]
-    // main::@110
+    // [243] phi from main::@115 to main::@116 [phi:main::@115->main::@116]
+    // main::@116
     // textcolor(WHITE)
-    // [234] call textcolor
-    // [417] phi from main::@110 to textcolor [phi:main::@110->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:main::@110->textcolor#0] -- vbum1=vbuc1 
+    // [244] call textcolor
+    // [436] phi from main::@116 to textcolor [phi:main::@116->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:main::@116->textcolor#0] -- vbum1=vbuc1 
     lda #WHITE
     sta textcolor.color
     jsr textcolor
-    // [235] phi from main::@110 to main::@25 [phi:main::@110->main::@25]
-    // [235] phi main::w1#2 = $78 [phi:main::@110->main::@25#0] -- vbuz1=vbuc1 
+    // [245] phi from main::@116 to main::@24 [phi:main::@116->main::@24]
+    // [245] phi main::w1#2 = $78 [phi:main::@116->main::@24#0] -- vbuz1=vbuc1 
     lda #$78
     sta.z w1
+    // main::@24
+  __b24:
+    // for (unsigned char w=120; w>0; w--)
+    // [246] if(main::w1#2>0) goto main::@25 -- vbuz1_gt_0_then_la1 
+    lda.z w1
+    bne __b25
+    // [247] phi from main::@24 to main::@26 [phi:main::@24->main::@26]
+    // main::@26
+    // system_reset()
+    // [248] call system_reset
+    // [802] phi from main::@26 to system_reset [phi:main::@26->system_reset]
+    jsr system_reset
+    rts
+    // [249] phi from main::@24 to main::@25 [phi:main::@24->main::@25]
     // main::@25
   __b25:
-    // for (unsigned char w=120; w>0; w--)
-    // [236] if(main::w1#2>0) goto main::@26 -- vbuz1_gt_0_then_la1 
-    lda.z w1
-    bne __b26
-    // [237] phi from main::@25 to main::@27 [phi:main::@25->main::@27]
-    // main::@27
-    // system_reset()
-    // [238] call system_reset
-    // [709] phi from main::@27 to system_reset [phi:main::@27->system_reset]
-    jsr system_reset
-    // main::@return
-    // }
-    // [239] return 
-    rts
-    // [240] phi from main::@25 to main::@26 [phi:main::@25->main::@26]
-    // main::@26
-  __b26:
-    // wait_moment()
-    // [241] call wait_moment
-    // [714] phi from main::@26 to wait_moment [phi:main::@26->wait_moment]
+    // wait_moment(1)
+    // [250] call wait_moment
+    // [794] phi from main::@25 to wait_moment [phi:main::@25->wait_moment]
+    // [794] phi wait_moment::w#12 = 1 [phi:main::@25->wait_moment#0] -- vbum1=vbuc1 
+    lda #1
+    sta wait_moment.w
     jsr wait_moment
-    // [242] phi from main::@26 to main::@111 [phi:main::@26->main::@111]
-    // main::@111
+    // [251] phi from main::@25 to main::@117 [phi:main::@25->main::@117]
+    // main::@117
     // sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w)
-    // [243] call snprintf_init
+    // [252] call snprintf_init
     jsr snprintf_init
-    // [244] phi from main::@111 to main::@112 [phi:main::@111->main::@112]
-    // main::@112
+    // [253] phi from main::@117 to main::@118 [phi:main::@117->main::@118]
+    // main::@118
     // sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w)
-    // [245] call printf_str
-    // [723] phi from main::@112 to printf_str [phi:main::@112->printf_str]
-    // [723] phi printf_str::putc#21 = &snputc [phi:main::@112->printf_str#0] -- pprz1=pprc1 
+    // [254] call printf_str
+    // [785] phi from main::@118 to printf_str [phi:main::@118->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main::@118->printf_str#0] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_str.putc
     lda #>snputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = main::s5 [phi:main::@112->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s5
+    // [785] phi printf_str::s#54 = main::s11 [phi:main::@118->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s11
     sta.z printf_str.s
-    lda #>s5
+    lda #>s11
     sta.z printf_str.s+1
     jsr printf_str
-    // main::@113
+    // main::@119
     // sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w)
-    // [246] printf_uchar::uvalue#5 = main::w1#2 -- vbum1=vbuz2 
+    // [255] printf_uchar::uvalue#11 = main::w1#2 -- vbum1=vbuz2 
     lda.z w1
     sta printf_uchar.uvalue
-    // [247] call printf_uchar
-    // [732] phi from main::@113 to printf_uchar [phi:main::@113->printf_uchar]
-    // [732] phi printf_uchar::format_zero_padding#10 = 0 [phi:main::@113->printf_uchar#0] -- vbum1=vbuc1 
+    // [256] call printf_uchar
+    // [835] phi from main::@119 to printf_uchar [phi:main::@119->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 0 [phi:main::@119->printf_uchar#0] -- vbum1=vbuc1 
     lda #0
     sta printf_uchar.format_zero_padding
-    // [732] phi printf_uchar::format_min_length#10 = 0 [phi:main::@113->printf_uchar#1] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:main::@119->printf_uchar#1] -- vbum1=vbuc1 
     sta printf_uchar.format_min_length
-    // [732] phi printf_uchar::putc#10 = &snputc [phi:main::@113->printf_uchar#2] -- pprz1=pprc1 
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:main::@119->printf_uchar#2] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_uchar.putc
     lda #>snputc
     sta.z printf_uchar.putc+1
-    // [732] phi printf_uchar::format_radix#10 = DECIMAL [phi:main::@113->printf_uchar#3] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_radix#12 = DECIMAL [phi:main::@119->printf_uchar#3] -- vbum1=vbuc1 
     lda #DECIMAL
     sta printf_uchar.format_radix
-    // [732] phi printf_uchar::uvalue#6 = printf_uchar::uvalue#5 [phi:main::@113->printf_uchar#4] -- register_copy 
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#11 [phi:main::@119->printf_uchar#4] -- register_copy 
     jsr printf_uchar
-    // [248] phi from main::@113 to main::@114 [phi:main::@113->main::@114]
-    // main::@114
+    // [257] phi from main::@119 to main::@120 [phi:main::@119->main::@120]
+    // main::@120
     // sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w)
-    // [249] call printf_str
-    // [723] phi from main::@114 to printf_str [phi:main::@114->printf_str]
-    // [723] phi printf_str::putc#21 = &snputc [phi:main::@114->printf_str#0] -- pprz1=pprc1 
+    // [258] call printf_str
+    // [785] phi from main::@120 to printf_str [phi:main::@120->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main::@120->printf_str#0] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_str.putc
     lda #>snputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = main::s6 [phi:main::@114->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s6
+    // [785] phi printf_str::s#54 = main::s12 [phi:main::@120->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s12
     sta.z printf_str.s
-    lda #>s6
+    lda #>s12
     sta.z printf_str.s+1
     jsr printf_str
-    // main::@115
+    // main::@121
     // sprintf(info_text, "(%u) Your CX16 will reset after countdown ...", w)
-    // [250] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    // [259] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
     lda #0
     pha
-    // [251] callexecute snputc  -- call_vprc1 
+    // [260] callexecute snputc  -- call_vprc1 
     jsr snputc
     // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
     pla
     // display_action_text(info_text)
-    // [253] call display_action_text
-    // [743] phi from main::@115 to display_action_text [phi:main::@115->display_action_text]
-    // [743] phi display_action_text::info_text#6 = info_text [phi:main::@115->display_action_text#0] -- pbuz1=pbuc1 
+    // [262] call display_action_text
+    // [846] phi from main::@121 to display_action_text [phi:main::@121->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:main::@121->display_action_text#0] -- pbuz1=pbuc1 
     lda #<@info_text
     sta.z display_action_text.info_text
     lda #>@info_text
     sta.z display_action_text.info_text+1
     jsr display_action_text
-    // main::@116
+    // main::@122
     // for (unsigned char w=120; w>0; w--)
-    // [254] main::w1#1 = -- main::w1#2 -- vbuz1=_dec_vbuz1 
+    // [263] main::w1#1 = -- main::w1#2 -- vbuz1=_dec_vbuz1 
     dec.z w1
-    // [235] phi from main::@116 to main::@25 [phi:main::@116->main::@25]
-    // [235] phi main::w1#2 = main::w1#1 [phi:main::@116->main::@25#0] -- register_copy 
-    jmp __b25
-    // [255] phi from main::@47 to main::@19 [phi:main::@47->main::@19]
-    // main::@19
-  __b19:
+    // [245] phi from main::@122 to main::@24 [phi:main::@122->main::@24]
+    // [245] phi main::w1#2 = main::w1#1 [phi:main::@122->main::@24#0] -- register_copy 
+    jmp __b24
+    // [264] phi from main::@48 to main::@18 [phi:main::@48->main::@18]
+    // main::@18
+  __b18:
     // display_progress_text(display_debriefing_text_smc, display_debriefing_count_smc)
-    // [256] call display_progress_text
-    // [663] phi from main::@19 to display_progress_text [phi:main::@19->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_debriefing_text_smc [phi:main::@19->display_progress_text#0] -- qbuz1=qbuc1 
+    // [265] call display_progress_text
+    // [816] phi from main::@18 to display_progress_text [phi:main::@18->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_debriefing_text_smc [phi:main::@18->display_progress_text#0] -- qbuz1=qbuc1 
     lda #<display_debriefing_text_smc
     sta.z display_progress_text.text
     lda #>display_debriefing_text_smc
     sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_debriefing_count_smc [phi:main::@19->display_progress_text#1] -- vbuz1=vbuc1 
+    // [816] phi display_progress_text::lines#11 = display_debriefing_count_smc [phi:main::@18->display_progress_text#1] -- vbum1=vbuc1 
     lda #display_debriefing_count_smc
-    sta.z display_progress_text.lines
+    sta display_progress_text.lines
     jsr display_progress_text
-    // [257] phi from main::@19 to main::@97 [phi:main::@19->main::@97]
-    // main::@97
+    // [266] phi from main::@18 to main::@103 [phi:main::@18->main::@103]
+    // main::@103
     // textcolor(PINK)
-    // [258] call textcolor
-    // [417] phi from main::@97 to textcolor [phi:main::@97->textcolor]
-    // [417] phi textcolor::color#20 = PINK [phi:main::@97->textcolor#0] -- vbum1=vbuc1 
+    // [267] call textcolor
+    // [436] phi from main::@103 to textcolor [phi:main::@103->textcolor]
+    // [436] phi textcolor::color#21 = PINK [phi:main::@103->textcolor#0] -- vbum1=vbuc1 
     lda #PINK
     sta textcolor.color
     jsr textcolor
-    // [259] phi from main::@97 to main::@98 [phi:main::@97->main::@98]
-    // main::@98
+    // [268] phi from main::@103 to main::@104 [phi:main::@103->main::@104]
+    // main::@104
     // display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!")
-    // [260] call display_progress_line
-    // [704] phi from main::@98 to display_progress_line [phi:main::@98->display_progress_line]
-    // [704] phi display_progress_line::text#3 = main::text [phi:main::@98->display_progress_line#0] -- pbuz1=pbuc1 
+    // [269] call display_progress_line
+    // [826] phi from main::@104 to display_progress_line [phi:main::@104->display_progress_line]
+    // [826] phi display_progress_line::text#3 = main::text [phi:main::@104->display_progress_line#0] -- pbuz1=pbuc1 
     lda #<text
     sta.z display_progress_line.text
     lda #>text
     sta.z display_progress_line.text+1
-    // [704] phi display_progress_line::line#3 = 2 [phi:main::@98->display_progress_line#1] -- vbuz1=vbuc1 
+    // [826] phi display_progress_line::line#3 = 2 [phi:main::@104->display_progress_line#1] -- vbum1=vbuc1 
     lda #2
-    sta.z display_progress_line.line
+    sta display_progress_line.line
     jsr display_progress_line
-    // [261] phi from main::@98 to main::@99 [phi:main::@98->main::@99]
-    // main::@99
+    // [270] phi from main::@104 to main::@105 [phi:main::@104->main::@105]
+    // main::@105
     // textcolor(WHITE)
-    // [262] call textcolor
-    // [417] phi from main::@99 to textcolor [phi:main::@99->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:main::@99->textcolor#0] -- vbum1=vbuc1 
+    // [271] call textcolor
+    // [436] phi from main::@105 to textcolor [phi:main::@105->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:main::@105->textcolor#0] -- vbum1=vbuc1 
     lda #WHITE
     sta textcolor.color
     jsr textcolor
-    // [263] phi from main::@99 to main::@20 [phi:main::@99->main::@20]
-    // [263] phi main::w#2 = $78 [phi:main::@99->main::@20#0] -- vbuz1=vbuc1 
+    // [272] phi from main::@105 to main::@19 [phi:main::@105->main::@19]
+    // [272] phi main::w#2 = $78 [phi:main::@105->main::@19#0] -- vbuz1=vbuc1 
     lda #$78
     sta.z w
-    // main::@20
-  __b20:
+    // main::@19
+  __b19:
     // for (unsigned char w=120; w>0; w--)
-    // [264] if(main::w#2>0) goto main::@21 -- vbuz1_gt_0_then_la1 
+    // [273] if(main::w#2>0) goto main::@20 -- vbuz1_gt_0_then_la1 
     lda.z w
-    bne __b21
-    // [265] phi from main::@20 to main::@22 [phi:main::@20->main::@22]
-    // main::@22
+    bne __b20
+    // [274] phi from main::@19 to main::@21 [phi:main::@19->main::@21]
+    // main::@21
     // sprintf(info_text, "Please disconnect your CX16 from power source ...")
-    // [266] call snprintf_init
+    // [275] call snprintf_init
     jsr snprintf_init
-    // [267] phi from main::@22 to main::@106 [phi:main::@22->main::@106]
-    // main::@106
+    // [276] phi from main::@21 to main::@112 [phi:main::@21->main::@112]
+    // main::@112
     // sprintf(info_text, "Please disconnect your CX16 from power source ...")
-    // [268] call printf_str
-    // [723] phi from main::@106 to printf_str [phi:main::@106->printf_str]
-    // [723] phi printf_str::putc#21 = &snputc [phi:main::@106->printf_str#0] -- pprz1=pprc1 
+    // [277] call printf_str
+    // [785] phi from main::@112 to printf_str [phi:main::@112->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main::@112->printf_str#0] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_str.putc
     lda #>snputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = main::s4 [phi:main::@106->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s4
+    // [785] phi printf_str::s#54 = main::s10 [phi:main::@112->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s10
     sta.z printf_str.s
-    lda #>s4
+    lda #>s10
     sta.z printf_str.s+1
     jsr printf_str
-    // main::@107
+    // main::@113
     // sprintf(info_text, "Please disconnect your CX16 from power source ...")
-    // [269] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    // [278] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
     lda #0
     pha
-    // [270] callexecute snputc  -- call_vprc1 
+    // [279] callexecute snputc  -- call_vprc1 
     jsr snputc
     // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
     pla
     // display_action_text(info_text)
-    // [272] call display_action_text
-    // [743] phi from main::@107 to display_action_text [phi:main::@107->display_action_text]
-    // [743] phi display_action_text::info_text#6 = info_text [phi:main::@107->display_action_text#0] -- pbuz1=pbuc1 
+    // [281] call display_action_text
+    // [846] phi from main::@113 to display_action_text [phi:main::@113->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:main::@113->display_action_text#0] -- pbuz1=pbuc1 
     lda #<@info_text
     sta.z display_action_text.info_text
     lda #>@info_text
     sta.z display_action_text.info_text+1
     jsr display_action_text
-    // [273] phi from main::@107 to main::@108 [phi:main::@107->main::@108]
-    // main::@108
+    // [282] phi from main::@113 to main::@114 [phi:main::@113->main::@114]
+    // main::@114
     // smc_reset()
-    // [274] call smc_reset
+    // [283] call smc_reset
   // DE5 | The components correctly updated, SMC bootloader 2
   // When bootloader 1, the CX16 won't shut down automatically and will hang! The user will see the above bootloader 1 action.
   // When bootloader 2, the CX16 will shut down automatically. The user will never see the bootloader 1 action.
-    // [757] phi from main::@108 to smc_reset [phi:main::@108->smc_reset]
+    // [860] phi from main::@114 to smc_reset [phi:main::@114->smc_reset]
     jsr smc_reset
-    // [275] phi from main::@108 main::@23 to main::@23 [phi:main::@108/main::@23->main::@23]
+    // [284] phi from main::@114 main::@22 to main::@22 [phi:main::@114/main::@22->main::@22]
   __b5:
   // This call will reboot the SMC, which will reset the CX16 if bootloader R2.
-    // main::@23
+    // main::@22
     jmp __b5
-    // [276] phi from main::@20 to main::@21 [phi:main::@20->main::@21]
-    // main::@21
-  __b21:
-    // wait_moment()
-    // [277] call wait_moment
-    // [714] phi from main::@21 to wait_moment [phi:main::@21->wait_moment]
+    // [285] phi from main::@19 to main::@20 [phi:main::@19->main::@20]
+    // main::@20
+  __b20:
+    // wait_moment(1)
+    // [286] call wait_moment
+    // [794] phi from main::@20 to wait_moment [phi:main::@20->wait_moment]
+    // [794] phi wait_moment::w#12 = 1 [phi:main::@20->wait_moment#0] -- vbum1=vbuc1 
+    lda #1
+    sta wait_moment.w
     jsr wait_moment
-    // [278] phi from main::@21 to main::@100 [phi:main::@21->main::@100]
-    // main::@100
+    // [287] phi from main::@20 to main::@106 [phi:main::@20->main::@106]
+    // main::@106
     // sprintf(info_text, "[%03u] Please read carefully the below ...", w)
-    // [279] call snprintf_init
+    // [288] call snprintf_init
     jsr snprintf_init
-    // [280] phi from main::@100 to main::@101 [phi:main::@100->main::@101]
-    // main::@101
+    // [289] phi from main::@106 to main::@107 [phi:main::@106->main::@107]
+    // main::@107
     // sprintf(info_text, "[%03u] Please read carefully the below ...", w)
-    // [281] call printf_str
-    // [723] phi from main::@101 to printf_str [phi:main::@101->printf_str]
-    // [723] phi printf_str::putc#21 = &snputc [phi:main::@101->printf_str#0] -- pprz1=pprc1 
+    // [290] call printf_str
+    // [785] phi from main::@107 to printf_str [phi:main::@107->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main::@107->printf_str#0] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_str.putc
     lda #>snputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = main::s2 [phi:main::@101->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s2
+    // [785] phi printf_str::s#54 = main::s8 [phi:main::@107->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s8
     sta.z printf_str.s
-    lda #>s2
+    lda #>s8
     sta.z printf_str.s+1
     jsr printf_str
-    // main::@102
+    // main::@108
     // sprintf(info_text, "[%03u] Please read carefully the below ...", w)
-    // [282] printf_uchar::uvalue#4 = main::w#2 -- vbum1=vbuz2 
+    // [291] printf_uchar::uvalue#10 = main::w#2 -- vbum1=vbuz2 
     lda.z w
     sta printf_uchar.uvalue
-    // [283] call printf_uchar
-    // [732] phi from main::@102 to printf_uchar [phi:main::@102->printf_uchar]
-    // [732] phi printf_uchar::format_zero_padding#10 = 1 [phi:main::@102->printf_uchar#0] -- vbum1=vbuc1 
+    // [292] call printf_uchar
+    // [835] phi from main::@108 to printf_uchar [phi:main::@108->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:main::@108->printf_uchar#0] -- vbum1=vbuc1 
     lda #1
     sta printf_uchar.format_zero_padding
-    // [732] phi printf_uchar::format_min_length#10 = 3 [phi:main::@102->printf_uchar#1] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_min_length#12 = 3 [phi:main::@108->printf_uchar#1] -- vbum1=vbuc1 
     lda #3
     sta printf_uchar.format_min_length
-    // [732] phi printf_uchar::putc#10 = &snputc [phi:main::@102->printf_uchar#2] -- pprz1=pprc1 
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:main::@108->printf_uchar#2] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_uchar.putc
     lda #>snputc
     sta.z printf_uchar.putc+1
-    // [732] phi printf_uchar::format_radix#10 = DECIMAL [phi:main::@102->printf_uchar#3] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_radix#12 = DECIMAL [phi:main::@108->printf_uchar#3] -- vbum1=vbuc1 
     lda #DECIMAL
     sta printf_uchar.format_radix
-    // [732] phi printf_uchar::uvalue#6 = printf_uchar::uvalue#4 [phi:main::@102->printf_uchar#4] -- register_copy 
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#10 [phi:main::@108->printf_uchar#4] -- register_copy 
     jsr printf_uchar
-    // [284] phi from main::@102 to main::@103 [phi:main::@102->main::@103]
-    // main::@103
+    // [293] phi from main::@108 to main::@109 [phi:main::@108->main::@109]
+    // main::@109
     // sprintf(info_text, "[%03u] Please read carefully the below ...", w)
-    // [285] call printf_str
-    // [723] phi from main::@103 to printf_str [phi:main::@103->printf_str]
-    // [723] phi printf_str::putc#21 = &snputc [phi:main::@103->printf_str#0] -- pprz1=pprc1 
+    // [294] call printf_str
+    // [785] phi from main::@109 to printf_str [phi:main::@109->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main::@109->printf_str#0] -- pprz1=pprc1 
     lda #<snputc
     sta.z printf_str.putc
     lda #>snputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = main::s3 [phi:main::@103->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s3
+    // [785] phi printf_str::s#54 = main::s9 [phi:main::@109->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s9
     sta.z printf_str.s
-    lda #>s3
+    lda #>s9
     sta.z printf_str.s+1
     jsr printf_str
-    // main::@104
+    // main::@110
     // sprintf(info_text, "[%03u] Please read carefully the below ...", w)
-    // [286] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    // [295] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
     lda #0
     pha
-    // [287] callexecute snputc  -- call_vprc1 
+    // [296] callexecute snputc  -- call_vprc1 
     jsr snputc
     // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
     pla
     // display_action_text(info_text)
-    // [289] call display_action_text
-    // [743] phi from main::@104 to display_action_text [phi:main::@104->display_action_text]
-    // [743] phi display_action_text::info_text#6 = info_text [phi:main::@104->display_action_text#0] -- pbuz1=pbuc1 
+    // [298] call display_action_text
+    // [846] phi from main::@110 to display_action_text [phi:main::@110->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:main::@110->display_action_text#0] -- pbuz1=pbuc1 
     lda #<@info_text
     sta.z display_action_text.info_text
     lda #>@info_text
     sta.z display_action_text.info_text+1
     jsr display_action_text
-    // main::@105
+    // main::@111
     // for (unsigned char w=120; w>0; w--)
-    // [290] main::w#1 = -- main::w#2 -- vbuz1=_dec_vbuz1 
+    // [299] main::w#1 = -- main::w#2 -- vbuz1=_dec_vbuz1 
     dec.z w
-    // [263] phi from main::@105 to main::@20 [phi:main::@105->main::@20]
-    // [263] phi main::w#2 = main::w#1 [phi:main::@105->main::@20#0] -- register_copy 
-    jmp __b20
-    // main::vera_display_set_border_color3
-  vera_display_set_border_color3:
+    // [272] phi from main::@111 to main::@19 [phi:main::@111->main::@19]
+    // [272] phi main::w#2 = main::w#1 [phi:main::@111->main::@19#0] -- register_copy 
+    jmp __b19
+    // main::vera_display_set_border_color4
+  vera_display_set_border_color4:
     // *VERA_CTRL &= ~VERA_DCSEL
-    // [291] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [300] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_DCSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_BORDER = color
-    // [292] *VERA_DC_BORDER = YELLOW -- _deref_pbuc1=vbuc2 
+    // [301] *VERA_DC_BORDER = YELLOW -- _deref_pbuc1=vbuc2 
     lda #YELLOW
     sta VERA_DC_BORDER
-    // [293] phi from main::vera_display_set_border_color3 to main::@45 [phi:main::vera_display_set_border_color3->main::@45]
-    // main::@45
+    // [302] phi from main::vera_display_set_border_color4 to main::@46 [phi:main::vera_display_set_border_color4->main::@46]
+    // main::@46
     // display_action_progress("Update issues, your CX16 is not updated!")
-    // [294] call display_action_progress
-    // [537] phi from main::@45 to display_action_progress [phi:main::@45->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text23 [phi:main::@45->display_action_progress#0] -- pbuz1=pbuc1 
-    lda #<info_text23
-    sta.z display_action_progress.info_text
-    lda #>info_text23
-    sta.z display_action_progress.info_text+1
-    jsr display_action_progress
-    jmp __b2
-    // main::vera_display_set_border_color2
-  vera_display_set_border_color2:
-    // *VERA_CTRL &= ~VERA_DCSEL
-    // [295] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
-    lda #VERA_DCSEL^$ff
-    and VERA_CTRL
-    sta VERA_CTRL
-    // *VERA_DC_BORDER = color
-    // [296] *VERA_DC_BORDER = RED -- _deref_pbuc1=vbuc2 
-    lda #RED
-    sta VERA_DC_BORDER
-    // [297] phi from main::vera_display_set_border_color2 to main::@43 [phi:main::vera_display_set_border_color2->main::@43]
-    // main::@43
-    // display_action_progress("Update Failure! Your CX16 may no longer boot!")
-    // [298] call display_action_progress
-    // [537] phi from main::@43 to display_action_progress [phi:main::@43->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text21 [phi:main::@43->display_action_progress#0] -- pbuz1=pbuc1 
+    // [303] call display_action_progress
+    // [556] phi from main::@46 to display_action_progress [phi:main::@46->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text21 [phi:main::@46->display_action_progress#0] -- pbuz1=pbuc1 
     lda #<info_text21
     sta.z display_action_progress.info_text
     lda #>info_text21
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [299] phi from main::@43 to main::@95 [phi:main::@43->main::@95]
-    // main::@95
-    // display_action_text("Take a photo of this screen, shut down power and retry!")
-    // [300] call display_action_text
-    // [743] phi from main::@95 to display_action_text [phi:main::@95->display_action_text]
-    // [743] phi display_action_text::info_text#6 = main::info_text22 [phi:main::@95->display_action_text#0] -- pbuz1=pbuc1 
-    lda #<info_text22
-    sta.z display_action_text.info_text
-    lda #>info_text22
-    sta.z display_action_text.info_text+1
-    jsr display_action_text
-    // [301] phi from main::@24 main::@95 to main::@24 [phi:main::@24/main::@95->main::@24]
-    // main::@24
-  __b24:
-    jmp __b24
-    // main::@128
-  __b128:
-    // if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
-    //        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
-    //        check_status_roms_less(STATUS_SKIP))
-    // [302] if(0!=main::check_status_vera3_return#0) goto main::@127 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_vera3_return
-    bne __b127
-    // main::@136
-    // [303] if(0==main::check_status_vera4_return#0) goto main::check_status_smc11 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_vera4_return
-    bne !check_status_smc11+
-    jmp check_status_smc11
-  !check_status_smc11:
-    // main::@127
-  __b127:
-    // [304] if(0!=main::$77) goto main::vera_display_set_border_color1 -- 0_neq_vbuz1_then_la1 
-    lda.z main__77
-    bne vera_display_set_border_color1
-    jmp check_status_smc11
-    // main::vera_display_set_border_color1
-  vera_display_set_border_color1:
+    jmp __b2
+    // main::vera_display_set_border_color3
+  vera_display_set_border_color3:
     // *VERA_CTRL &= ~VERA_DCSEL
-    // [305] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [304] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_DCSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_BORDER = color
-    // [306] *VERA_DC_BORDER = BLACK -- _deref_pbuc1=vbuc2 
+    // [305] *VERA_DC_BORDER = RED -- _deref_pbuc1=vbuc2 
+    lda #RED
+    sta VERA_DC_BORDER
+    // [306] phi from main::vera_display_set_border_color3 to main::@44 [phi:main::vera_display_set_border_color3->main::@44]
+    // main::@44
+    // display_action_progress("Update Failure! Your CX16 may no longer boot!")
+    // [307] call display_action_progress
+    // [556] phi from main::@44 to display_action_progress [phi:main::@44->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text19 [phi:main::@44->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text19
+    sta.z display_action_progress.info_text
+    lda #>info_text19
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [308] phi from main::@44 to main::@101 [phi:main::@44->main::@101]
+    // main::@101
+    // display_action_text("Take a photo of this screen, shut down power and retry!")
+    // [309] call display_action_text
+    // [846] phi from main::@101 to display_action_text [phi:main::@101->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main::info_text20 [phi:main::@101->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text20
+    sta.z display_action_text.info_text
+    lda #>info_text20
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [310] phi from main::@101 main::@23 to main::@23 [phi:main::@101/main::@23->main::@23]
+    // main::@23
+  __b23:
+    jmp __b23
+    // main::@137
+  __b137:
+    // if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
+    //        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
+    //        check_status_roms_less(STATUS_SKIP))
+    // [311] if(0!=main::check_status_vera6_return#0) goto main::@136 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera6_return
+    bne __b136
+    // main::@143
+    // [312] if(0==main::check_status_vera7_return#0) goto main::check_status_smc11 -- 0_eq_vbum1_then_la1 
+    lda check_status_vera7_return
+    bne !check_status_smc11+
+    jmp check_status_smc11
+  !check_status_smc11:
+    // main::@136
+  __b136:
+    // [313] if(0!=main::$71) goto main::vera_display_set_border_color2 -- 0_neq_vbuz1_then_la1 
+    lda.z main__71
+    bne vera_display_set_border_color2
+    jmp check_status_smc11
+    // main::vera_display_set_border_color2
+  vera_display_set_border_color2:
+    // *VERA_CTRL &= ~VERA_DCSEL
+    // [314] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    lda #VERA_DCSEL^$ff
+    and VERA_CTRL
+    sta VERA_CTRL
+    // *VERA_DC_BORDER = color
+    // [315] *VERA_DC_BORDER = BLACK -- _deref_pbuc1=vbuc2 
     lda #BLACK
     sta VERA_DC_BORDER
-    // [307] phi from main::vera_display_set_border_color1 to main::@41 [phi:main::vera_display_set_border_color1->main::@41]
-    // main::@41
+    // [316] phi from main::vera_display_set_border_color2 to main::@42 [phi:main::vera_display_set_border_color2->main::@42]
+    // main::@42
     // display_action_progress("No CX16 component has been updated with new firmware!")
-    // [308] call display_action_progress
-    // [537] phi from main::@41 to display_action_progress [phi:main::@41->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text20 [phi:main::@41->display_action_progress#0] -- pbuz1=pbuc1 
-    lda #<info_text20
+    // [317] call display_action_progress
+    // [556] phi from main::@42 to display_action_progress [phi:main::@42->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text18 [phi:main::@42->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text18
     sta.z display_action_progress.info_text
-    lda #>info_text20
+    lda #>info_text18
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
     jmp __b2
-    // main::@125
-  __b125:
+    // main::@131
+  __b131:
     // if(!check_status_smc(STATUS_ISSUE) && !check_status_vera(STATUS_ISSUE) && !check_status_roms(STATUS_ISSUE) &&
     //        !check_status_smc(STATUS_ERROR) && !check_status_vera(STATUS_ERROR) && !check_status_roms(STATUS_ERROR))
-    // [309] if(0!=main::$57) goto main::check_status_smc8 -- 0_neq_vbuz1_then_la1 
-    lda.z main__57
-    beq !check_status_smc8+
-    jmp check_status_smc8
-  !check_status_smc8:
-    // main::@124
-    // [310] if(0==main::check_status_smc7_return#0) goto main::@123 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_smc7_return
-    beq __b123
-    jmp check_status_smc8
-    // main::@123
-  __b123:
-    // [311] if(0!=main::check_status_vera2_return#0) goto main::check_status_smc8 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_vera2_return
-    beq !check_status_smc8+
-    jmp check_status_smc8
-  !check_status_smc8:
-    // main::@122
-    // [312] if(0==main::$66) goto main::check_status_smc10 -- 0_eq_vbuz1_then_la1 
-    lda.z main__66
-    beq check_status_smc10
-    jmp check_status_smc8
-    // main::check_status_smc10
-  check_status_smc10:
+    // [318] if(0!=main::$49) goto main::check_status_vera3 -- 0_neq_vbuz1_then_la1 
+    lda.z main__49
+    beq !check_status_vera3+
+    jmp check_status_vera3
+  !check_status_vera3:
+    // main::@130
+    // [319] if(0==main::check_status_smc7_return#0) goto main::@129 -- 0_eq_vbum1_then_la1 
+    lda check_status_smc7_return
+    beq __b129
+    jmp check_status_vera3
+    // main::@129
+  __b129:
+    // [320] if(0!=main::check_status_vera2_return#0) goto main::check_status_vera3 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera2_return
+    beq !check_status_vera3+
+    jmp check_status_vera3
+  !check_status_vera3:
+    // main::@128
+    // [321] if(0==main::$58) goto main::check_status_vera4 -- 0_eq_vbuz1_then_la1 
+    lda.z main__58
+    beq check_status_vera4
+    jmp check_status_vera3
+    // main::check_status_vera4
+  check_status_vera4:
+    // status_vera == status
+    // [322] main::check_status_vera4_$0 = status_vera#120 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    lda status_vera
+    eor #STATUS_FLASH
+    beq !+
+    lda #1
+  !:
+    eor #1
+    sta.z check_status_vera4_main__0
+    // return (unsigned char)(status_vera == status);
+    // [323] main::check_status_vera4_return#0 = (char)main::check_status_vera4_$0 -- vbum1=vbuz2 
+    sta check_status_vera4_return
+    // main::check_status_smc8
     // status_smc == status
-    // [313] main::check_status_smc10_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    // [324] main::check_status_smc8_$0 = status_smc#0 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
     lda status_smc
     eor #STATUS_FLASH
     beq !+
     lda #1
   !:
     eor #1
-    sta.z check_status_smc10_main__0
+    sta.z check_status_smc8_main__0
     // return (unsigned char)(status_smc == status);
-    // [314] main::check_status_smc10_return#0 = (char)main::check_status_smc10_$0
-    // [315] phi from main::check_status_smc10 to main::check_status_cx16_rom5 [phi:main::check_status_smc10->main::check_status_cx16_rom5]
+    // [325] main::check_status_smc8_return#0 = (char)main::check_status_smc8_$0 -- vbum1=vbuz2 
+    sta check_status_smc8_return
+    // [326] phi from main::check_status_smc8 to main::check_status_cx16_rom5 [phi:main::check_status_smc8->main::check_status_cx16_rom5]
     // main::check_status_cx16_rom5
     // main::check_status_cx16_rom5_check_status_rom1
     // status_rom[rom_chip] == status
-    // [316] main::check_status_cx16_rom5_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
+    // [327] main::check_status_cx16_rom5_check_status_rom1_$0 = *status_rom == STATUS_FLASH -- vboz1=_deref_pbuc1_eq_vbuc2 
     lda status_rom
     eor #STATUS_FLASH
     beq !+
@@ -1888,573 +2006,602 @@ main: {
     eor #1
     sta.z check_status_cx16_rom5_check_status_rom1_main__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [317] main::check_status_cx16_rom5_check_status_rom1_return#0 = (char)main::check_status_cx16_rom5_check_status_rom1_$0
-    // [318] phi from main::check_status_cx16_rom5_check_status_rom1 to main::@40 [phi:main::check_status_cx16_rom5_check_status_rom1->main::@40]
-    // main::@40
+    // [328] main::check_status_cx16_rom5_check_status_rom1_return#0 = (char)main::check_status_cx16_rom5_check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_cx16_rom5_check_status_rom1_return
+    // [329] phi from main::check_status_cx16_rom5_check_status_rom1 to main::@37 [phi:main::check_status_cx16_rom5_check_status_rom1->main::@37]
+    // main::@37
     // check_status_card_roms(STATUS_FLASH)
-    // [319] call check_status_card_roms
-    // [766] phi from main::@40 to check_status_card_roms [phi:main::@40->check_status_card_roms]
+    // [330] call check_status_card_roms
+    // [869] phi from main::@37 to check_status_card_roms [phi:main::@37->check_status_card_roms]
     jsr check_status_card_roms
     // check_status_card_roms(STATUS_FLASH)
-    // [320] check_status_card_roms::return#3 = check_status_card_roms::return#2
-    // main::@88
-    // [321] main::$120 = check_status_card_roms::return#3
-    // if(check_status_smc(STATUS_FLASH) || check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH))
-    // [322] if(0!=main::check_status_smc10_return#0) goto main::@7 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_smc10_return
+    // [331] check_status_card_roms::return#3 = check_status_card_roms::return#2
+    // main::@83
+    // [332] main::$113 = check_status_card_roms::return#3 -- vbuz1=vbum2 
+    lda check_status_card_roms.return
+    sta.z main__113
+    // if(check_status_vera(STATUS_FLASH) || check_status_smc(STATUS_FLASH) || check_status_cx16_rom(STATUS_FLASH) || check_status_card_roms(STATUS_FLASH))
+    // [333] if(0!=main::check_status_vera4_return#0) goto main::@7 -- 0_neq_vbum1_then_la1 
+    lda check_status_vera4_return
     bne __b7
-    // main::@131
-    // [323] if(0!=main::check_status_cx16_rom5_check_status_rom1_return#0) goto main::@7 -- 0_neq_vbuz1_then_la1 
-    lda.z check_status_cx16_rom5_check_status_rom1_return
+    // main::@135
+    // [334] if(0!=main::check_status_smc8_return#0) goto main::@7 -- 0_neq_vbum1_then_la1 
+    lda check_status_smc8_return
     bne __b7
-    // main::@130
-    // [324] if(0!=main::$120) goto main::@7 -- 0_neq_vbuz1_then_la1 
-    lda.z main__120
+    // main::@134
+    // [335] if(0!=main::check_status_cx16_rom5_check_status_rom1_return#0) goto main::@7 -- 0_neq_vbum1_then_la1 
+    lda check_status_cx16_rom5_check_status_rom1_return
     bne __b7
-    // main::bank_set_bram2
-  bank_set_bram2:
+    // main::@133
+    // [336] if(0!=main::$113) goto main::@7 -- 0_neq_vbuz1_then_la1 
+    lda.z main__113
+    bne __b7
+    // main::bank_set_bram1
+  bank_set_bram1:
     // BRAM = bank
-    // [325] BRAM = main::bank_set_bram2_bank#0 -- vbuz1=vbuc1 
-    lda #bank_set_bram2_bank
+    // [337] BRAM = main::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_bram1_bank
     sta.z BRAM
-    // main::SEI3
+    // main::SEI2
     // asm
     // asm { sei  }
     sei
-    jmp check_status_smc8
-    // [327] phi from main::@130 main::@131 main::@88 to main::@7 [phi:main::@130/main::@131/main::@88->main::@7]
+    // main::bank_set_brom4
+    // BROM = bank
+    // [339] BROM = main::bank_set_brom4_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_brom4_bank
+    sta.z BROM
+    // main::CLI3
+    // asm
+    // asm { cli  }
+    cli
+    // main::check_status_vera5
+    // status_vera == status
+    // [341] main::check_status_vera5_$0 = status_vera#120 == STATUS_FLASH -- vboz1=vbum2_eq_vbuc1 
+    lda status_vera
+    eor #STATUS_FLASH
+    beq !+
+    lda #1
+  !:
+    eor #1
+    sta.z check_status_vera5_main__0
+    // return (unsigned char)(status_vera == status);
+    // [342] main::check_status_vera5_return#0 = (char)main::check_status_vera5_$0 -- vbum1=vbuz2 
+    sta check_status_vera5_return
+    // main::@38
+    // if(check_status_vera(STATUS_FLASH))
+    // [343] if(0==main::check_status_vera5_return#0) goto main::SEI3 -- 0_eq_vbum1_then_la1 
+    beq SEI3
+    // [344] phi from main::@38 to main::@17 [phi:main::@38->main::@17]
+    // main::@17
+    // main_vera_flash()
+    // [345] call main_vera_flash
+    // [878] phi from main::@17 to main_vera_flash [phi:main::@17->main_vera_flash]
+    jsr main_vera_flash
+    // main::SEI3
+  SEI3:
+    // asm
+    // asm { sei  }
+    sei
+    // main::bank_set_brom5
+    // BROM = bank
+    // [347] BROM = main::bank_set_brom5_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_brom5_bank
+    sta.z BROM
+    // [348] phi from main::bank_set_brom5 to main::@39 [phi:main::bank_set_brom5->main::@39]
+    // main::@39
+    // display_progress_clear()
+    // [349] call display_progress_clear
+    // [570] phi from main::@39 to display_progress_clear [phi:main::@39->display_progress_clear]
+    jsr display_progress_clear
+    jmp check_status_vera3
+    // [350] phi from main::@133 main::@134 main::@135 main::@83 to main::@7 [phi:main::@133/main::@134/main::@135/main::@83->main::@7]
     // main::@7
   __b7:
     // display_action_progress("Chipsets have been detected and update files validated!")
-    // [328] call display_action_progress
-    // [537] phi from main::@7 to display_action_progress [phi:main::@7->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text14 [phi:main::@7->display_action_progress#0] -- pbuz1=pbuc1 
-    lda #<info_text14
-    sta.z display_action_progress.info_text
-    lda #>info_text14
-    sta.z display_action_progress.info_text+1
-    jsr display_action_progress
-    // [329] phi from main::@7 to main::@89 [phi:main::@7->main::@89]
-    // main::@89
-    // unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY")
-    // [330] call util_wait_key
-    // [775] phi from main::@89 to util_wait_key [phi:main::@89->util_wait_key]
-    // [775] phi util_wait_key::filter#13 = main::filter1 [phi:main::@89->util_wait_key#0] -- pbuz1=pbuc1 
-    lda #<filter1
-    sta.z util_wait_key.filter
-    lda #>filter1
-    sta.z util_wait_key.filter+1
-    // [775] phi util_wait_key::info_text#3 = main::info_text15 [phi:main::@89->util_wait_key#1] -- pbuz1=pbuc1 
-    lda #<info_text15
-    sta.z util_wait_key.info_text
-    lda #>info_text15
-    sta.z util_wait_key.info_text+1
-    jsr util_wait_key
-    // unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY")
-    // [331] util_wait_key::return#4 = util_wait_key::ch#4 -- vbuz1=vwuz2 
-    lda.z util_wait_key.ch
-    sta.z util_wait_key.return_1
-    // main::@90
-    // [332] main::ch1#0 = util_wait_key::return#4
-    // strchr("nN", ch)
-    // [333] strchr::c#1 = main::ch1#0 -- vbum1=vbuz2 
-    lda.z ch1
-    sta strchr.c
-    // [334] call strchr
-    // [799] phi from main::@90 to strchr [phi:main::@90->strchr]
-    // [799] phi strchr::c#4 = strchr::c#1 [phi:main::@90->strchr#0] -- register_copy 
-    // [799] phi strchr::str#2 = (const void *)main::$190 [phi:main::@90->strchr#1] -- pvoz1=pvoc1 
-    lda #<main__190
-    sta.z strchr.str
-    lda #>main__190
-    sta.z strchr.str+1
-    jsr strchr
-    // strchr("nN", ch)
-    // [335] strchr::return#4 = strchr::return#2
-    // main::@91
-    // [336] main::$125 = strchr::return#4
-    // if(strchr("nN", ch))
-    // [337] if((void *)0==main::$125) goto main::bank_set_bram2 -- pvoc1_eq_pvoz1_then_la1 
-    lda.z main__125
-    cmp #<0
-    bne !+
-    lda.z main__125+1
-    cmp #>0
-    beq bank_set_bram2
-  !:
-    // [338] phi from main::@91 to main::@8 [phi:main::@91->main::@8]
-    // main::@8
-    // display_info_smc(STATUS_SKIP, "Cancelled")
-    // [339] call display_info_smc
-  // We cancel all updates, the updates are skipped.
-    // [595] phi from main::@8 to display_info_smc [phi:main::@8->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = main::info_text16 [phi:main::@8->display_info_smc#0] -- pbuz1=pbuc1 
-    lda #<info_text16
-    sta.z display_info_smc.info_text
-    lda #>info_text16
-    sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@8->display_info_smc#1] -- vbuz1=vbuc1 
-    lda #STATUS_SKIP
-    sta.z display_info_smc.info_status
-    jsr display_info_smc
-    // main::@92
-    // [340] spi_manufacturer#283 = spi_read::return#0 -- vbum1=vbum2 
-    lda spi_read.return
-    sta spi_manufacturer
-    // [341] spi_memory_type#283 = spi_read::return#1 -- vbum1=vbum2 
-    lda spi_read.return_1
-    sta spi_memory_type
-    // [342] spi_memory_capacity#283 = spi_read::return#2 -- vbum1=vbum2 
-    lda spi_read.return_2
-    sta spi_memory_capacity
-    // display_info_vera(STATUS_SKIP, "Cancelled")
-    // [343] call display_info_vera
-    // [629] phi from main::@92 to display_info_vera [phi:main::@92->display_info_vera]
-    // [629] phi display_info_vera::info_text#10 = main::info_text16 [phi:main::@92->display_info_vera#0] -- pbuz1=pbuc1 
-    lda #<info_text16
-    sta.z display_info_vera.info_text
-    lda #>info_text16
-    sta.z display_info_vera.info_text+1
-    // [629] phi spi_memory_capacity#12 = spi_memory_capacity#283 [phi:main::@92->display_info_vera#1] -- register_copy 
-    // [629] phi spi_memory_type#12 = spi_memory_type#283 [phi:main::@92->display_info_vera#2] -- register_copy 
-    // [629] phi spi_manufacturer#12 = spi_manufacturer#283 [phi:main::@92->display_info_vera#3] -- register_copy 
-    // [629] phi display_info_vera::info_status#4 = STATUS_SKIP [phi:main::@92->display_info_vera#4] -- vbuz1=vbuc1 
-    lda #STATUS_SKIP
-    sta.z display_info_vera.info_status
-    jsr display_info_vera
-    // [344] phi from main::@92 to main::@16 [phi:main::@92->main::@16]
-    // [344] phi main::rom_chip1#2 = 0 [phi:main::@92->main::@16#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z rom_chip1
-    // main::@16
-  __b16:
-    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [345] if(main::rom_chip1#2<8) goto main::@17 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z rom_chip1
-    cmp #8
-    bcc __b17
-    // [346] phi from main::@16 to main::@18 [phi:main::@16->main::@18]
-    // main::@18
-    // display_action_text("You have selected not to cancel the update ... ")
-    // [347] call display_action_text
-    // [743] phi from main::@18 to display_action_text [phi:main::@18->display_action_text]
-    // [743] phi display_action_text::info_text#6 = main::info_text19 [phi:main::@18->display_action_text#0] -- pbuz1=pbuc1 
-    lda #<info_text19
-    sta.z display_action_text.info_text
-    lda #>info_text19
-    sta.z display_action_text.info_text+1
-    jsr display_action_text
-    jmp bank_set_bram2
-    // main::@17
-  __b17:
-    // display_info_rom(rom_chip, STATUS_SKIP, "Cancelled")
-    // [348] display_info_rom::rom_chip#2 = main::rom_chip1#2 -- vbuz1=vbuz2 
-    lda.z rom_chip1
-    sta.z display_info_rom.rom_chip
-    // [349] call display_info_rom
-    // [808] phi from main::@17 to display_info_rom [phi:main::@17->display_info_rom]
-    // [808] phi display_info_rom::info_text#10 = main::info_text16 [phi:main::@17->display_info_rom#0] -- pbuz1=pbuc1 
-    lda #<info_text16
-    sta.z display_info_rom.info_text
-    lda #>info_text16
-    sta.z display_info_rom.info_text+1
-    // [808] phi display_info_rom::rom_chip#10 = display_info_rom::rom_chip#2 [phi:main::@17->display_info_rom#1] -- register_copy 
-    // [808] phi display_info_rom::info_status#10 = STATUS_SKIP [phi:main::@17->display_info_rom#2] -- vbuz1=vbuc1 
-    lda #STATUS_SKIP
-    sta.z display_info_rom.info_status
-    jsr display_info_rom
-    // main::@93
-    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [350] main::rom_chip1#1 = ++ main::rom_chip1#2 -- vbuz1=_inc_vbuz1 
-    inc.z rom_chip1
-    // [344] phi from main::@93 to main::@16 [phi:main::@93->main::@16]
-    // [344] phi main::rom_chip1#2 = main::rom_chip1#1 [phi:main::@93->main::@16#0] -- register_copy 
-    jmp __b16
-    // [351] phi from main::@36 to main::@6 [phi:main::@36->main::@6]
-    // main::@6
-  __b6:
-    // display_action_progress("The SMC chip and SMC.BIN versions are equal, no flash required!")
-    // [352] call display_action_progress
-    // [537] phi from main::@6 to display_action_progress [phi:main::@6->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text12 [phi:main::@6->display_action_progress#0] -- pbuz1=pbuc1 
+    // [351] call display_action_progress
+    // [556] phi from main::@7 to display_action_progress [phi:main::@7->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text12 [phi:main::@7->display_action_progress#0] -- pbuz1=pbuc1 
     lda #<info_text12
     sta.z display_action_progress.info_text
     lda #>info_text12
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [353] phi from main::@6 to main::@85 [phi:main::@6->main::@85]
-    // main::@85
-    // util_wait_space()
-    // [354] call util_wait_space
-    // [673] phi from main::@85 to util_wait_space [phi:main::@85->util_wait_space]
-    jsr util_wait_space
-    // [355] phi from main::@85 to main::@86 [phi:main::@85->main::@86]
-    // main::@86
-    // display_info_smc(STATUS_SKIP, "SMC.BIN and SMC equal.")
-    // [356] call display_info_smc
-    // [595] phi from main::@86 to display_info_smc [phi:main::@86->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = main::info_text13 [phi:main::@86->display_info_smc#0] -- pbuz1=pbuc1 
+    // [352] phi from main::@7 to main::@84 [phi:main::@7->main::@84]
+    // main::@84
+    // unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY")
+    // [353] call util_wait_key
+    // [1043] phi from main::@84 to util_wait_key [phi:main::@84->util_wait_key]
+    // [1043] phi util_wait_key::filter#13 = main::filter1 [phi:main::@84->util_wait_key#0] -- pbuz1=pbuc1 
+    lda #<filter1
+    sta.z util_wait_key.filter
+    lda #>filter1
+    sta.z util_wait_key.filter+1
+    // [1043] phi util_wait_key::info_text#3 = main::info_text13 [phi:main::@84->util_wait_key#1] -- pbuz1=pbuc1 
     lda #<info_text13
-    sta.z display_info_smc.info_text
+    sta.z util_wait_key.info_text
     lda #>info_text13
+    sta.z util_wait_key.info_text+1
+    jsr util_wait_key
+    // unsigned char ch = util_wait_key("Continue with update of highlighted chipsets? [Y/N]", "nyNY")
+    // [354] util_wait_key::return#4 = util_wait_key::ch#4 -- vbum1=vwum2 
+    lda util_wait_key.ch
+    sta util_wait_key.return_1
+    // main::@85
+    // [355] main::ch1#0 = util_wait_key::return#4 -- vbuz1=vbum2 
+    sta.z ch1
+    // strchr("nN", ch)
+    // [356] strchr::c#1 = main::ch1#0 -- vbum1=vbuz2 
+    sta strchr.c
+    // [357] call strchr
+    // [1067] phi from main::@85 to strchr [phi:main::@85->strchr]
+    // [1067] phi strchr::c#4 = strchr::c#1 [phi:main::@85->strchr#0] -- register_copy 
+    // [1067] phi strchr::str#2 = (const void *)main::$207 [phi:main::@85->strchr#1] -- pvoz1=pvoc1 
+    lda #<main__207
+    sta.z strchr.str
+    lda #>main__207
+    sta.z strchr.str+1
+    jsr strchr
+    // strchr("nN", ch)
+    // [358] strchr::return#4 = strchr::return#2
+    // main::@86
+    // [359] main::$118 = strchr::return#4
+    // if(strchr("nN", ch))
+    // [360] if((void *)0==main::$118) goto main::bank_set_bram1 -- pvoc1_eq_pvoz1_then_la1 
+    lda.z main__118
+    cmp #<0
+    bne !+
+    lda.z main__118+1
+    cmp #>0
+    beq bank_set_bram1
+  !:
+    // [361] phi from main::@86 to main::@8 [phi:main::@86->main::@8]
+    // main::@8
+    // display_info_smc(STATUS_SKIP, "Cancelled")
+    // [362] call display_info_smc
+  // We cancel all updates, the updates are skipped.
+    // [614] phi from main::@8 to display_info_smc [phi:main::@8->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = main::info_text14 [phi:main::@8->display_info_smc#0] -- pbuz1=pbuc1 
+    lda #<info_text14
+    sta.z display_info_smc.info_text
+    lda #>info_text14
     sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@86->display_info_smc#1] -- vbuz1=vbuc1 
+    // [614] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@8->display_info_smc#1] -- vbum1=vbuc1 
     lda #STATUS_SKIP
-    sta.z display_info_smc.info_status
+    sta display_info_smc.info_status
     jsr display_info_smc
-    jmp check_status_smc6
-    // [357] phi from main::@120 to main::@4 [phi:main::@120->main::@4]
-    // main::@4
-  __b4:
-    // display_action_progress("Compatibility between ROM.BIN and SMC.BIN can't be assured!")
-    // [358] call display_action_progress
-    // [537] phi from main::@4 to display_action_progress [phi:main::@4->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text10 [phi:main::@4->display_action_progress#0] -- pbuz1=pbuc1 
+    // main::@87
+    // [363] spi_manufacturer#404 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [364] spi_memory_type#405 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [365] spi_memory_capacity#406 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_SKIP, "Cancelled")
+    // [366] call display_info_vera
+    // [650] phi from main::@87 to display_info_vera [phi:main::@87->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main::info_text14 [phi:main::@87->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text14
+    sta.z display_info_vera.info_text
+    lda #>info_text14
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#406 [phi:main::@87->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#405 [phi:main::@87->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#404 [phi:main::@87->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_SKIP [phi:main::@87->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_SKIP
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [367] phi from main::@87 to main::@14 [phi:main::@87->main::@14]
+    // [367] phi main::rom_chip1#2 = 0 [phi:main::@87->main::@14#0] -- vbuz1=vbuc1 
+    lda #0
+    sta.z rom_chip1
+    // main::@14
+  __b14:
+    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
+    // [368] if(main::rom_chip1#2<8) goto main::@15 -- vbuz1_lt_vbuc1_then_la1 
+    lda.z rom_chip1
+    cmp #8
+    bcc __b15
+    // [369] phi from main::@14 to main::@16 [phi:main::@14->main::@16]
+    // main::@16
+    // display_action_text("You have selected not to cancel the update ... ")
+    // [370] call display_action_text
+    // [846] phi from main::@16 to display_action_text [phi:main::@16->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main::info_text17 [phi:main::@16->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text17
+    sta.z display_action_text.info_text
+    lda #>info_text17
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    jmp bank_set_bram1
+    // main::@15
+  __b15:
+    // display_info_rom(rom_chip, STATUS_SKIP, "Cancelled")
+    // [371] display_info_rom::rom_chip#3 = main::rom_chip1#2 -- vbum1=vbuz2 
+    lda.z rom_chip1
+    sta display_info_rom.rom_chip
+    // [372] call display_info_rom
+    // [1076] phi from main::@15 to display_info_rom [phi:main::@15->display_info_rom]
+    // [1076] phi display_info_rom::info_text#10 = main::info_text14 [phi:main::@15->display_info_rom#0] -- pbuz1=pbuc1 
+    lda #<info_text14
+    sta.z display_info_rom.info_text
+    lda #>info_text14
+    sta.z display_info_rom.info_text+1
+    // [1076] phi display_info_rom::rom_chip#10 = display_info_rom::rom_chip#3 [phi:main::@15->display_info_rom#1] -- register_copy 
+    // [1076] phi display_info_rom::info_status#10 = STATUS_SKIP [phi:main::@15->display_info_rom#2] -- vbum1=vbuc1 
+    lda #STATUS_SKIP
+    sta display_info_rom.info_status
+    jsr display_info_rom
+    // main::@88
+    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
+    // [373] main::rom_chip1#1 = ++ main::rom_chip1#2 -- vbuz1=_inc_vbuz1 
+    inc.z rom_chip1
+    // [367] phi from main::@88 to main::@14 [phi:main::@88->main::@14]
+    // [367] phi main::rom_chip1#2 = main::rom_chip1#1 [phi:main::@88->main::@14#0] -- register_copy 
+    jmp __b14
+    // [374] phi from main::@33 to main::@6 [phi:main::@33->main::@6]
+    // main::@6
+  __b6:
+    // display_action_progress("The SMC chip and SMC.BIN versions are equal, no flash required!")
+    // [375] call display_action_progress
+    // [556] phi from main::@6 to display_action_progress [phi:main::@6->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text10 [phi:main::@6->display_action_progress#0] -- pbuz1=pbuc1 
     lda #<info_text10
     sta.z display_action_progress.info_text
     lda #>info_text10
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [359] phi from main::@4 to main::@79 [phi:main::@4->main::@79]
-    // main::@79
-    // display_progress_text(display_smc_unsupported_rom_text, display_smc_unsupported_rom_count)
-    // [360] call display_progress_text
-    // [663] phi from main::@79 to display_progress_text [phi:main::@79->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_smc_unsupported_rom_text [phi:main::@79->display_progress_text#0] -- qbuz1=qbuc1 
-    lda #<display_smc_unsupported_rom_text
-    sta.z display_progress_text.text
-    lda #>display_smc_unsupported_rom_text
-    sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_smc_unsupported_rom_count [phi:main::@79->display_progress_text#1] -- vbuz1=vbuc1 
-    lda #display_smc_unsupported_rom_count
-    sta.z display_progress_text.lines
-    jsr display_progress_text
-    // [361] phi from main::@79 to main::@80 [phi:main::@79->main::@80]
-    // main::@80
-    // unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN")
-    // [362] call util_wait_key
-    // [775] phi from main::@80 to util_wait_key [phi:main::@80->util_wait_key]
-    // [775] phi util_wait_key::filter#13 = main::filter [phi:main::@80->util_wait_key#0] -- pbuz1=pbuc1 
-    lda #<filter
-    sta.z util_wait_key.filter
-    lda #>filter
-    sta.z util_wait_key.filter+1
-    // [775] phi util_wait_key::info_text#3 = main::info_text11 [phi:main::@80->util_wait_key#1] -- pbuz1=pbuc1 
-    lda #<info_text11
-    sta.z util_wait_key.info_text
-    lda #>info_text11
-    sta.z util_wait_key.info_text+1
-    jsr util_wait_key
-    // unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN")
-    // [363] util_wait_key::return#3 = util_wait_key::ch#4 -- vbuz1=vwuz2 
-    lda.z util_wait_key.ch
-    sta.z util_wait_key.return
+    // [376] phi from main::@6 to main::@81 [phi:main::@6->main::@81]
     // main::@81
-    // [364] main::ch#0 = util_wait_key::return#3
-    // if(ch == 'N')
-    // [365] if(main::ch#0!='N') goto main::check_status_smc5 -- vbuz1_neq_vbuc1_then_la1 
-    lda #'N'
-    cmp.z ch
-    beq !check_status_smc5+
-    jmp check_status_smc5
-  !check_status_smc5:
-    // [366] phi from main::@81 to main::@5 [phi:main::@81->main::@5]
-    // main::@5
-    // display_info_smc(STATUS_ISSUE, NULL)
-    // [367] call display_info_smc
-  // Cancel flash
-    // [595] phi from main::@5 to display_info_smc [phi:main::@5->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = 0 [phi:main::@5->display_info_smc#0] -- pbuz1=vbuc1 
-    lda #<0
-    sta.z display_info_smc.info_text
-    sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = STATUS_ISSUE [phi:main::@5->display_info_smc#1] -- vbuz1=vbuc1 
-    lda #STATUS_ISSUE
-    sta.z display_info_smc.info_status
-    jsr display_info_smc
-    // [368] phi from main::@5 to main::@82 [phi:main::@5->main::@82]
+    // util_wait_space()
+    // [377] call util_wait_space
+    // [1121] phi from main::@81 to util_wait_space [phi:main::@81->util_wait_space]
+    jsr util_wait_space
+    // [378] phi from main::@81 to main::@82 [phi:main::@81->main::@82]
     // main::@82
-    // display_info_cx16_rom(STATUS_ISSUE, NULL)
-    // [369] call display_info_cx16_rom
-    // [851] phi from main::@82 to display_info_cx16_rom [phi:main::@82->display_info_cx16_rom]
-    // [851] phi display_info_cx16_rom::info_text#4 = 0 [phi:main::@82->display_info_cx16_rom#0] -- pbuz1=vbuc1 
-    lda #<0
-    sta.z display_info_cx16_rom.info_text
-    sta.z display_info_cx16_rom.info_text+1
-    // [851] phi display_info_cx16_rom::info_status#4 = STATUS_ISSUE [phi:main::@82->display_info_cx16_rom#1] -- vbuz1=vbuc1 
-    lda #STATUS_ISSUE
-    sta.z display_info_cx16_rom.info_status
-    jsr display_info_cx16_rom
-    jmp check_status_smc5
-    // [370] phi from main::@119 to main::@3 [phi:main::@119->main::@3]
-    // main::@3
-  __b3:
-    // display_action_progress("CX16 ROM update issue!")
-    // [371] call display_action_progress
-    // [537] phi from main::@3 to display_action_progress [phi:main::@3->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text8 [phi:main::@3->display_action_progress#0] -- pbuz1=pbuc1 
+    // display_info_smc(STATUS_SKIP, "SMC.BIN and SMC equal.")
+    // [379] call display_info_smc
+    // [614] phi from main::@82 to display_info_smc [phi:main::@82->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = main::info_text11 [phi:main::@82->display_info_smc#0] -- pbuz1=pbuc1 
+    lda #<info_text11
+    sta.z display_info_smc.info_text
+    lda #>info_text11
+    sta.z display_info_smc.info_text+1
+    // [614] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@82->display_info_smc#1] -- vbum1=vbuc1 
+    lda #STATUS_SKIP
+    sta display_info_smc.info_status
+    jsr display_info_smc
+    jmp check_status_smc6
+    // [380] phi from main::@126 to main::@4 [phi:main::@126->main::@4]
+    // main::@4
+  __b4:
+    // display_action_progress("Compatibility between ROM.BIN and SMC.BIN can't be assured!")
+    // [381] call display_action_progress
+    // [556] phi from main::@4 to display_action_progress [phi:main::@4->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text8 [phi:main::@4->display_action_progress#0] -- pbuz1=pbuc1 
     lda #<info_text8
     sta.z display_action_progress.info_text
     lda #>info_text8
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [372] phi from main::@3 to main::@74 [phi:main::@3->main::@74]
-    // main::@74
-    // display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count)
-    // [373] call display_progress_text
-    // [663] phi from main::@74 to display_progress_text [phi:main::@74->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_smc_rom_issue_text [phi:main::@74->display_progress_text#0] -- qbuz1=qbuc1 
-    lda #<display_smc_rom_issue_text
-    sta.z display_progress_text.text
-    lda #>display_smc_rom_issue_text
-    sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_smc_rom_issue_count [phi:main::@74->display_progress_text#1] -- vbuz1=vbuc1 
-    lda #display_smc_rom_issue_count
-    sta.z display_progress_text.lines
-    jsr display_progress_text
-    // [374] phi from main::@74 to main::@75 [phi:main::@74->main::@75]
+    // [382] phi from main::@4 to main::@75 [phi:main::@4->main::@75]
     // main::@75
-    // display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!")
-    // [375] call display_info_smc
-    // [595] phi from main::@75 to display_info_smc [phi:main::@75->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = main::info_text6 [phi:main::@75->display_info_smc#0] -- pbuz1=pbuc1 
-    lda #<info_text6
-    sta.z display_info_smc.info_text
-    lda #>info_text6
-    sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@75->display_info_smc#1] -- vbuz1=vbuc1 
-    lda #STATUS_SKIP
-    sta.z display_info_smc.info_status
-    jsr display_info_smc
-    // [376] phi from main::@75 to main::@76 [phi:main::@75->main::@76]
+    // display_progress_text(display_smc_unsupported_rom_text, display_smc_unsupported_rom_count)
+    // [383] call display_progress_text
+    // [816] phi from main::@75 to display_progress_text [phi:main::@75->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_smc_unsupported_rom_text [phi:main::@75->display_progress_text#0] -- qbuz1=qbuc1 
+    lda #<display_smc_unsupported_rom_text
+    sta.z display_progress_text.text
+    lda #>display_smc_unsupported_rom_text
+    sta.z display_progress_text.text+1
+    // [816] phi display_progress_text::lines#11 = display_smc_unsupported_rom_count [phi:main::@75->display_progress_text#1] -- vbum1=vbuc1 
+    lda #display_smc_unsupported_rom_count
+    sta display_progress_text.lines
+    jsr display_progress_text
+    // [384] phi from main::@75 to main::@76 [phi:main::@75->main::@76]
     // main::@76
+    // unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN")
+    // [385] call util_wait_key
+    // [1043] phi from main::@76 to util_wait_key [phi:main::@76->util_wait_key]
+    // [1043] phi util_wait_key::filter#13 = main::filter [phi:main::@76->util_wait_key#0] -- pbuz1=pbuc1 
+    lda #<filter
+    sta.z util_wait_key.filter
+    lda #>filter
+    sta.z util_wait_key.filter+1
+    // [1043] phi util_wait_key::info_text#3 = main::info_text9 [phi:main::@76->util_wait_key#1] -- pbuz1=pbuc1 
+    lda #<info_text9
+    sta.z util_wait_key.info_text
+    lda #>info_text9
+    sta.z util_wait_key.info_text+1
+    jsr util_wait_key
+    // unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN")
+    // [386] util_wait_key::return#3 = util_wait_key::ch#4 -- vbum1=vwum2 
+    lda util_wait_key.ch
+    sta util_wait_key.return
+    // main::@77
+    // [387] main::ch#0 = util_wait_key::return#3 -- vbuz1=vbum2 
+    sta.z ch
+    // if(ch == 'N')
+    // [388] if(main::ch#0!='N') goto main::check_status_smc5 -- vbuz1_neq_vbuc1_then_la1 
+    lda #'N'
+    cmp.z ch
+    beq !check_status_smc5+
+    jmp check_status_smc5
+  !check_status_smc5:
+    // [389] phi from main::@77 to main::@5 [phi:main::@77->main::@5]
+    // main::@5
+    // display_info_smc(STATUS_ISSUE, NULL)
+    // [390] call display_info_smc
+  // Cancel flash
+    // [614] phi from main::@5 to display_info_smc [phi:main::@5->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = 0 [phi:main::@5->display_info_smc#0] -- pbuz1=vbuc1 
+    lda #<0
+    sta.z display_info_smc.info_text
+    sta.z display_info_smc.info_text+1
+    // [614] phi display_info_smc::info_status#10 = STATUS_ISSUE [phi:main::@5->display_info_smc#1] -- vbum1=vbuc1 
+    lda #STATUS_ISSUE
+    sta display_info_smc.info_status
+    jsr display_info_smc
+    // [391] phi from main::@5 to main::@78 [phi:main::@5->main::@78]
+    // main::@78
     // display_info_cx16_rom(STATUS_ISSUE, NULL)
-    // [377] call display_info_cx16_rom
-    // [851] phi from main::@76 to display_info_cx16_rom [phi:main::@76->display_info_cx16_rom]
-    // [851] phi display_info_cx16_rom::info_text#4 = 0 [phi:main::@76->display_info_cx16_rom#0] -- pbuz1=vbuc1 
+    // [392] call display_info_cx16_rom
+    // [1124] phi from main::@78 to display_info_cx16_rom [phi:main::@78->display_info_cx16_rom]
+    // [1124] phi display_info_cx16_rom::info_text#4 = 0 [phi:main::@78->display_info_cx16_rom#0] -- pbuz1=vbuc1 
     lda #<0
     sta.z display_info_cx16_rom.info_text
     sta.z display_info_cx16_rom.info_text+1
-    // [851] phi display_info_cx16_rom::info_status#4 = STATUS_ISSUE [phi:main::@76->display_info_cx16_rom#1] -- vbuz1=vbuc1 
+    // [1124] phi display_info_cx16_rom::info_status#4 = STATUS_ISSUE [phi:main::@78->display_info_cx16_rom#1] -- vbum1=vbuc1 
     lda #STATUS_ISSUE
-    sta.z display_info_cx16_rom.info_status
+    sta display_info_cx16_rom.info_status
     jsr display_info_cx16_rom
-    // [378] phi from main::@76 to main::@77 [phi:main::@76->main::@77]
-    // main::@77
-    // util_wait_space()
-    // [379] call util_wait_space
-    // [673] phi from main::@77 to util_wait_space [phi:main::@77->util_wait_space]
-    jsr util_wait_space
-    jmp check_status_smc4
-    // [380] phi from main::@118 to main::@1 [phi:main::@118->main::@1]
-    // main::@1
-  __b1:
-    // display_action_progress("CX16 ROM update issue, ROM not detected!")
-    // [381] call display_action_progress
-    // [537] phi from main::@1 to display_action_progress [phi:main::@1->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text5 [phi:main::@1->display_action_progress#0] -- pbuz1=pbuc1 
-    lda #<info_text5
+    jmp check_status_smc5
+    // [393] phi from main::@125 to main::@3 [phi:main::@125->main::@3]
+    // main::@3
+  __b3:
+    // display_action_progress("CX16 ROM update issue!")
+    // [394] call display_action_progress
+    // [556] phi from main::@3 to display_action_progress [phi:main::@3->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text6 [phi:main::@3->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text6
     sta.z display_action_progress.info_text
-    lda #>info_text5
+    lda #>info_text6
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [382] phi from main::@1 to main::@70 [phi:main::@1->main::@70]
+    // [395] phi from main::@3 to main::@70 [phi:main::@3->main::@70]
     // main::@70
     // display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count)
-    // [383] call display_progress_text
-    // [663] phi from main::@70 to display_progress_text [phi:main::@70->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_smc_rom_issue_text [phi:main::@70->display_progress_text#0] -- qbuz1=qbuc1 
+    // [396] call display_progress_text
+    // [816] phi from main::@70 to display_progress_text [phi:main::@70->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_smc_rom_issue_text [phi:main::@70->display_progress_text#0] -- qbuz1=qbuc1 
     lda #<display_smc_rom_issue_text
     sta.z display_progress_text.text
     lda #>display_smc_rom_issue_text
     sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_smc_rom_issue_count [phi:main::@70->display_progress_text#1] -- vbuz1=vbuc1 
+    // [816] phi display_progress_text::lines#11 = display_smc_rom_issue_count [phi:main::@70->display_progress_text#1] -- vbum1=vbuc1 
     lda #display_smc_rom_issue_count
-    sta.z display_progress_text.lines
+    sta display_progress_text.lines
     jsr display_progress_text
-    // [384] phi from main::@70 to main::@71 [phi:main::@70->main::@71]
+    // [397] phi from main::@70 to main::@71 [phi:main::@70->main::@71]
     // main::@71
     // display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!")
-    // [385] call display_info_smc
-    // [595] phi from main::@71 to display_info_smc [phi:main::@71->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = main::info_text6 [phi:main::@71->display_info_smc#0] -- pbuz1=pbuc1 
-    lda #<info_text6
+    // [398] call display_info_smc
+    // [614] phi from main::@71 to display_info_smc [phi:main::@71->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = main::info_text4 [phi:main::@71->display_info_smc#0] -- pbuz1=pbuc1 
+    lda #<info_text4
     sta.z display_info_smc.info_text
-    lda #>info_text6
+    lda #>info_text4
     sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@71->display_info_smc#1] -- vbuz1=vbuc1 
+    // [614] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@71->display_info_smc#1] -- vbum1=vbuc1 
     lda #STATUS_SKIP
-    sta.z display_info_smc.info_status
+    sta display_info_smc.info_status
     jsr display_info_smc
-    // [386] phi from main::@71 to main::@72 [phi:main::@71->main::@72]
+    // [399] phi from main::@71 to main::@72 [phi:main::@71->main::@72]
     // main::@72
-    // display_info_cx16_rom(STATUS_ISSUE, "Are J1 jumper pins closed?")
-    // [387] call display_info_cx16_rom
-    // [851] phi from main::@72 to display_info_cx16_rom [phi:main::@72->display_info_cx16_rom]
-    // [851] phi display_info_cx16_rom::info_text#4 = main::info_text7 [phi:main::@72->display_info_cx16_rom#0] -- pbuz1=pbuc1 
-    lda #<info_text7
+    // display_info_cx16_rom(STATUS_ISSUE, NULL)
+    // [400] call display_info_cx16_rom
+    // [1124] phi from main::@72 to display_info_cx16_rom [phi:main::@72->display_info_cx16_rom]
+    // [1124] phi display_info_cx16_rom::info_text#4 = 0 [phi:main::@72->display_info_cx16_rom#0] -- pbuz1=vbuc1 
+    lda #<0
     sta.z display_info_cx16_rom.info_text
-    lda #>info_text7
     sta.z display_info_cx16_rom.info_text+1
-    // [851] phi display_info_cx16_rom::info_status#4 = STATUS_ISSUE [phi:main::@72->display_info_cx16_rom#1] -- vbuz1=vbuc1 
+    // [1124] phi display_info_cx16_rom::info_status#4 = STATUS_ISSUE [phi:main::@72->display_info_cx16_rom#1] -- vbum1=vbuc1 
     lda #STATUS_ISSUE
-    sta.z display_info_cx16_rom.info_status
+    sta display_info_cx16_rom.info_status
     jsr display_info_cx16_rom
-    // [388] phi from main::@72 to main::@73 [phi:main::@72->main::@73]
+    // [401] phi from main::@72 to main::@73 [phi:main::@72->main::@73]
     // main::@73
     // util_wait_space()
-    // [389] call util_wait_space
-    // [673] phi from main::@73 to util_wait_space [phi:main::@73->util_wait_space]
+    // [402] call util_wait_space
+    // [1121] phi from main::@73 to util_wait_space [phi:main::@73->util_wait_space]
     jsr util_wait_space
     jmp check_status_smc4
-    // [390] phi from main::@117 to main::@15 [phi:main::@117->main::@15]
-    // main::@15
-  __b15:
-    // display_action_progress("SMC update issue!")
-    // [391] call display_action_progress
-    // [537] phi from main::@15 to display_action_progress [phi:main::@15->display_action_progress]
-    // [537] phi display_action_progress::info_text#11 = main::info_text3 [phi:main::@15->display_action_progress#0] -- pbuz1=pbuc1 
+    // [403] phi from main::@124 to main::@1 [phi:main::@124->main::@1]
+    // main::@1
+  __b1:
+    // display_action_progress("CX16 ROM update issue, ROM not detected!")
+    // [404] call display_action_progress
+    // [556] phi from main::@1 to display_action_progress [phi:main::@1->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text3 [phi:main::@1->display_action_progress#0] -- pbuz1=pbuc1 
     lda #<info_text3
     sta.z display_action_progress.info_text
     lda #>info_text3
     sta.z display_action_progress.info_text+1
     jsr display_action_progress
-    // [392] phi from main::@15 to main::@66 [phi:main::@15->main::@66]
+    // [405] phi from main::@1 to main::@66 [phi:main::@1->main::@66]
     // main::@66
     // display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count)
-    // [393] call display_progress_text
-    // [663] phi from main::@66 to display_progress_text [phi:main::@66->display_progress_text]
-    // [663] phi display_progress_text::text#10 = display_smc_rom_issue_text [phi:main::@66->display_progress_text#0] -- qbuz1=qbuc1 
+    // [406] call display_progress_text
+    // [816] phi from main::@66 to display_progress_text [phi:main::@66->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_smc_rom_issue_text [phi:main::@66->display_progress_text#0] -- qbuz1=qbuc1 
     lda #<display_smc_rom_issue_text
     sta.z display_progress_text.text
     lda #>display_smc_rom_issue_text
     sta.z display_progress_text.text+1
-    // [663] phi display_progress_text::lines#11 = display_smc_rom_issue_count [phi:main::@66->display_progress_text#1] -- vbuz1=vbuc1 
+    // [816] phi display_progress_text::lines#11 = display_smc_rom_issue_count [phi:main::@66->display_progress_text#1] -- vbum1=vbuc1 
     lda #display_smc_rom_issue_count
-    sta.z display_progress_text.lines
+    sta display_progress_text.lines
     jsr display_progress_text
-    // [394] phi from main::@66 to main::@67 [phi:main::@66->main::@67]
+    // [407] phi from main::@66 to main::@67 [phi:main::@66->main::@67]
     // main::@67
-    // display_info_cx16_rom(STATUS_SKIP, "Issue with SMC!")
-    // [395] call display_info_cx16_rom
-    // [851] phi from main::@67 to display_info_cx16_rom [phi:main::@67->display_info_cx16_rom]
-    // [851] phi display_info_cx16_rom::info_text#4 = main::info_text4 [phi:main::@67->display_info_cx16_rom#0] -- pbuz1=pbuc1 
+    // display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!")
+    // [408] call display_info_smc
+    // [614] phi from main::@67 to display_info_smc [phi:main::@67->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = main::info_text4 [phi:main::@67->display_info_smc#0] -- pbuz1=pbuc1 
     lda #<info_text4
-    sta.z display_info_cx16_rom.info_text
+    sta.z display_info_smc.info_text
     lda #>info_text4
-    sta.z display_info_cx16_rom.info_text+1
-    // [851] phi display_info_cx16_rom::info_status#4 = STATUS_SKIP [phi:main::@67->display_info_cx16_rom#1] -- vbuz1=vbuc1 
+    sta.z display_info_smc.info_text+1
+    // [614] phi display_info_smc::info_status#10 = STATUS_SKIP [phi:main::@67->display_info_smc#1] -- vbum1=vbuc1 
     lda #STATUS_SKIP
-    sta.z display_info_cx16_rom.info_status
-    jsr display_info_cx16_rom
-    // [396] phi from main::@67 to main::@68 [phi:main::@67->main::@68]
+    sta display_info_smc.info_status
+    jsr display_info_smc
+    // [409] phi from main::@67 to main::@68 [phi:main::@67->main::@68]
     // main::@68
+    // display_info_cx16_rom(STATUS_ISSUE, "Are J1 jumper pins closed?")
+    // [410] call display_info_cx16_rom
+    // [1124] phi from main::@68 to display_info_cx16_rom [phi:main::@68->display_info_cx16_rom]
+    // [1124] phi display_info_cx16_rom::info_text#4 = main::info_text5 [phi:main::@68->display_info_cx16_rom#0] -- pbuz1=pbuc1 
+    lda #<info_text5
+    sta.z display_info_cx16_rom.info_text
+    lda #>info_text5
+    sta.z display_info_cx16_rom.info_text+1
+    // [1124] phi display_info_cx16_rom::info_status#4 = STATUS_ISSUE [phi:main::@68->display_info_cx16_rom#1] -- vbum1=vbuc1 
+    lda #STATUS_ISSUE
+    sta display_info_cx16_rom.info_status
+    jsr display_info_cx16_rom
+    // [411] phi from main::@68 to main::@69 [phi:main::@68->main::@69]
+    // main::@69
+    // util_wait_space()
+    // [412] call util_wait_space
+    // [1121] phi from main::@69 to util_wait_space [phi:main::@69->util_wait_space]
+    jsr util_wait_space
+    jmp check_status_smc4
+    // [413] phi from main::@123 to main::@13 [phi:main::@123->main::@13]
+    // main::@13
+  __b13:
+    // display_action_progress("SMC update issue!")
+    // [414] call display_action_progress
+    // [556] phi from main::@13 to display_action_progress [phi:main::@13->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main::info_text1 [phi:main::@13->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text1
+    sta.z display_action_progress.info_text
+    lda #>info_text1
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [415] phi from main::@13 to main::@62 [phi:main::@13->main::@62]
+    // main::@62
+    // display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count)
+    // [416] call display_progress_text
+    // [816] phi from main::@62 to display_progress_text [phi:main::@62->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_smc_rom_issue_text [phi:main::@62->display_progress_text#0] -- qbuz1=qbuc1 
+    lda #<display_smc_rom_issue_text
+    sta.z display_progress_text.text
+    lda #>display_smc_rom_issue_text
+    sta.z display_progress_text.text+1
+    // [816] phi display_progress_text::lines#11 = display_smc_rom_issue_count [phi:main::@62->display_progress_text#1] -- vbum1=vbuc1 
+    lda #display_smc_rom_issue_count
+    sta display_progress_text.lines
+    jsr display_progress_text
+    // [417] phi from main::@62 to main::@63 [phi:main::@62->main::@63]
+    // main::@63
+    // display_info_cx16_rom(STATUS_SKIP, "Issue with SMC!")
+    // [418] call display_info_cx16_rom
+    // [1124] phi from main::@63 to display_info_cx16_rom [phi:main::@63->display_info_cx16_rom]
+    // [1124] phi display_info_cx16_rom::info_text#4 = main::info_text2 [phi:main::@63->display_info_cx16_rom#0] -- pbuz1=pbuc1 
+    lda #<info_text2
+    sta.z display_info_cx16_rom.info_text
+    lda #>info_text2
+    sta.z display_info_cx16_rom.info_text+1
+    // [1124] phi display_info_cx16_rom::info_status#4 = STATUS_SKIP [phi:main::@63->display_info_cx16_rom#1] -- vbum1=vbuc1 
+    lda #STATUS_SKIP
+    sta display_info_cx16_rom.info_status
+    jsr display_info_cx16_rom
+    // [419] phi from main::@63 to main::@64 [phi:main::@63->main::@64]
+    // main::@64
     // display_info_smc(STATUS_ISSUE, NULL)
-    // [397] call display_info_smc
-    // [595] phi from main::@68 to display_info_smc [phi:main::@68->display_info_smc]
-    // [595] phi display_info_smc::info_text#10 = 0 [phi:main::@68->display_info_smc#0] -- pbuz1=vbuc1 
+    // [420] call display_info_smc
+    // [614] phi from main::@64 to display_info_smc [phi:main::@64->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = 0 [phi:main::@64->display_info_smc#0] -- pbuz1=vbuc1 
     lda #<0
     sta.z display_info_smc.info_text
     sta.z display_info_smc.info_text+1
-    // [595] phi display_info_smc::info_status#10 = STATUS_ISSUE [phi:main::@68->display_info_smc#1] -- vbuz1=vbuc1 
+    // [614] phi display_info_smc::info_status#10 = STATUS_ISSUE [phi:main::@64->display_info_smc#1] -- vbum1=vbuc1 
     lda #STATUS_ISSUE
-    sta.z display_info_smc.info_status
+    sta display_info_smc.info_status
     jsr display_info_smc
-    // [398] phi from main::@68 to main::@69 [phi:main::@68->main::@69]
-    // main::@69
+    // [421] phi from main::@64 to main::@65 [phi:main::@64->main::@65]
+    // main::@65
     // util_wait_space()
-    // [399] call util_wait_space
-    // [673] phi from main::@69 to util_wait_space [phi:main::@69->util_wait_space]
+    // [422] call util_wait_space
+    // [1121] phi from main::@65 to util_wait_space [phi:main::@65->util_wait_space]
     jsr util_wait_space
     jmp check_status_smc2
-    // main::@13
-  __b13:
-    // display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE)
-    // [400] display_info_led::y#3 = PROGRESS_Y+3 + main::intro_status#2 -- vbuz1=vbuc1_plus_vbuz2 
-    lda #PROGRESS_Y+3
-    clc
-    adc.z intro_status
-    sta.z display_info_led.y
-    // [401] display_info_led::tc#3 = status_color[main::intro_status#2] -- vbuz1=pbuc1_derefidx_vbuz2 
-    ldy.z intro_status
-    lda status_color,y
-    sta.z display_info_led.tc
-    // [402] call display_info_led
-    // [856] phi from main::@13 to display_info_led [phi:main::@13->display_info_led]
-    // [856] phi display_info_led::y#4 = display_info_led::y#3 [phi:main::@13->display_info_led#0] -- register_copy 
-    // [856] phi display_info_led::x#4 = PROGRESS_X+3 [phi:main::@13->display_info_led#1] -- vbuz1=vbuc1 
-    lda #PROGRESS_X+3
-    sta.z display_info_led.x
-    // [856] phi display_info_led::tc#4 = display_info_led::tc#3 [phi:main::@13->display_info_led#2] -- register_copy 
-    jsr display_info_led
-    // main::@61
-    // for(unsigned char intro_status=0; intro_status<11; intro_status++)
-    // [403] main::intro_status#1 = ++ main::intro_status#2 -- vbuz1=_inc_vbuz1 
-    inc.z intro_status
-    // [108] phi from main::@61 to main::@12 [phi:main::@61->main::@12]
-    // [108] phi main::intro_status#2 = main::intro_status#1 [phi:main::@61->main::@12#0] -- register_copy 
-    jmp __b12
     // main::@11
   __b11:
     // rom_chip*13
-    // [404] main::$212 = main::rom_chip#2 << 1 -- vbuz1=vbuz2_rol_1 
+    // [423] main::$230 = main::rom_chip#2 << 1 -- vbuz1=vbuz2_rol_1 
     lda.z rom_chip
     asl
-    sta.z main__212
-    // [405] main::$213 = main::$212 + main::rom_chip#2 -- vbuz1=vbuz1_plus_vbuz2 
-    lda.z main__213
+    sta.z main__230
+    // [424] main::$231 = main::$230 + main::rom_chip#2 -- vbuz1=vbuz1_plus_vbuz2 
+    lda.z main__231
     clc
     adc.z rom_chip
-    sta.z main__213
-    // [406] main::$214 = main::$213 << 2 -- vbuz1=vbuz1_rol_2 
-    lda.z main__214
+    sta.z main__231
+    // [425] main::$232 = main::$231 << 2 -- vbuz1=vbuz1_rol_2 
+    lda.z main__232
     asl
     asl
-    sta.z main__214
-    // [407] main::$80 = main::$214 + main::rom_chip#2 -- vbuz1=vbuz1_plus_vbuz2 
-    lda.z main__80
+    sta.z main__232
+    // [426] main::$74 = main::$232 + main::rom_chip#2 -- vbuz1=vbuz1_plus_vbuz2 
+    lda.z main__74
     clc
     adc.z rom_chip
-    sta.z main__80
+    sta.z main__74
     // strcpy(&rom_release_text[rom_chip*13], "          " )
-    // [408] strcpy::destination#1 = rom_release_text + main::$80 -- pbuz1=pbuc1_plus_vbuz2 
+    // [427] strcpy::destination#1 = rom_release_text + main::$74 -- pbuz1=pbuc1_plus_vbuz2 
     clc
     adc #<rom_release_text
     sta.z strcpy.destination
     lda #>rom_release_text
     adc #0
     sta.z strcpy.destination+1
-    // [409] call strcpy
-    // [867] phi from main::@11 to strcpy [phi:main::@11->strcpy]
-    // [867] phi strcpy::dst#0 = strcpy::destination#1 [phi:main::@11->strcpy#0] -- register_copy 
-    // [867] phi strcpy::src#0 = main::source [phi:main::@11->strcpy#1] -- pbuz1=pbuc1 
+    // [428] call strcpy
+    // [1129] phi from main::@11 to strcpy [phi:main::@11->strcpy]
+    // [1129] phi strcpy::dst#0 = strcpy::destination#1 [phi:main::@11->strcpy#0] -- register_copy 
+    // [1129] phi strcpy::src#0 = main::source [phi:main::@11->strcpy#1] -- pbuz1=pbuc1 
     lda #<source
     sta.z strcpy.src
     lda #>source
     sta.z strcpy.src+1
     jsr strcpy
-    // main::@57
+    // main::@58
     // display_info_rom(rom_chip, STATUS_NONE, NULL)
-    // [410] display_info_rom::rom_chip#1 = main::rom_chip#2 -- vbuz1=vbuz2 
+    // [429] display_info_rom::rom_chip#2 = main::rom_chip#2 -- vbum1=vbuz2 
     lda.z rom_chip
-    sta.z display_info_rom.rom_chip
-    // [411] call display_info_rom
-    // [808] phi from main::@57 to display_info_rom [phi:main::@57->display_info_rom]
-    // [808] phi display_info_rom::info_text#10 = 0 [phi:main::@57->display_info_rom#0] -- pbuz1=vbuc1 
+    sta display_info_rom.rom_chip
+    // [430] call display_info_rom
+    // [1076] phi from main::@58 to display_info_rom [phi:main::@58->display_info_rom]
+    // [1076] phi display_info_rom::info_text#10 = 0 [phi:main::@58->display_info_rom#0] -- pbuz1=vbuc1 
     lda #<0
     sta.z display_info_rom.info_text
     sta.z display_info_rom.info_text+1
-    // [808] phi display_info_rom::rom_chip#10 = display_info_rom::rom_chip#1 [phi:main::@57->display_info_rom#1] -- register_copy 
-    // [808] phi display_info_rom::info_status#10 = STATUS_NONE [phi:main::@57->display_info_rom#2] -- vbuz1=vbuc1 
+    // [1076] phi display_info_rom::rom_chip#10 = display_info_rom::rom_chip#2 [phi:main::@58->display_info_rom#1] -- register_copy 
+    // [1076] phi display_info_rom::info_status#10 = STATUS_NONE [phi:main::@58->display_info_rom#2] -- vbum1=vbuc1 
     lda #STATUS_NONE
-    sta.z display_info_rom.info_status
+    sta display_info_rom.info_status
     jsr display_info_rom
-    // main::@58
+    // main::@59
     // for(unsigned char rom_chip=0; rom_chip<8; rom_chip++)
-    // [412] main::rom_chip#1 = ++ main::rom_chip#2 -- vbuz1=_inc_vbuz1 
+    // [431] main::rom_chip#1 = ++ main::rom_chip#2 -- vbuz1=_inc_vbuz1 
     inc.z rom_chip
-    // [98] phi from main::@58 to main::@10 [phi:main::@58->main::@10]
-    // [98] phi main::rom_chip#2 = main::rom_chip#1 [phi:main::@58->main::@10#0] -- register_copy 
+    // [94] phi from main::@59 to main::@10 [phi:main::@59->main::@10]
+    // [94] phi main::rom_chip#2 = main::rom_chip#1 [phi:main::@59->main::@10#0] -- register_copy 
     jmp __b10
   .segment Data
     title_text: .text "Commander X16 Update Utility (v2.2.0)."
@@ -2467,83 +2614,118 @@ main: {
     .byte 0
     source: .text "          "
     .byte 0
-    info_text1: .text "VERA installed, OK"
+    info_text1: .text "SMC update issue!"
     .byte 0
-    info_text2: .text "VERA not yet supported"
+    info_text2: .text "Issue with SMC!"
     .byte 0
-    info_text3: .text "SMC update issue!"
+    info_text3: .text "CX16 ROM update issue, ROM not detected!"
     .byte 0
-    info_text4: .text "Issue with SMC!"
+    info_text4: .text "Issue with main CX16 ROM!"
     .byte 0
-    info_text5: .text "CX16 ROM update issue, ROM not detected!"
+    info_text5: .text "Are J1 jumper pins closed?"
     .byte 0
-    info_text6: .text "Issue with main CX16 ROM!"
+    info_text6: .text "CX16 ROM update issue!"
     .byte 0
-    info_text7: .text "Are J1 jumper pins closed?"
+    info_text8: .text "Compatibility between ROM.BIN and SMC.BIN can't be assured!"
     .byte 0
-    info_text8: .text "CX16 ROM update issue!"
-    .byte 0
-    info_text10: .text "Compatibility between ROM.BIN and SMC.BIN can't be assured!"
-    .byte 0
-    info_text11: .text "Continue with flashing anyway? [Y/N]"
+    info_text9: .text "Continue with flashing anyway? [Y/N]"
     .byte 0
     filter: .text "YN"
     .byte 0
-    info_text12: .text "The SMC chip and SMC.BIN versions are equal, no flash required!"
+    info_text10: .text "The SMC chip and SMC.BIN versions are equal, no flash required!"
     .byte 0
-    info_text13: .text "SMC.BIN and SMC equal."
+    info_text11: .text "SMC.BIN and SMC equal."
     .byte 0
-    info_text14: .text "Chipsets have been detected and update files validated!"
+    info_text12: .text "Chipsets have been detected and update files validated!"
     .byte 0
-    info_text15: .text "Continue with update of highlighted chipsets? [Y/N]"
+    info_text13: .text "Continue with update of highlighted chipsets? [Y/N]"
     .byte 0
     filter1: .text "nyNY"
     .byte 0
-    main__190: .text "nN"
+    main__207: .text "nN"
     .byte 0
-    info_text16: .text "Cancelled"
+    info_text14: .text "Cancelled"
     .byte 0
-    info_text19: .text "You have selected not to cancel the update ... "
+    info_text17: .text "You have selected not to cancel the update ... "
     .byte 0
-    info_text20: .text "No CX16 component has been updated with new firmware!"
+    s2: .text "There was a severe error updating your VERA!"
     .byte 0
-    info_text21: .text "Update Failure! Your CX16 may no longer boot!"
+    s3: .text @"You are back at the READY prompt without resetting your CX16.\n\n"
     .byte 0
-    info_text22: .text "Take a photo of this screen, shut down power and retry!"
+    s4: .text @"Please don't reset or shut down your VERA until you've\n"
     .byte 0
-    info_text23: .text "Update issues, your CX16 is not updated!"
+    s5: .text "managed to either reflash your VERA with the previous firmware "
     .byte 0
-    info_text24: .text "Your CX16 update is a success!"
+    s6: .text @"or have update successs retrying!\n\n"
+    .byte 0
+    s7: .text @"PLEASE REMOVE THE JP1 JUMPER OR YOUR SDCARD WON'T WORK!\n"
+    .byte 0
+    info_text18: .text "No CX16 component has been updated with new firmware!"
+    .byte 0
+    info_text19: .text "Update Failure! Your CX16 may no longer boot!"
+    .byte 0
+    info_text20: .text "Take a photo of this screen, shut down power and retry!"
+    .byte 0
+    info_text21: .text "Update issues, your CX16 is not updated!"
+    .byte 0
+    info_text22: .text "Your CX16 update is a success!"
     .byte 0
     text: .text "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!"
     .byte 0
-    s2: .text "["
+    s8: .text "["
     .byte 0
-    s3: .text "] Please read carefully the below ..."
+    s9: .text "] Please read carefully the below ..."
     .byte 0
-    s4: .text "Please disconnect your CX16 from power source ..."
+    s10: .text "Please disconnect your CX16 from power source ..."
     .byte 0
-    s5: .text "("
+    s11: .text "("
     .byte 0
-    s6: .text ") Your CX16 will reset after countdown ..."
+    s12: .text ") Your CX16 will reset after countdown ..."
     .byte 0
+    check_status_smc1_return: .byte 0
+    check_status_cx16_rom1_check_status_rom1_return: .byte 0
+    check_status_smc2_return: .byte 0
+    check_status_cx16_rom2_check_status_rom1_return: .byte 0
+    check_status_smc3_return: .byte 0
+    check_status_cx16_rom3_check_status_rom1_return: .byte 0
+    check_status_smc4_return: .byte 0
+    check_status_cx16_rom4_check_status_rom1_return: .byte 0
+    check_status_smc5_return: .byte 0
+    check_status_smc6_return: .byte 0
+    check_status_vera1_return: .byte 0
+    check_status_smc7_return: .byte 0
+    check_status_vera2_return: .byte 0
+    check_status_vera3_return: .byte 0
+    check_status_vera4_return: .byte 0
+    check_status_smc8_return: .byte 0
+    check_status_cx16_rom5_check_status_rom1_return: .byte 0
+    check_status_vera5_return: .byte 0
+    check_status_smc9_return: .byte 0
+    check_status_smc10_return: .byte 0
+    check_status_vera6_return: .byte 0
+    check_status_vera7_return: .byte 0
+    check_status_smc11_return: .byte 0
+    check_status_vera8_return: .byte 0
+    check_status_smc12_return: .byte 0
+    check_status_vera9_return: .byte 0
+    check_status_smc13_return: .byte 0
 }
 .segment Code
   // screenlayer1
 // Set the layer with which the conio will interact.
 screenlayer1: {
     // screenlayer(1, *VERA_L1_MAPBASE, *VERA_L1_CONFIG)
-    // [413] screenlayer::mapbase#0 = *VERA_L1_MAPBASE -- vbum1=_deref_pbuc1 
+    // [432] screenlayer::mapbase#0 = *VERA_L1_MAPBASE -- vbum1=_deref_pbuc1 
     lda VERA_L1_MAPBASE
     sta screenlayer.mapbase
-    // [414] screenlayer::config#0 = *VERA_L1_CONFIG -- vbum1=_deref_pbuc1 
+    // [433] screenlayer::config#0 = *VERA_L1_CONFIG -- vbum1=_deref_pbuc1 
     lda VERA_L1_CONFIG
     sta screenlayer.config
-    // [415] call screenlayer
+    // [434] call screenlayer
     jsr screenlayer
     // screenlayer1::@return
     // }
-    // [416] return 
+    // [435] return 
     rts
 }
   // textcolor
@@ -2553,24 +2735,24 @@ screenlayer1: {
 //   Note that on the VERA, the transparent color has value 0.
 // char textcolor(__mem() char color)
 textcolor: {
-    .label textcolor__0 = $45
-    .label textcolor__1 = $45
+    .label textcolor__0 = $4d
+    .label textcolor__1 = $4d
     // __conio.color & 0xF0
-    // [418] textcolor::$0 = *((char *)&__conio+$d) & $f0 -- vbuz1=_deref_pbuc1_band_vbuc2 
+    // [437] textcolor::$0 = *((char *)&__conio+$d) & $f0 -- vbuz1=_deref_pbuc1_band_vbuc2 
     lda #$f0
     and __conio+$d
     sta.z textcolor__0
     // __conio.color & 0xF0 | color
-    // [419] textcolor::$1 = textcolor::$0 | textcolor::color#20 -- vbuz1=vbuz1_bor_vbum2 
+    // [438] textcolor::$1 = textcolor::$0 | textcolor::color#21 -- vbuz1=vbuz1_bor_vbum2 
     lda color
     ora.z textcolor__1
     sta.z textcolor__1
     // __conio.color = __conio.color & 0xF0 | color
-    // [420] *((char *)&__conio+$d) = textcolor::$1 -- _deref_pbuc1=vbuz1 
+    // [439] *((char *)&__conio+$d) = textcolor::$1 -- _deref_pbuc1=vbuz1 
     sta __conio+$d
     // textcolor::@return
     // }
-    // [421] return 
+    // [440] return 
     rts
   .segment Data
     color: .byte 0
@@ -2583,16 +2765,16 @@ textcolor: {
 //   Note that on the VERA, the transparent color has value 0.
 // char bgcolor(__mem() char color)
 bgcolor: {
-    .label bgcolor__0 = $45
-    .label bgcolor__1 = $4a
-    .label bgcolor__2 = $45
+    .label bgcolor__0 = $4d
+    .label bgcolor__1 = $53
+    .label bgcolor__2 = $4d
     // __conio.color & 0x0F
-    // [423] bgcolor::$0 = *((char *)&__conio+$d) & $f -- vbuz1=_deref_pbuc1_band_vbuc2 
+    // [442] bgcolor::$0 = *((char *)&__conio+$d) & $f -- vbuz1=_deref_pbuc1_band_vbuc2 
     lda #$f
     and __conio+$d
     sta.z bgcolor__0
     // color << 4
-    // [424] bgcolor::$1 = bgcolor::color#14 << 4 -- vbuz1=vbum2_rol_4 
+    // [443] bgcolor::$1 = bgcolor::color#15 << 4 -- vbuz1=vbum2_rol_4 
     lda color
     asl
     asl
@@ -2600,16 +2782,16 @@ bgcolor: {
     asl
     sta.z bgcolor__1
     // __conio.color & 0x0F | color << 4
-    // [425] bgcolor::$2 = bgcolor::$0 | bgcolor::$1 -- vbuz1=vbuz1_bor_vbuz2 
+    // [444] bgcolor::$2 = bgcolor::$0 | bgcolor::$1 -- vbuz1=vbuz1_bor_vbuz2 
     lda.z bgcolor__2
     ora.z bgcolor__1
     sta.z bgcolor__2
     // __conio.color = __conio.color & 0x0F | color << 4
-    // [426] *((char *)&__conio+$d) = bgcolor::$2 -- _deref_pbuc1=vbuz1 
+    // [445] *((char *)&__conio+$d) = bgcolor::$2 -- _deref_pbuc1=vbuz1 
     sta __conio+$d
     // bgcolor::@return
     // }
-    // [427] return 
+    // [446] return 
     rts
   .segment Data
     color: .byte 0
@@ -2623,12 +2805,12 @@ bgcolor: {
 cursor: {
     .const onoff = 0
     // __conio.cursor = onoff
-    // [428] *((char *)&__conio+$c) = cursor::onoff#0 -- _deref_pbuc1=vbuc2 
+    // [447] *((char *)&__conio+$c) = cursor::onoff#0 -- _deref_pbuc1=vbuc2 
     lda #onoff
     sta __conio+$c
     // cursor::@return
     // }
-    // [429] return 
+    // [448] return 
     rts
 }
   // cbm_k_plot_get
@@ -2638,11 +2820,11 @@ cursor: {
  */
 cbm_k_plot_get: {
     // __mem unsigned char x
-    // [430] cbm_k_plot_get::x = 0 -- vbum1=vbuc1 
+    // [449] cbm_k_plot_get::x = 0 -- vbum1=vbuc1 
     lda #0
     sta x
     // __mem unsigned char y
-    // [431] cbm_k_plot_get::y = 0 -- vbum1=vbuc1 
+    // [450] cbm_k_plot_get::y = 0 -- vbum1=vbuc1 
     sta y
     // kickasm
     // kickasm( uses cbm_k_plot_get::x uses cbm_k_plot_get::y uses CBM_PLOT) {{ sec         jsr CBM_PLOT         stx y         sty x      }}
@@ -2652,14 +2834,14 @@ cbm_k_plot_get: {
         sty x
     
     // MAKEWORD(x,y)
-    // [433] cbm_k_plot_get::return#0 = cbm_k_plot_get::x w= cbm_k_plot_get::y -- vwum1=vbum2_word_vbum3 
+    // [452] cbm_k_plot_get::return#0 = cbm_k_plot_get::x w= cbm_k_plot_get::y -- vwum1=vbum2_word_vbum3 
     lda x
     sta return+1
     lda y
     sta return
     // cbm_k_plot_get::@return
     // }
-    // [434] return 
+    // [453] return 
     rts
   .segment Data
     x: .byte 0
@@ -2680,54 +2862,54 @@ gotoxy: {
     .label gotoxy__10 = $2d
     .label gotoxy__14 = $2b
     // (x>=__conio.width)?__conio.width:x
-    // [436] if(gotoxy::x#19>=*((char *)&__conio+6)) goto gotoxy::@1 -- vbum1_ge__deref_pbuc1_then_la1 
+    // [455] if(gotoxy::x#27>=*((char *)&__conio+6)) goto gotoxy::@1 -- vbum1_ge__deref_pbuc1_then_la1 
     lda x
     cmp __conio+6
     bcs __b1
-    // [438] phi from gotoxy to gotoxy::@2 [phi:gotoxy->gotoxy::@2]
-    // [438] phi gotoxy::$3 = gotoxy::x#19 [phi:gotoxy->gotoxy::@2#0] -- vbuz1=vbum2 
+    // [457] phi from gotoxy to gotoxy::@2 [phi:gotoxy->gotoxy::@2]
+    // [457] phi gotoxy::$3 = gotoxy::x#27 [phi:gotoxy->gotoxy::@2#0] -- vbuz1=vbum2 
     sta.z gotoxy__3
     jmp __b2
     // gotoxy::@1
   __b1:
-    // [437] gotoxy::$2 = *((char *)&__conio+6) -- vbuz1=_deref_pbuc1 
+    // [456] gotoxy::$2 = *((char *)&__conio+6) -- vbuz1=_deref_pbuc1 
     lda __conio+6
     sta.z gotoxy__2
-    // [438] phi from gotoxy::@1 to gotoxy::@2 [phi:gotoxy::@1->gotoxy::@2]
-    // [438] phi gotoxy::$3 = gotoxy::$2 [phi:gotoxy::@1->gotoxy::@2#0] -- register_copy 
+    // [457] phi from gotoxy::@1 to gotoxy::@2 [phi:gotoxy::@1->gotoxy::@2]
+    // [457] phi gotoxy::$3 = gotoxy::$2 [phi:gotoxy::@1->gotoxy::@2#0] -- register_copy 
     // gotoxy::@2
   __b2:
     // __conio.cursor_x = (x>=__conio.width)?__conio.width:x
-    // [439] *((char *)&__conio) = gotoxy::$3 -- _deref_pbuc1=vbuz1 
+    // [458] *((char *)&__conio) = gotoxy::$3 -- _deref_pbuc1=vbuz1 
     lda.z gotoxy__3
     sta __conio
     // (y>=__conio.height)?__conio.height:y
-    // [440] if(gotoxy::y#19>=*((char *)&__conio+7)) goto gotoxy::@3 -- vbum1_ge__deref_pbuc1_then_la1 
+    // [459] if(gotoxy::y#27>=*((char *)&__conio+7)) goto gotoxy::@3 -- vbum1_ge__deref_pbuc1_then_la1 
     lda y
     cmp __conio+7
     bcs __b3
     // gotoxy::@4
-    // [441] gotoxy::$14 = gotoxy::y#19 -- vbuz1=vbum2 
+    // [460] gotoxy::$14 = gotoxy::y#27 -- vbuz1=vbum2 
     sta.z gotoxy__14
-    // [442] phi from gotoxy::@3 gotoxy::@4 to gotoxy::@5 [phi:gotoxy::@3/gotoxy::@4->gotoxy::@5]
-    // [442] phi gotoxy::$7 = gotoxy::$6 [phi:gotoxy::@3/gotoxy::@4->gotoxy::@5#0] -- register_copy 
+    // [461] phi from gotoxy::@3 gotoxy::@4 to gotoxy::@5 [phi:gotoxy::@3/gotoxy::@4->gotoxy::@5]
+    // [461] phi gotoxy::$7 = gotoxy::$6 [phi:gotoxy::@3/gotoxy::@4->gotoxy::@5#0] -- register_copy 
     // gotoxy::@5
   __b5:
     // __conio.cursor_y = (y>=__conio.height)?__conio.height:y
-    // [443] *((char *)&__conio+1) = gotoxy::$7 -- _deref_pbuc1=vbuz1 
+    // [462] *((char *)&__conio+1) = gotoxy::$7 -- _deref_pbuc1=vbuz1 
     lda.z gotoxy__7
     sta __conio+1
     // __conio.cursor_x << 1
-    // [444] gotoxy::$8 = *((char *)&__conio) << 1 -- vbuz1=_deref_pbuc1_rol_1 
+    // [463] gotoxy::$8 = *((char *)&__conio) << 1 -- vbuz1=_deref_pbuc1_rol_1 
     lda __conio
     asl
     sta.z gotoxy__8
     // __conio.offsets[y] + __conio.cursor_x << 1
-    // [445] gotoxy::$10 = gotoxy::y#19 << 1 -- vbuz1=vbum2_rol_1 
+    // [464] gotoxy::$10 = gotoxy::y#27 << 1 -- vbuz1=vbum2_rol_1 
     lda y
     asl
     sta.z gotoxy__10
-    // [446] gotoxy::$9 = ((unsigned int *)&__conio+$15)[gotoxy::$10] + gotoxy::$8 -- vwuz1=pwuc1_derefidx_vbuz2_plus_vbuz3 
+    // [465] gotoxy::$9 = ((unsigned int *)&__conio+$15)[gotoxy::$10] + gotoxy::$8 -- vwuz1=pwuc1_derefidx_vbuz2_plus_vbuz3 
     lda.z gotoxy__8
     ldy.z gotoxy__10
     clc
@@ -2737,19 +2919,19 @@ gotoxy: {
     adc #0
     sta.z gotoxy__9+1
     // __conio.offset = __conio.offsets[y] + __conio.cursor_x << 1
-    // [447] *((unsigned int *)&__conio+$13) = gotoxy::$9 -- _deref_pwuc1=vwuz1 
+    // [466] *((unsigned int *)&__conio+$13) = gotoxy::$9 -- _deref_pwuc1=vwuz1 
     lda.z gotoxy__9
     sta __conio+$13
     lda.z gotoxy__9+1
     sta __conio+$13+1
     // gotoxy::@return
     // }
-    // [448] return 
+    // [467] return 
     rts
     // gotoxy::@3
   __b3:
     // (y>=__conio.height)?__conio.height:y
-    // [449] gotoxy::$6 = *((char *)&__conio+7) -- vbuz1=_deref_pbuc1 
+    // [468] gotoxy::$6 = *((char *)&__conio+7) -- vbuz1=_deref_pbuc1 
     lda __conio+7
     sta.z gotoxy__6
     jmp __b5
@@ -2761,31 +2943,31 @@ gotoxy: {
   // cputln
 // Print a newline
 cputln: {
-    .label cputln__2 = $32
+    .label cputln__2 = $3a
     // __conio.cursor_x = 0
-    // [450] *((char *)&__conio) = 0 -- _deref_pbuc1=vbuc2 
+    // [469] *((char *)&__conio) = 0 -- _deref_pbuc1=vbuc2 
     lda #0
     sta __conio
     // __conio.cursor_y++;
-    // [451] *((char *)&__conio+1) = ++ *((char *)&__conio+1) -- _deref_pbuc1=_inc__deref_pbuc1 
+    // [470] *((char *)&__conio+1) = ++ *((char *)&__conio+1) -- _deref_pbuc1=_inc__deref_pbuc1 
     inc __conio+1
     // __conio.offset = __conio.offsets[__conio.cursor_y]
-    // [452] cputln::$2 = *((char *)&__conio+1) << 1 -- vbuz1=_deref_pbuc1_rol_1 
+    // [471] cputln::$2 = *((char *)&__conio+1) << 1 -- vbuz1=_deref_pbuc1_rol_1 
     lda __conio+1
     asl
     sta.z cputln__2
-    // [453] *((unsigned int *)&__conio+$13) = ((unsigned int *)&__conio+$15)[cputln::$2] -- _deref_pwuc1=pwuc2_derefidx_vbuz1 
+    // [472] *((unsigned int *)&__conio+$13) = ((unsigned int *)&__conio+$15)[cputln::$2] -- _deref_pwuc1=pwuc2_derefidx_vbuz1 
     tay
     lda __conio+$15,y
     sta __conio+$13
     lda __conio+$15+1,y
     sta __conio+$13+1
     // cscroll()
-    // [454] call cscroll
+    // [473] call cscroll
     jsr cscroll
     // cputln::@return
     // }
-    // [455] return 
+    // [474] return 
     rts
 }
   // display_frame_init_64
@@ -2797,25 +2979,25 @@ display_frame_init_64: {
     .const vera_display_set_hstop1_stop = $93
     .const vera_display_set_vstart1_start = $13
     .const vera_display_set_vstop1_stop = $db
-    .label cx16_k_screen_set_charset1_offset = $bc
+    .label cx16_k_screen_set_charset1_offset = $b3
     // cx16_k_screen_set_mode(0)
-    // [456] cx16_k_screen_set_mode::mode = 0 -- vbum1=vbuc1 
+    // [475] cx16_k_screen_set_mode::mode = 0 -- vbum1=vbuc1 
     lda #0
     sta cx16_k_screen_set_mode.mode
-    // [457] call cx16_k_screen_set_mode
+    // [476] call cx16_k_screen_set_mode
     jsr cx16_k_screen_set_mode
-    // [458] phi from display_frame_init_64 to display_frame_init_64::@2 [phi:display_frame_init_64->display_frame_init_64::@2]
+    // [477] phi from display_frame_init_64 to display_frame_init_64::@2 [phi:display_frame_init_64->display_frame_init_64::@2]
     // display_frame_init_64::@2
     // screenlayer1()
-    // [459] call screenlayer1
+    // [478] call screenlayer1
     // Default 80 columns mode.
     jsr screenlayer1
     // display_frame_init_64::@3
     // cx16_k_screen_set_charset(3, (char *)0)
-    // [460] display_frame_init_64::cx16_k_screen_set_charset1_charset = 3 -- vbum1=vbuc1 
+    // [479] display_frame_init_64::cx16_k_screen_set_charset1_charset = 3 -- vbum1=vbuc1 
     lda #3
     sta cx16_k_screen_set_charset1_charset
-    // [461] display_frame_init_64::cx16_k_screen_set_charset1_offset = (char *) 0 -- pbuz1=pbuc1 
+    // [480] display_frame_init_64::cx16_k_screen_set_charset1_offset = (char *) 0 -- pbuz1=pbuc1 
     lda #<0
     sta.z cx16_k_screen_set_charset1_offset
     sta.z cx16_k_screen_set_charset1_offset+1
@@ -2828,107 +3010,107 @@ display_frame_init_64: {
     jsr CX16_SCREEN_SET_CHARSET
     // display_frame_init_64::vera_display_set_hstart1
     // *VERA_CTRL |= VERA_DCSEL
-    // [463] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    // [482] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
     lda #VERA_DCSEL
     ora VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_HSTART = start
-    // [464] *VERA_DC_HSTART = display_frame_init_64::vera_display_set_hstart1_start#0 -- _deref_pbuc1=vbuc2 
+    // [483] *VERA_DC_HSTART = display_frame_init_64::vera_display_set_hstart1_start#0 -- _deref_pbuc1=vbuc2 
     lda #vera_display_set_hstart1_start
     sta VERA_DC_HSTART
     // display_frame_init_64::vera_display_set_hstop1
     // *VERA_CTRL |= VERA_DCSEL
-    // [465] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    // [484] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
     lda #VERA_DCSEL
     ora VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_HSTOP = stop
-    // [466] *VERA_DC_HSTOP = display_frame_init_64::vera_display_set_hstop1_stop#0 -- _deref_pbuc1=vbuc2 
+    // [485] *VERA_DC_HSTOP = display_frame_init_64::vera_display_set_hstop1_stop#0 -- _deref_pbuc1=vbuc2 
     lda #vera_display_set_hstop1_stop
     sta VERA_DC_HSTOP
     // display_frame_init_64::vera_display_set_vstart1
     // *VERA_CTRL |= VERA_DCSEL
-    // [467] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    // [486] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
     lda #VERA_DCSEL
     ora VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_VSTART = start
-    // [468] *VERA_DC_VSTART = display_frame_init_64::vera_display_set_vstart1_start#0 -- _deref_pbuc1=vbuc2 
+    // [487] *VERA_DC_VSTART = display_frame_init_64::vera_display_set_vstart1_start#0 -- _deref_pbuc1=vbuc2 
     lda #vera_display_set_vstart1_start
     sta VERA_DC_VSTART
     // display_frame_init_64::vera_display_set_vstop1
     // *VERA_CTRL |= VERA_DCSEL
-    // [469] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    // [488] *VERA_CTRL = *VERA_CTRL | VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
     lda #VERA_DCSEL
     ora VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_VSTOP = stop
-    // [470] *VERA_DC_VSTOP = display_frame_init_64::vera_display_set_vstop1_stop#0 -- _deref_pbuc1=vbuc2 
+    // [489] *VERA_DC_VSTOP = display_frame_init_64::vera_display_set_vstop1_stop#0 -- _deref_pbuc1=vbuc2 
     lda #vera_display_set_vstop1_stop
     sta VERA_DC_VSTOP
     // display_frame_init_64::vera_sprites_hide1
     // *VERA_CTRL &= ~VERA_DCSEL
-    // [471] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [490] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_DCSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_VIDEO &= ~VERA_SPRITES_ENABLE
-    // [472] *VERA_DC_VIDEO = *VERA_DC_VIDEO & ~VERA_SPRITES_ENABLE -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [491] *VERA_DC_VIDEO = *VERA_DC_VIDEO & ~VERA_SPRITES_ENABLE -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_SPRITES_ENABLE^$ff
     and VERA_DC_VIDEO
     sta VERA_DC_VIDEO
     // display_frame_init_64::vera_layer0_hide1
     // *VERA_CTRL &= ~VERA_DCSEL
-    // [473] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [492] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_DCSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_VIDEO &= ~VERA_LAYER0_ENABLE
-    // [474] *VERA_DC_VIDEO = *VERA_DC_VIDEO & ~VERA_LAYER0_ENABLE -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [493] *VERA_DC_VIDEO = *VERA_DC_VIDEO & ~VERA_LAYER0_ENABLE -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_LAYER0_ENABLE^$ff
     and VERA_DC_VIDEO
     sta VERA_DC_VIDEO
     // display_frame_init_64::vera_layer1_show1
     // *VERA_CTRL &= ~VERA_DCSEL
-    // [475] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [494] *VERA_CTRL = *VERA_CTRL & ~VERA_DCSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_DCSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // *VERA_DC_VIDEO |= VERA_LAYER1_ENABLE
-    // [476] *VERA_DC_VIDEO = *VERA_DC_VIDEO | VERA_LAYER1_ENABLE -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    // [495] *VERA_DC_VIDEO = *VERA_DC_VIDEO | VERA_LAYER1_ENABLE -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
     lda #VERA_LAYER1_ENABLE
     ora VERA_DC_VIDEO
     sta VERA_DC_VIDEO
-    // [477] phi from display_frame_init_64::vera_layer1_show1 to display_frame_init_64::@1 [phi:display_frame_init_64::vera_layer1_show1->display_frame_init_64::@1]
+    // [496] phi from display_frame_init_64::vera_layer1_show1 to display_frame_init_64::@1 [phi:display_frame_init_64::vera_layer1_show1->display_frame_init_64::@1]
     // display_frame_init_64::@1
     // textcolor(WHITE)
-    // [478] call textcolor
+    // [497] call textcolor
   // Layer 1 is the current text canvas.
-    // [417] phi from display_frame_init_64::@1 to textcolor [phi:display_frame_init_64::@1->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_frame_init_64::@1->textcolor#0] -- vbum1=vbuc1 
+    // [436] phi from display_frame_init_64::@1 to textcolor [phi:display_frame_init_64::@1->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_frame_init_64::@1->textcolor#0] -- vbum1=vbuc1 
     lda #WHITE
     sta textcolor.color
     jsr textcolor
-    // [479] phi from display_frame_init_64::@1 to display_frame_init_64::@4 [phi:display_frame_init_64::@1->display_frame_init_64::@4]
+    // [498] phi from display_frame_init_64::@1 to display_frame_init_64::@4 [phi:display_frame_init_64::@1->display_frame_init_64::@4]
     // display_frame_init_64::@4
     // bgcolor(BLUE)
-    // [480] call bgcolor
+    // [499] call bgcolor
   // Default text color is white.
-    // [422] phi from display_frame_init_64::@4 to bgcolor [phi:display_frame_init_64::@4->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_frame_init_64::@4->bgcolor#0] -- vbum1=vbuc1 
+    // [441] phi from display_frame_init_64::@4 to bgcolor [phi:display_frame_init_64::@4->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_frame_init_64::@4->bgcolor#0] -- vbum1=vbuc1 
     lda #BLUE
     sta bgcolor.color
     jsr bgcolor
-    // [481] phi from display_frame_init_64::@4 to display_frame_init_64::@5 [phi:display_frame_init_64::@4->display_frame_init_64::@5]
+    // [500] phi from display_frame_init_64::@4 to display_frame_init_64::@5 [phi:display_frame_init_64::@4->display_frame_init_64::@5]
     // display_frame_init_64::@5
     // clrscr()
-    // [482] call clrscr
+    // [501] call clrscr
     // With a blue background.
     // cx16-conio.c won't compile scrolling code for this program with the underlying define, resulting in less code overhead!
     jsr clrscr
     // display_frame_init_64::@return
     // }
-    // [483] return 
+    // [502] return 
     rts
   .segment Data
     cx16_k_screen_set_charset1_charset: .byte 0
@@ -2940,328 +3122,328 @@ display_frame_init_64: {
  */
 display_frame_draw: {
     // textcolor(LIGHT_BLUE)
-    // [485] call textcolor
-    // [417] phi from display_frame_draw to textcolor [phi:display_frame_draw->textcolor]
-    // [417] phi textcolor::color#20 = LIGHT_BLUE [phi:display_frame_draw->textcolor#0] -- vbum1=vbuc1 
+    // [504] call textcolor
+    // [436] phi from display_frame_draw to textcolor [phi:display_frame_draw->textcolor]
+    // [436] phi textcolor::color#21 = LIGHT_BLUE [phi:display_frame_draw->textcolor#0] -- vbum1=vbuc1 
     lda #LIGHT_BLUE
     sta textcolor.color
     jsr textcolor
-    // [486] phi from display_frame_draw to display_frame_draw::@1 [phi:display_frame_draw->display_frame_draw::@1]
+    // [505] phi from display_frame_draw to display_frame_draw::@1 [phi:display_frame_draw->display_frame_draw::@1]
     // display_frame_draw::@1
     // bgcolor(BLUE)
-    // [487] call bgcolor
-    // [422] phi from display_frame_draw::@1 to bgcolor [phi:display_frame_draw::@1->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_frame_draw::@1->bgcolor#0] -- vbum1=vbuc1 
+    // [506] call bgcolor
+    // [441] phi from display_frame_draw::@1 to bgcolor [phi:display_frame_draw::@1->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_frame_draw::@1->bgcolor#0] -- vbum1=vbuc1 
     lda #BLUE
     sta bgcolor.color
     jsr bgcolor
-    // [488] phi from display_frame_draw::@1 to display_frame_draw::@2 [phi:display_frame_draw::@1->display_frame_draw::@2]
+    // [507] phi from display_frame_draw::@1 to display_frame_draw::@2 [phi:display_frame_draw::@1->display_frame_draw::@2]
     // display_frame_draw::@2
     // clrscr()
-    // [489] call clrscr
+    // [508] call clrscr
     jsr clrscr
-    // [490] phi from display_frame_draw::@2 to display_frame_draw::@3 [phi:display_frame_draw::@2->display_frame_draw::@3]
+    // [509] phi from display_frame_draw::@2 to display_frame_draw::@3 [phi:display_frame_draw::@2->display_frame_draw::@3]
     // display_frame_draw::@3
     // display_frame(0, 0, 67, 14)
-    // [491] call display_frame
-    // [947] phi from display_frame_draw::@3 to display_frame [phi:display_frame_draw::@3->display_frame]
-    // [947] phi display_frame::y#0 = 0 [phi:display_frame_draw::@3->display_frame#0] -- vbuz1=vbuc1 
+    // [510] call display_frame
+    // [1186] phi from display_frame_draw::@3 to display_frame [phi:display_frame_draw::@3->display_frame]
+    // [1186] phi display_frame::y#0 = 0 [phi:display_frame_draw::@3->display_frame#0] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@3->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@3->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@3->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@3->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@3->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@3->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [492] phi from display_frame_draw::@3 to display_frame_draw::@4 [phi:display_frame_draw::@3->display_frame_draw::@4]
+    // [511] phi from display_frame_draw::@3 to display_frame_draw::@4 [phi:display_frame_draw::@3->display_frame_draw::@4]
     // display_frame_draw::@4
     // display_frame(0, 0, 67, 2)
-    // [493] call display_frame
-    // [947] phi from display_frame_draw::@4 to display_frame [phi:display_frame_draw::@4->display_frame]
-    // [947] phi display_frame::y#0 = 0 [phi:display_frame_draw::@4->display_frame#0] -- vbuz1=vbuc1 
+    // [512] call display_frame
+    // [1186] phi from display_frame_draw::@4 to display_frame [phi:display_frame_draw::@4->display_frame]
+    // [1186] phi display_frame::y#0 = 0 [phi:display_frame_draw::@4->display_frame#0] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = 2 [phi:display_frame_draw::@4->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = 2 [phi:display_frame_draw::@4->display_frame#1] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@4->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@4->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@4->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@4->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [494] phi from display_frame_draw::@4 to display_frame_draw::@5 [phi:display_frame_draw::@4->display_frame_draw::@5]
+    // [513] phi from display_frame_draw::@4 to display_frame_draw::@5 [phi:display_frame_draw::@4->display_frame_draw::@5]
     // display_frame_draw::@5
     // display_frame(0, 2, 67, 14)
-    // [495] call display_frame
-    // [947] phi from display_frame_draw::@5 to display_frame [phi:display_frame_draw::@5->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@5->display_frame#0] -- vbuz1=vbuc1 
+    // [514] call display_frame
+    // [1186] phi from display_frame_draw::@5 to display_frame [phi:display_frame_draw::@5->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@5->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@5->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@5->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@5->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@5->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@5->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@5->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [496] phi from display_frame_draw::@5 to display_frame_draw::@6 [phi:display_frame_draw::@5->display_frame_draw::@6]
+    // [515] phi from display_frame_draw::@5 to display_frame_draw::@6 [phi:display_frame_draw::@5->display_frame_draw::@6]
     // display_frame_draw::@6
     // display_frame(0, 2, 8, 14)
-    // [497] call display_frame
+    // [516] call display_frame
   // Chipset areas
-    // [947] phi from display_frame_draw::@6 to display_frame [phi:display_frame_draw::@6->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@6->display_frame#0] -- vbuz1=vbuc1 
+    // [1186] phi from display_frame_draw::@6 to display_frame [phi:display_frame_draw::@6->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@6->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@6->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@6->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@6->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@6->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = 8 [phi:display_frame_draw::@6->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = 8 [phi:display_frame_draw::@6->display_frame#3] -- vbum1=vbuc1 
     lda #8
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [498] phi from display_frame_draw::@6 to display_frame_draw::@7 [phi:display_frame_draw::@6->display_frame_draw::@7]
+    // [517] phi from display_frame_draw::@6 to display_frame_draw::@7 [phi:display_frame_draw::@6->display_frame_draw::@7]
     // display_frame_draw::@7
     // display_frame(8, 2, 19, 14)
-    // [499] call display_frame
-    // [947] phi from display_frame_draw::@7 to display_frame [phi:display_frame_draw::@7->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@7->display_frame#0] -- vbuz1=vbuc1 
+    // [518] call display_frame
+    // [1186] phi from display_frame_draw::@7 to display_frame [phi:display_frame_draw::@7->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@7->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@7->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@7->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 8 [phi:display_frame_draw::@7->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 8 [phi:display_frame_draw::@7->display_frame#2] -- vbum1=vbuc1 
     lda #8
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $13 [phi:display_frame_draw::@7->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $13 [phi:display_frame_draw::@7->display_frame#3] -- vbum1=vbuc1 
     lda #$13
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [500] phi from display_frame_draw::@7 to display_frame_draw::@8 [phi:display_frame_draw::@7->display_frame_draw::@8]
+    // [519] phi from display_frame_draw::@7 to display_frame_draw::@8 [phi:display_frame_draw::@7->display_frame_draw::@8]
     // display_frame_draw::@8
     // display_frame(19, 2, 25, 14)
-    // [501] call display_frame
-    // [947] phi from display_frame_draw::@8 to display_frame [phi:display_frame_draw::@8->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@8->display_frame#0] -- vbuz1=vbuc1 
+    // [520] call display_frame
+    // [1186] phi from display_frame_draw::@8 to display_frame [phi:display_frame_draw::@8->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@8->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@8->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@8->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $13 [phi:display_frame_draw::@8->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $13 [phi:display_frame_draw::@8->display_frame#2] -- vbum1=vbuc1 
     lda #$13
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $19 [phi:display_frame_draw::@8->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $19 [phi:display_frame_draw::@8->display_frame#3] -- vbum1=vbuc1 
     lda #$19
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [502] phi from display_frame_draw::@8 to display_frame_draw::@9 [phi:display_frame_draw::@8->display_frame_draw::@9]
+    // [521] phi from display_frame_draw::@8 to display_frame_draw::@9 [phi:display_frame_draw::@8->display_frame_draw::@9]
     // display_frame_draw::@9
     // display_frame(25, 2, 31, 14)
-    // [503] call display_frame
-    // [947] phi from display_frame_draw::@9 to display_frame [phi:display_frame_draw::@9->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@9->display_frame#0] -- vbuz1=vbuc1 
+    // [522] call display_frame
+    // [1186] phi from display_frame_draw::@9 to display_frame [phi:display_frame_draw::@9->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@9->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@9->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@9->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $19 [phi:display_frame_draw::@9->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $19 [phi:display_frame_draw::@9->display_frame#2] -- vbum1=vbuc1 
     lda #$19
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $1f [phi:display_frame_draw::@9->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $1f [phi:display_frame_draw::@9->display_frame#3] -- vbum1=vbuc1 
     lda #$1f
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [504] phi from display_frame_draw::@9 to display_frame_draw::@10 [phi:display_frame_draw::@9->display_frame_draw::@10]
+    // [523] phi from display_frame_draw::@9 to display_frame_draw::@10 [phi:display_frame_draw::@9->display_frame_draw::@10]
     // display_frame_draw::@10
     // display_frame(31, 2, 37, 14)
-    // [505] call display_frame
-    // [947] phi from display_frame_draw::@10 to display_frame [phi:display_frame_draw::@10->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@10->display_frame#0] -- vbuz1=vbuc1 
+    // [524] call display_frame
+    // [1186] phi from display_frame_draw::@10 to display_frame [phi:display_frame_draw::@10->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@10->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@10->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@10->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $1f [phi:display_frame_draw::@10->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $1f [phi:display_frame_draw::@10->display_frame#2] -- vbum1=vbuc1 
     lda #$1f
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $25 [phi:display_frame_draw::@10->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $25 [phi:display_frame_draw::@10->display_frame#3] -- vbum1=vbuc1 
     lda #$25
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [506] phi from display_frame_draw::@10 to display_frame_draw::@11 [phi:display_frame_draw::@10->display_frame_draw::@11]
+    // [525] phi from display_frame_draw::@10 to display_frame_draw::@11 [phi:display_frame_draw::@10->display_frame_draw::@11]
     // display_frame_draw::@11
     // display_frame(37, 2, 43, 14)
-    // [507] call display_frame
-    // [947] phi from display_frame_draw::@11 to display_frame [phi:display_frame_draw::@11->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@11->display_frame#0] -- vbuz1=vbuc1 
+    // [526] call display_frame
+    // [1186] phi from display_frame_draw::@11 to display_frame [phi:display_frame_draw::@11->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@11->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@11->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@11->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $25 [phi:display_frame_draw::@11->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $25 [phi:display_frame_draw::@11->display_frame#2] -- vbum1=vbuc1 
     lda #$25
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $2b [phi:display_frame_draw::@11->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $2b [phi:display_frame_draw::@11->display_frame#3] -- vbum1=vbuc1 
     lda #$2b
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [508] phi from display_frame_draw::@11 to display_frame_draw::@12 [phi:display_frame_draw::@11->display_frame_draw::@12]
+    // [527] phi from display_frame_draw::@11 to display_frame_draw::@12 [phi:display_frame_draw::@11->display_frame_draw::@12]
     // display_frame_draw::@12
     // display_frame(43, 2, 49, 14)
-    // [509] call display_frame
-    // [947] phi from display_frame_draw::@12 to display_frame [phi:display_frame_draw::@12->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@12->display_frame#0] -- vbuz1=vbuc1 
+    // [528] call display_frame
+    // [1186] phi from display_frame_draw::@12 to display_frame [phi:display_frame_draw::@12->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@12->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@12->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@12->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $2b [phi:display_frame_draw::@12->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $2b [phi:display_frame_draw::@12->display_frame#2] -- vbum1=vbuc1 
     lda #$2b
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $31 [phi:display_frame_draw::@12->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $31 [phi:display_frame_draw::@12->display_frame#3] -- vbum1=vbuc1 
     lda #$31
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [510] phi from display_frame_draw::@12 to display_frame_draw::@13 [phi:display_frame_draw::@12->display_frame_draw::@13]
+    // [529] phi from display_frame_draw::@12 to display_frame_draw::@13 [phi:display_frame_draw::@12->display_frame_draw::@13]
     // display_frame_draw::@13
     // display_frame(49, 2, 55, 14)
-    // [511] call display_frame
-    // [947] phi from display_frame_draw::@13 to display_frame [phi:display_frame_draw::@13->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@13->display_frame#0] -- vbuz1=vbuc1 
+    // [530] call display_frame
+    // [1186] phi from display_frame_draw::@13 to display_frame [phi:display_frame_draw::@13->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@13->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@13->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@13->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $31 [phi:display_frame_draw::@13->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $31 [phi:display_frame_draw::@13->display_frame#2] -- vbum1=vbuc1 
     lda #$31
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $37 [phi:display_frame_draw::@13->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $37 [phi:display_frame_draw::@13->display_frame#3] -- vbum1=vbuc1 
     lda #$37
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [512] phi from display_frame_draw::@13 to display_frame_draw::@14 [phi:display_frame_draw::@13->display_frame_draw::@14]
+    // [531] phi from display_frame_draw::@13 to display_frame_draw::@14 [phi:display_frame_draw::@13->display_frame_draw::@14]
     // display_frame_draw::@14
     // display_frame(55, 2, 61, 14)
-    // [513] call display_frame
-    // [947] phi from display_frame_draw::@14 to display_frame [phi:display_frame_draw::@14->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@14->display_frame#0] -- vbuz1=vbuc1 
+    // [532] call display_frame
+    // [1186] phi from display_frame_draw::@14 to display_frame [phi:display_frame_draw::@14->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@14->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@14->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@14->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $37 [phi:display_frame_draw::@14->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $37 [phi:display_frame_draw::@14->display_frame#2] -- vbum1=vbuc1 
     lda #$37
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $3d [phi:display_frame_draw::@14->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $3d [phi:display_frame_draw::@14->display_frame#3] -- vbum1=vbuc1 
     lda #$3d
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [514] phi from display_frame_draw::@14 to display_frame_draw::@15 [phi:display_frame_draw::@14->display_frame_draw::@15]
+    // [533] phi from display_frame_draw::@14 to display_frame_draw::@15 [phi:display_frame_draw::@14->display_frame_draw::@15]
     // display_frame_draw::@15
     // display_frame(61, 2, 67, 14)
-    // [515] call display_frame
-    // [947] phi from display_frame_draw::@15 to display_frame [phi:display_frame_draw::@15->display_frame]
-    // [947] phi display_frame::y#0 = 2 [phi:display_frame_draw::@15->display_frame#0] -- vbuz1=vbuc1 
+    // [534] call display_frame
+    // [1186] phi from display_frame_draw::@15 to display_frame [phi:display_frame_draw::@15->display_frame]
+    // [1186] phi display_frame::y#0 = 2 [phi:display_frame_draw::@15->display_frame#0] -- vbum1=vbuc1 
     lda #2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $e [phi:display_frame_draw::@15->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $e [phi:display_frame_draw::@15->display_frame#1] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = $3d [phi:display_frame_draw::@15->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = $3d [phi:display_frame_draw::@15->display_frame#2] -- vbum1=vbuc1 
     lda #$3d
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@15->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@15->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [516] phi from display_frame_draw::@15 to display_frame_draw::@16 [phi:display_frame_draw::@15->display_frame_draw::@16]
+    // [535] phi from display_frame_draw::@15 to display_frame_draw::@16 [phi:display_frame_draw::@15->display_frame_draw::@16]
     // display_frame_draw::@16
     // display_frame(0, 14, 67, PROGRESS_Y-5)
-    // [517] call display_frame
+    // [536] call display_frame
   // Progress area
-    // [947] phi from display_frame_draw::@16 to display_frame [phi:display_frame_draw::@16->display_frame]
-    // [947] phi display_frame::y#0 = $e [phi:display_frame_draw::@16->display_frame#0] -- vbuz1=vbuc1 
+    // [1186] phi from display_frame_draw::@16 to display_frame [phi:display_frame_draw::@16->display_frame]
+    // [1186] phi display_frame::y#0 = $e [phi:display_frame_draw::@16->display_frame#0] -- vbum1=vbuc1 
     lda #$e
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = PROGRESS_Y-5 [phi:display_frame_draw::@16->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = PROGRESS_Y-5 [phi:display_frame_draw::@16->display_frame#1] -- vbum1=vbuc1 
     lda #PROGRESS_Y-5
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@16->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@16->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@16->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@16->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [518] phi from display_frame_draw::@16 to display_frame_draw::@17 [phi:display_frame_draw::@16->display_frame_draw::@17]
+    // [537] phi from display_frame_draw::@16 to display_frame_draw::@17 [phi:display_frame_draw::@16->display_frame_draw::@17]
     // display_frame_draw::@17
     // display_frame(0, PROGRESS_Y-5, 67, PROGRESS_Y-2)
-    // [519] call display_frame
-    // [947] phi from display_frame_draw::@17 to display_frame [phi:display_frame_draw::@17->display_frame]
-    // [947] phi display_frame::y#0 = PROGRESS_Y-5 [phi:display_frame_draw::@17->display_frame#0] -- vbuz1=vbuc1 
+    // [538] call display_frame
+    // [1186] phi from display_frame_draw::@17 to display_frame [phi:display_frame_draw::@17->display_frame]
+    // [1186] phi display_frame::y#0 = PROGRESS_Y-5 [phi:display_frame_draw::@17->display_frame#0] -- vbum1=vbuc1 
     lda #PROGRESS_Y-5
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = PROGRESS_Y-2 [phi:display_frame_draw::@17->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = PROGRESS_Y-2 [phi:display_frame_draw::@17->display_frame#1] -- vbum1=vbuc1 
     lda #PROGRESS_Y-2
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@17->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@17->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@17->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@17->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [520] phi from display_frame_draw::@17 to display_frame_draw::@18 [phi:display_frame_draw::@17->display_frame_draw::@18]
+    // [539] phi from display_frame_draw::@17 to display_frame_draw::@18 [phi:display_frame_draw::@17->display_frame_draw::@18]
     // display_frame_draw::@18
     // display_frame(0, PROGRESS_Y-2, 67, 49)
-    // [521] call display_frame
-    // [947] phi from display_frame_draw::@18 to display_frame [phi:display_frame_draw::@18->display_frame]
-    // [947] phi display_frame::y#0 = PROGRESS_Y-2 [phi:display_frame_draw::@18->display_frame#0] -- vbuz1=vbuc1 
+    // [540] call display_frame
+    // [1186] phi from display_frame_draw::@18 to display_frame [phi:display_frame_draw::@18->display_frame]
+    // [1186] phi display_frame::y#0 = PROGRESS_Y-2 [phi:display_frame_draw::@18->display_frame#0] -- vbum1=vbuc1 
     lda #PROGRESS_Y-2
-    sta.z display_frame.y
-    // [947] phi display_frame::y1#16 = $31 [phi:display_frame_draw::@18->display_frame#1] -- vbuz1=vbuc1 
+    sta display_frame.y
+    // [1186] phi display_frame::y1#16 = $31 [phi:display_frame_draw::@18->display_frame#1] -- vbum1=vbuc1 
     lda #$31
-    sta.z display_frame.y1
-    // [947] phi display_frame::x#0 = 0 [phi:display_frame_draw::@18->display_frame#2] -- vbuz1=vbuc1 
+    sta display_frame.y1
+    // [1186] phi display_frame::x#0 = 0 [phi:display_frame_draw::@18->display_frame#2] -- vbum1=vbuc1 
     lda #0
-    sta.z display_frame.x
-    // [947] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@18->display_frame#3] -- vbuz1=vbuc1 
+    sta display_frame.x
+    // [1186] phi display_frame::x1#16 = $43 [phi:display_frame_draw::@18->display_frame#3] -- vbum1=vbuc1 
     lda #$43
-    sta.z display_frame.x1
+    sta display_frame.x1
     jsr display_frame
-    // [522] phi from display_frame_draw::@18 to display_frame_draw::@19 [phi:display_frame_draw::@18->display_frame_draw::@19]
+    // [541] phi from display_frame_draw::@18 to display_frame_draw::@19 [phi:display_frame_draw::@18->display_frame_draw::@19]
     // display_frame_draw::@19
     // textcolor(WHITE)
-    // [523] call textcolor
-    // [417] phi from display_frame_draw::@19 to textcolor [phi:display_frame_draw::@19->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_frame_draw::@19->textcolor#0] -- vbum1=vbuc1 
+    // [542] call textcolor
+    // [436] phi from display_frame_draw::@19 to textcolor [phi:display_frame_draw::@19->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_frame_draw::@19->textcolor#0] -- vbum1=vbuc1 
     lda #WHITE
     sta textcolor.color
     jsr textcolor
     // display_frame_draw::@return
     // }
-    // [524] return 
+    // [543] return 
     rts
 }
   // display_frame_title
@@ -3273,65 +3455,73 @@ display_frame_draw: {
 // void display_frame_title(char *title_text)
 display_frame_title: {
     // gotoxy(2, 1)
-    // [526] call gotoxy
-    // [435] phi from display_frame_title to gotoxy [phi:display_frame_title->gotoxy]
-    // [435] phi gotoxy::y#19 = 1 [phi:display_frame_title->gotoxy#0] -- vbum1=vbuc1 
+    // [545] call gotoxy
+    // [454] phi from display_frame_title to gotoxy [phi:display_frame_title->gotoxy]
+    // [454] phi gotoxy::y#27 = 1 [phi:display_frame_title->gotoxy#0] -- vbum1=vbuc1 
     lda #1
     sta gotoxy.y
-    // [435] phi gotoxy::x#19 = 2 [phi:display_frame_title->gotoxy#1] -- vbum1=vbuc1 
+    // [454] phi gotoxy::x#27 = 2 [phi:display_frame_title->gotoxy#1] -- vbum1=vbuc1 
     lda #2
     sta gotoxy.x
     jsr gotoxy
-    // [527] phi from display_frame_title to display_frame_title::@1 [phi:display_frame_title->display_frame_title::@1]
+    // [546] phi from display_frame_title to display_frame_title::@1 [phi:display_frame_title->display_frame_title::@1]
     // display_frame_title::@1
     // printf("%-65s", title_text)
-    // [528] call printf_string
-    // [1081] phi from display_frame_title::@1 to printf_string [phi:display_frame_title::@1->printf_string]
-    // [1081] phi printf_string::str#12 = main::title_text [phi:display_frame_title::@1->printf_string#0] -- pbuz1=pbuc1 
+    // [547] call printf_string
+    // [1320] phi from display_frame_title::@1 to printf_string [phi:display_frame_title::@1->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_frame_title::@1->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = main::title_text [phi:display_frame_title::@1->printf_string#1] -- pbuz1=pbuc1 
     lda #<main.title_text
     sta.z printf_string.str
     lda #>main.title_text
     sta.z printf_string.str+1
-    // [1081] phi printf_string::format_min_length#12 = $41 [phi:display_frame_title::@1->printf_string#1] -- vbum1=vbuc1 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_frame_title::@1->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $41 [phi:display_frame_title::@1->printf_string#3] -- vbum1=vbuc1 
     lda #$41
     sta printf_string.format_min_length
     jsr printf_string
     // display_frame_title::@return
     // }
-    // [529] return 
+    // [548] return 
     rts
 }
   // cputsxy
 // Move cursor and output a NUL-terminated string
 // Same as "gotoxy (x, y); puts (s);"
-// void cputsxy(__mem() char x, __mem() char y, __zp($35) const char *s)
+// void cputsxy(__mem() char x, __mem() char y, __zp($37) const char *s)
 cputsxy: {
-    .label s = $35
+    .label s = $37
     // gotoxy(x, y)
-    // [531] gotoxy::x#1 = cputsxy::x#3 -- vbum1=vbum2 
+    // [550] gotoxy::x#1 = cputsxy::x#3 -- vbum1=vbum2 
     lda x
     sta gotoxy.x
-    // [532] gotoxy::y#1 = cputsxy::y#3 -- vbum1=vbum2 
+    // [551] gotoxy::y#1 = cputsxy::y#3 -- vbum1=vbum2 
     lda y
     sta gotoxy.y
-    // [533] call gotoxy
-    // [435] phi from cputsxy to gotoxy [phi:cputsxy->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#1 [phi:cputsxy->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#1 [phi:cputsxy->gotoxy#1] -- register_copy 
+    // [552] call gotoxy
+    // [454] phi from cputsxy to gotoxy [phi:cputsxy->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#1 [phi:cputsxy->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#1 [phi:cputsxy->gotoxy#1] -- register_copy 
     jsr gotoxy
     // cputsxy::@1
     // cputs(s)
-    // [534] cputs::s#1 = cputsxy::s#3 -- pbuz1=pbuz2 
+    // [553] cputs::s#1 = cputsxy::s#3 -- pbuz1=pbuz2 
     lda.z s
     sta.z cputs.s
     lda.z s+1
     sta.z cputs.s+1
-    // [535] call cputs
-    // [1098] phi from cputsxy::@1 to cputs [phi:cputsxy::@1->cputs]
+    // [554] call cputs
+    // [1345] phi from cputsxy::@1 to cputs [phi:cputsxy::@1->cputs]
     jsr cputs
     // cputsxy::@return
     // }
-    // [536] return 
+    // [555] return 
     rts
   .segment Data
     y: .byte 0
@@ -3344,185 +3534,193 @@ cputsxy: {
  * 
  * @param info_text The progress text to be displayed.
  */
-// void display_action_progress(__zp($37) char *info_text)
+// void display_action_progress(__zp($3f) char *info_text)
 display_action_progress: {
-    .label x = $57
-    .label y = $54
-    .label info_text = $37
+    .label info_text = $3f
     // unsigned char x = wherex()
-    // [538] call wherex
+    // [557] call wherex
     jsr wherex
-    // [539] wherex::return#2 = wherex::return#0
+    // [558] wherex::return#2 = wherex::return#0
     // display_action_progress::@1
-    // [540] display_action_progress::x#0 = wherex::return#2 -- vbuz1=vbum2 
-    lda wherex.return
-    sta.z x
+    // [559] display_action_progress::x#0 = wherex::return#2
     // unsigned char y = wherey()
-    // [541] call wherey
+    // [560] call wherey
     jsr wherey
-    // [542] wherey::return#2 = wherey::return#0
+    // [561] wherey::return#2 = wherey::return#0
     // display_action_progress::@2
-    // [543] display_action_progress::y#0 = wherey::return#2 -- vbuz1=vbum2 
-    lda wherey.return
-    sta.z y
+    // [562] display_action_progress::y#0 = wherey::return#2
     // gotoxy(2, PROGRESS_Y-4)
-    // [544] call gotoxy
-    // [435] phi from display_action_progress::@2 to gotoxy [phi:display_action_progress::@2->gotoxy]
-    // [435] phi gotoxy::y#19 = PROGRESS_Y-4 [phi:display_action_progress::@2->gotoxy#0] -- vbum1=vbuc1 
+    // [563] call gotoxy
+    // [454] phi from display_action_progress::@2 to gotoxy [phi:display_action_progress::@2->gotoxy]
+    // [454] phi gotoxy::y#27 = PROGRESS_Y-4 [phi:display_action_progress::@2->gotoxy#0] -- vbum1=vbuc1 
     lda #PROGRESS_Y-4
     sta gotoxy.y
-    // [435] phi gotoxy::x#19 = 2 [phi:display_action_progress::@2->gotoxy#1] -- vbum1=vbuc1 
+    // [454] phi gotoxy::x#27 = 2 [phi:display_action_progress::@2->gotoxy#1] -- vbum1=vbuc1 
     lda #2
     sta gotoxy.x
     jsr gotoxy
     // display_action_progress::@3
     // printf("%-65s", info_text)
-    // [545] printf_string::str#1 = display_action_progress::info_text#11
-    // [546] call printf_string
-    // [1081] phi from display_action_progress::@3 to printf_string [phi:display_action_progress::@3->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#1 [phi:display_action_progress::@3->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = $41 [phi:display_action_progress::@3->printf_string#1] -- vbum1=vbuc1 
+    // [564] printf_string::str#3 = display_action_progress::info_text#19
+    // [565] call printf_string
+    // [1320] phi from display_action_progress::@3 to printf_string [phi:display_action_progress::@3->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_action_progress::@3->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#3 [phi:display_action_progress::@3->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_action_progress::@3->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $41 [phi:display_action_progress::@3->printf_string#3] -- vbum1=vbuc1 
     lda #$41
     sta printf_string.format_min_length
     jsr printf_string
     // display_action_progress::@4
     // gotoxy(x, y)
-    // [547] gotoxy::x#10 = display_action_progress::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [566] gotoxy::x#13 = display_action_progress::x#0 -- vbum1=vbum2 
+    lda x
     sta gotoxy.x
-    // [548] gotoxy::y#10 = display_action_progress::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [567] gotoxy::y#13 = display_action_progress::y#0 -- vbum1=vbum2 
+    lda y
     sta gotoxy.y
-    // [549] call gotoxy
-    // [435] phi from display_action_progress::@4 to gotoxy [phi:display_action_progress::@4->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#10 [phi:display_action_progress::@4->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#10 [phi:display_action_progress::@4->gotoxy#1] -- register_copy 
+    // [568] call gotoxy
+    // [454] phi from display_action_progress::@4 to gotoxy [phi:display_action_progress::@4->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#13 [phi:display_action_progress::@4->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#13 [phi:display_action_progress::@4->gotoxy#1] -- register_copy 
     jsr gotoxy
     // display_action_progress::@return
     // }
-    // [550] return 
+    // [569] return 
     rts
+  .segment Data
+    .label x = wherex.return
+    .label y = wherey.return
 }
+.segment Code
   // display_progress_clear
 /**
  * @brief Clean the progress area for the flashing.
  */
 display_progress_clear: {
     .const h = PROGRESS_Y+PROGRESS_H
-    .label x = $5c
-    .label i = $56
-    .label y = $6b
     // textcolor(WHITE)
-    // [552] call textcolor
-    // [417] phi from display_progress_clear to textcolor [phi:display_progress_clear->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_progress_clear->textcolor#0] -- vbum1=vbuc1 
+    // [571] call textcolor
+    // [436] phi from display_progress_clear to textcolor [phi:display_progress_clear->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_progress_clear->textcolor#0] -- vbum1=vbuc1 
     lda #WHITE
     sta textcolor.color
     jsr textcolor
-    // [553] phi from display_progress_clear to display_progress_clear::@5 [phi:display_progress_clear->display_progress_clear::@5]
+    // [572] phi from display_progress_clear to display_progress_clear::@5 [phi:display_progress_clear->display_progress_clear::@5]
     // display_progress_clear::@5
     // bgcolor(BLUE)
-    // [554] call bgcolor
-    // [422] phi from display_progress_clear::@5 to bgcolor [phi:display_progress_clear::@5->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_progress_clear::@5->bgcolor#0] -- vbum1=vbuc1 
+    // [573] call bgcolor
+    // [441] phi from display_progress_clear::@5 to bgcolor [phi:display_progress_clear::@5->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_progress_clear::@5->bgcolor#0] -- vbum1=vbuc1 
     lda #BLUE
     sta bgcolor.color
     jsr bgcolor
-    // [555] phi from display_progress_clear::@5 to display_progress_clear::@1 [phi:display_progress_clear::@5->display_progress_clear::@1]
-    // [555] phi display_progress_clear::y#2 = PROGRESS_Y [phi:display_progress_clear::@5->display_progress_clear::@1#0] -- vbuz1=vbuc1 
+    // [574] phi from display_progress_clear::@5 to display_progress_clear::@1 [phi:display_progress_clear::@5->display_progress_clear::@1]
+    // [574] phi display_progress_clear::y#2 = PROGRESS_Y [phi:display_progress_clear::@5->display_progress_clear::@1#0] -- vbum1=vbuc1 
     lda #PROGRESS_Y
-    sta.z y
+    sta y
     // display_progress_clear::@1
   __b1:
     // while (y < h)
-    // [556] if(display_progress_clear::y#2<display_progress_clear::h) goto display_progress_clear::@2 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z y
+    // [575] if(display_progress_clear::y#2<display_progress_clear::h) goto display_progress_clear::@2 -- vbum1_lt_vbuc1_then_la1 
+    lda y
     cmp #h
     bcc __b4
     // display_progress_clear::@return
     // }
-    // [557] return 
+    // [576] return 
     rts
-    // [558] phi from display_progress_clear::@1 to display_progress_clear::@2 [phi:display_progress_clear::@1->display_progress_clear::@2]
+    // [577] phi from display_progress_clear::@1 to display_progress_clear::@2 [phi:display_progress_clear::@1->display_progress_clear::@2]
   __b4:
-    // [558] phi display_progress_clear::x#2 = PROGRESS_X [phi:display_progress_clear::@1->display_progress_clear::@2#0] -- vbuz1=vbuc1 
+    // [577] phi display_progress_clear::x#2 = PROGRESS_X [phi:display_progress_clear::@1->display_progress_clear::@2#0] -- vbum1=vbuc1 
     lda #PROGRESS_X
-    sta.z x
-    // [558] phi display_progress_clear::i#2 = 0 [phi:display_progress_clear::@1->display_progress_clear::@2#1] -- vbuz1=vbuc1 
+    sta x
+    // [577] phi display_progress_clear::i#2 = 0 [phi:display_progress_clear::@1->display_progress_clear::@2#1] -- vbum1=vbuc1 
     lda #0
-    sta.z i
+    sta i
     // display_progress_clear::@2
   __b2:
     // for(unsigned char i = 0; i < w; i++)
-    // [559] if(display_progress_clear::i#2<PROGRESS_W) goto display_progress_clear::@3 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z i
+    // [578] if(display_progress_clear::i#2<PROGRESS_W) goto display_progress_clear::@3 -- vbum1_lt_vbuc1_then_la1 
+    lda i
     cmp #PROGRESS_W
     bcc __b3
     // display_progress_clear::@4
     // y++;
-    // [560] display_progress_clear::y#1 = ++ display_progress_clear::y#2 -- vbuz1=_inc_vbuz1 
-    inc.z y
-    // [555] phi from display_progress_clear::@4 to display_progress_clear::@1 [phi:display_progress_clear::@4->display_progress_clear::@1]
-    // [555] phi display_progress_clear::y#2 = display_progress_clear::y#1 [phi:display_progress_clear::@4->display_progress_clear::@1#0] -- register_copy 
+    // [579] display_progress_clear::y#1 = ++ display_progress_clear::y#2 -- vbum1=_inc_vbum1 
+    inc y
+    // [574] phi from display_progress_clear::@4 to display_progress_clear::@1 [phi:display_progress_clear::@4->display_progress_clear::@1]
+    // [574] phi display_progress_clear::y#2 = display_progress_clear::y#1 [phi:display_progress_clear::@4->display_progress_clear::@1#0] -- register_copy 
     jmp __b1
     // display_progress_clear::@3
   __b3:
     // cputcxy(x, y, ' ')
-    // [561] cputcxy::x#12 = display_progress_clear::x#2 -- vbum1=vbuz2 
-    lda.z x
+    // [580] cputcxy::x#15 = display_progress_clear::x#2 -- vbum1=vbum2 
+    lda x
     sta cputcxy.x
-    // [562] cputcxy::y#12 = display_progress_clear::y#2 -- vbum1=vbuz2 
-    lda.z y
+    // [581] cputcxy::y#15 = display_progress_clear::y#2 -- vbum1=vbum2 
+    lda y
     sta cputcxy.y
-    // [563] call cputcxy
-    // [1111] phi from display_progress_clear::@3 to cputcxy [phi:display_progress_clear::@3->cputcxy]
-    // [1111] phi cputcxy::c#13 = ' ' [phi:display_progress_clear::@3->cputcxy#0] -- vbum1=vbuc1 
+    // [582] call cputcxy
+    // [1358] phi from display_progress_clear::@3 to cputcxy [phi:display_progress_clear::@3->cputcxy]
+    // [1358] phi cputcxy::c#16 = ' ' [phi:display_progress_clear::@3->cputcxy#0] -- vbum1=vbuc1 
     lda #' '
     sta cputcxy.c
-    // [1111] phi cputcxy::y#13 = cputcxy::y#12 [phi:display_progress_clear::@3->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#12 [phi:display_progress_clear::@3->cputcxy#2] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#15 [phi:display_progress_clear::@3->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#15 [phi:display_progress_clear::@3->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_progress_clear::@6
     // x++;
-    // [564] display_progress_clear::x#1 = ++ display_progress_clear::x#2 -- vbuz1=_inc_vbuz1 
-    inc.z x
+    // [583] display_progress_clear::x#1 = ++ display_progress_clear::x#2 -- vbum1=_inc_vbum1 
+    inc x
     // for(unsigned char i = 0; i < w; i++)
-    // [565] display_progress_clear::i#1 = ++ display_progress_clear::i#2 -- vbuz1=_inc_vbuz1 
-    inc.z i
-    // [558] phi from display_progress_clear::@6 to display_progress_clear::@2 [phi:display_progress_clear::@6->display_progress_clear::@2]
-    // [558] phi display_progress_clear::x#2 = display_progress_clear::x#1 [phi:display_progress_clear::@6->display_progress_clear::@2#0] -- register_copy 
-    // [558] phi display_progress_clear::i#2 = display_progress_clear::i#1 [phi:display_progress_clear::@6->display_progress_clear::@2#1] -- register_copy 
+    // [584] display_progress_clear::i#1 = ++ display_progress_clear::i#2 -- vbum1=_inc_vbum1 
+    inc i
+    // [577] phi from display_progress_clear::@6 to display_progress_clear::@2 [phi:display_progress_clear::@6->display_progress_clear::@2]
+    // [577] phi display_progress_clear::x#2 = display_progress_clear::x#1 [phi:display_progress_clear::@6->display_progress_clear::@2#0] -- register_copy 
+    // [577] phi display_progress_clear::i#2 = display_progress_clear::i#1 [phi:display_progress_clear::@6->display_progress_clear::@2#1] -- register_copy 
     jmp __b2
+  .segment Data
+    x: .byte 0
+    i: .byte 0
+    y: .byte 0
 }
+.segment Code
   // display_chip_smc
 display_chip_smc: {
     // display_smc_led(GREY)
-    // [567] call display_smc_led
-    // [1119] phi from display_chip_smc to display_smc_led [phi:display_chip_smc->display_smc_led]
-    // [1119] phi display_smc_led::c#2 = GREY [phi:display_chip_smc->display_smc_led#0] -- vbuz1=vbuc1 
+    // [586] call display_smc_led
+    // [1366] phi from display_chip_smc to display_smc_led [phi:display_chip_smc->display_smc_led]
+    // [1366] phi display_smc_led::c#2 = GREY [phi:display_chip_smc->display_smc_led#0] -- vbum1=vbuc1 
     lda #GREY
-    sta.z display_smc_led.c
+    sta display_smc_led.c
     jsr display_smc_led
-    // [568] phi from display_chip_smc to display_chip_smc::@1 [phi:display_chip_smc->display_chip_smc::@1]
+    // [587] phi from display_chip_smc to display_chip_smc::@1 [phi:display_chip_smc->display_chip_smc::@1]
     // display_chip_smc::@1
     // display_print_chip(CHIP_SMC_X, CHIP_SMC_Y+2, CHIP_SMC_W, "SMC     ")
-    // [569] call display_print_chip
-    // [1125] phi from display_chip_smc::@1 to display_print_chip [phi:display_chip_smc::@1->display_print_chip]
-    // [1125] phi display_print_chip::text#11 = display_chip_smc::text [phi:display_chip_smc::@1->display_print_chip#0] -- pbuz1=pbuc1 
+    // [588] call display_print_chip
+    // [1372] phi from display_chip_smc::@1 to display_print_chip [phi:display_chip_smc::@1->display_print_chip]
+    // [1372] phi display_print_chip::text#11 = display_chip_smc::text [phi:display_chip_smc::@1->display_print_chip#0] -- pbuz1=pbuc1 
     lda #<text
     sta.z display_print_chip.text_2
     lda #>text
     sta.z display_print_chip.text_2+1
-    // [1125] phi display_print_chip::w#10 = 5 [phi:display_chip_smc::@1->display_print_chip#1] -- vbuz1=vbuc1 
+    // [1372] phi display_print_chip::w#10 = 5 [phi:display_chip_smc::@1->display_print_chip#1] -- vbum1=vbuc1 
     lda #5
-    sta.z display_print_chip.w
-    // [1125] phi display_print_chip::x#10 = 1 [phi:display_chip_smc::@1->display_print_chip#2] -- vbuz1=vbuc1 
+    sta display_print_chip.w
+    // [1372] phi display_print_chip::x#10 = 1 [phi:display_chip_smc::@1->display_print_chip#2] -- vbum1=vbuc1 
     lda #1
-    sta.z display_print_chip.x
+    sta display_print_chip.x
     jsr display_print_chip
     // display_chip_smc::@return
     // }
-    // [570] return 
+    // [589] return 
     rts
   .segment Data
     text: .text "SMC     "
@@ -3532,32 +3730,32 @@ display_chip_smc: {
   // display_chip_vera
 display_chip_vera: {
     // display_vera_led(GREY)
-    // [572] call display_vera_led
-    // [1169] phi from display_chip_vera to display_vera_led [phi:display_chip_vera->display_vera_led]
-    // [1169] phi display_vera_led::c#2 = GREY [phi:display_chip_vera->display_vera_led#0] -- vbuz1=vbuc1 
+    // [591] call display_vera_led
+    // [1416] phi from display_chip_vera to display_vera_led [phi:display_chip_vera->display_vera_led]
+    // [1416] phi display_vera_led::c#2 = GREY [phi:display_chip_vera->display_vera_led#0] -- vbum1=vbuc1 
     lda #GREY
-    sta.z display_vera_led.c
+    sta display_vera_led.c
     jsr display_vera_led
-    // [573] phi from display_chip_vera to display_chip_vera::@1 [phi:display_chip_vera->display_chip_vera::@1]
+    // [592] phi from display_chip_vera to display_chip_vera::@1 [phi:display_chip_vera->display_chip_vera::@1]
     // display_chip_vera::@1
     // display_print_chip(CHIP_VERA_X, CHIP_VERA_Y+2, CHIP_VERA_W, "VERA     ")
-    // [574] call display_print_chip
-    // [1125] phi from display_chip_vera::@1 to display_print_chip [phi:display_chip_vera::@1->display_print_chip]
-    // [1125] phi display_print_chip::text#11 = display_chip_vera::text [phi:display_chip_vera::@1->display_print_chip#0] -- pbuz1=pbuc1 
+    // [593] call display_print_chip
+    // [1372] phi from display_chip_vera::@1 to display_print_chip [phi:display_chip_vera::@1->display_print_chip]
+    // [1372] phi display_print_chip::text#11 = display_chip_vera::text [phi:display_chip_vera::@1->display_print_chip#0] -- pbuz1=pbuc1 
     lda #<text
     sta.z display_print_chip.text_2
     lda #>text
     sta.z display_print_chip.text_2+1
-    // [1125] phi display_print_chip::w#10 = 8 [phi:display_chip_vera::@1->display_print_chip#1] -- vbuz1=vbuc1 
+    // [1372] phi display_print_chip::w#10 = 8 [phi:display_chip_vera::@1->display_print_chip#1] -- vbum1=vbuc1 
     lda #8
-    sta.z display_print_chip.w
-    // [1125] phi display_print_chip::x#10 = 9 [phi:display_chip_vera::@1->display_print_chip#2] -- vbuz1=vbuc1 
+    sta display_print_chip.w
+    // [1372] phi display_print_chip::x#10 = 9 [phi:display_chip_vera::@1->display_print_chip#2] -- vbum1=vbuc1 
     lda #9
-    sta.z display_print_chip.x
+    sta display_print_chip.x
     jsr display_print_chip
     // display_chip_vera::@return
     // }
-    // [575] return 
+    // [594] return 
     rts
   .segment Data
     text: .text "VERA     "
@@ -3570,38 +3768,37 @@ display_chip_vera: {
  * 
  */
 display_chip_rom: {
-    .label display_chip_rom__4 = $57
-    .label display_chip_rom__6 = $69
-    .label r = $7f
-    .label display_chip_rom__11 = $3b
-    .label display_chip_rom__12 = $3b
-    // [577] phi from display_chip_rom to display_chip_rom::@1 [phi:display_chip_rom->display_chip_rom::@1]
-    // [577] phi display_chip_rom::r#2 = 0 [phi:display_chip_rom->display_chip_rom::@1#0] -- vbuz1=vbuc1 
+    .label display_chip_rom__4 = $36
+    .label display_chip_rom__6 = $61
+    .label display_chip_rom__11 = $61
+    .label display_chip_rom__12 = $61
+    // [596] phi from display_chip_rom to display_chip_rom::@1 [phi:display_chip_rom->display_chip_rom::@1]
+    // [596] phi display_chip_rom::r#2 = 0 [phi:display_chip_rom->display_chip_rom::@1#0] -- vbum1=vbuc1 
     lda #0
-    sta.z r
+    sta r
     // display_chip_rom::@1
   __b1:
     // for (unsigned char r = 0; r < 8; r++)
-    // [578] if(display_chip_rom::r#2<8) goto display_chip_rom::@2 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z r
+    // [597] if(display_chip_rom::r#2<8) goto display_chip_rom::@2 -- vbum1_lt_vbuc1_then_la1 
+    lda r
     cmp #8
     bcc __b2
     // display_chip_rom::@return
     // }
-    // [579] return 
+    // [598] return 
     rts
-    // [580] phi from display_chip_rom::@1 to display_chip_rom::@2 [phi:display_chip_rom::@1->display_chip_rom::@2]
+    // [599] phi from display_chip_rom::@1 to display_chip_rom::@2 [phi:display_chip_rom::@1->display_chip_rom::@2]
     // display_chip_rom::@2
   __b2:
     // strcpy(rom, "ROM  ")
-    // [581] call strcpy
-    // [867] phi from display_chip_rom::@2 to strcpy [phi:display_chip_rom::@2->strcpy]
-    // [867] phi strcpy::dst#0 = display_chip_rom::rom [phi:display_chip_rom::@2->strcpy#0] -- pbuz1=pbuc1 
+    // [600] call strcpy
+    // [1129] phi from display_chip_rom::@2 to strcpy [phi:display_chip_rom::@2->strcpy]
+    // [1129] phi strcpy::dst#0 = display_chip_rom::rom [phi:display_chip_rom::@2->strcpy#0] -- pbuz1=pbuc1 
     lda #<rom
     sta.z strcpy.dst
     lda #>rom
     sta.z strcpy.dst+1
-    // [867] phi strcpy::src#0 = display_chip_rom::source [phi:display_chip_rom::@2->strcpy#1] -- pbuz1=pbuc1 
+    // [1129] phi strcpy::src#0 = display_chip_rom::source [phi:display_chip_rom::@2->strcpy#1] -- pbuz1=pbuc1 
     lda #<source
     sta.z strcpy.src
     lda #>source
@@ -3609,86 +3806,86 @@ display_chip_rom: {
     jsr strcpy
     // display_chip_rom::@5
     // strcat(rom, rom_size_strings[r])
-    // [582] display_chip_rom::$11 = display_chip_rom::r#2 << 1 -- vbuz1=vbuz2_rol_1 
-    lda.z r
+    // [601] display_chip_rom::$11 = display_chip_rom::r#2 << 1 -- vbuz1=vbum2_rol_1 
+    lda r
     asl
     sta.z display_chip_rom__11
-    // [583] strcat::source#0 = rom_size_strings[display_chip_rom::$11] -- pbuz1=qbuc1_derefidx_vbuz2 
+    // [602] strcat::source#0 = rom_size_strings[display_chip_rom::$11] -- pbuz1=qbuc1_derefidx_vbuz2 
     tay
     lda rom_size_strings,y
     sta.z strcat.source
     lda rom_size_strings+1,y
     sta.z strcat.source+1
-    // [584] call strcat
-    // [1175] phi from display_chip_rom::@5 to strcat [phi:display_chip_rom::@5->strcat]
+    // [603] call strcat
+    // [1422] phi from display_chip_rom::@5 to strcat [phi:display_chip_rom::@5->strcat]
     jsr strcat
     // display_chip_rom::@6
     // if(r)
-    // [585] if(0==display_chip_rom::r#2) goto display_chip_rom::@3 -- 0_eq_vbuz1_then_la1 
-    lda.z r
+    // [604] if(0==display_chip_rom::r#2) goto display_chip_rom::@3 -- 0_eq_vbum1_then_la1 
+    lda r
     beq __b3
     // display_chip_rom::@4
     // r+'0'
-    // [586] display_chip_rom::$4 = display_chip_rom::r#2 + '0' -- vbuz1=vbuz2_plus_vbuc1 
+    // [605] display_chip_rom::$4 = display_chip_rom::r#2 + '0' -- vbuz1=vbum2_plus_vbuc1 
     lda #'0'
     clc
-    adc.z r
+    adc r
     sta.z display_chip_rom__4
     // *(rom+3) = r+'0'
-    // [587] *(display_chip_rom::rom+3) = display_chip_rom::$4 -- _deref_pbuc1=vbuz1 
+    // [606] *(display_chip_rom::rom+3) = display_chip_rom::$4 -- _deref_pbuc1=vbuz1 
     sta rom+3
     // display_chip_rom::@3
   __b3:
     // display_rom_led(r, GREY)
-    // [588] display_rom_led::chip#0 = display_chip_rom::r#2 -- vbuz1=vbuz2 
-    lda.z r
-    sta.z display_rom_led.chip
-    // [589] call display_rom_led
-    // [1187] phi from display_chip_rom::@3 to display_rom_led [phi:display_chip_rom::@3->display_rom_led]
-    // [1187] phi display_rom_led::c#2 = GREY [phi:display_chip_rom::@3->display_rom_led#0] -- vbuz1=vbuc1 
+    // [607] display_rom_led::chip#0 = display_chip_rom::r#2 -- vbum1=vbum2 
+    lda r
+    sta display_rom_led.chip
+    // [608] call display_rom_led
+    // [1434] phi from display_chip_rom::@3 to display_rom_led [phi:display_chip_rom::@3->display_rom_led]
+    // [1434] phi display_rom_led::c#2 = GREY [phi:display_chip_rom::@3->display_rom_led#0] -- vbum1=vbuc1 
     lda #GREY
-    sta.z display_rom_led.c
-    // [1187] phi display_rom_led::chip#2 = display_rom_led::chip#0 [phi:display_chip_rom::@3->display_rom_led#1] -- register_copy 
+    sta display_rom_led.c
+    // [1434] phi display_rom_led::chip#2 = display_rom_led::chip#0 [phi:display_chip_rom::@3->display_rom_led#1] -- register_copy 
     jsr display_rom_led
     // display_chip_rom::@7
     // r*6
-    // [590] display_chip_rom::$12 = display_chip_rom::$11 + display_chip_rom::r#2 -- vbuz1=vbuz1_plus_vbuz2 
-    lda.z display_chip_rom__12
+    // [609] display_chip_rom::$12 = display_chip_rom::$11 + display_chip_rom::r#2 -- vbuz1=vbuz1_plus_vbum2 
+    lda r
     clc
-    adc.z r
+    adc.z display_chip_rom__12
     sta.z display_chip_rom__12
-    // [591] display_chip_rom::$6 = display_chip_rom::$12 << 1 -- vbuz1=vbuz2_rol_1 
-    asl
-    sta.z display_chip_rom__6
+    // [610] display_chip_rom::$6 = display_chip_rom::$12 << 1 -- vbuz1=vbuz1_rol_1 
+    asl.z display_chip_rom__6
     // display_print_chip(CHIP_ROM_X+r*6, CHIP_ROM_Y+2, CHIP_ROM_W, rom)
-    // [592] display_print_chip::x#2 = $14 + display_chip_rom::$6 -- vbuz1=vbuc1_plus_vbuz1 
+    // [611] display_print_chip::x#2 = $14 + display_chip_rom::$6 -- vbum1=vbuc1_plus_vbuz2 
     lda #$14
     clc
-    adc.z display_print_chip.x
-    sta.z display_print_chip.x
-    // [593] call display_print_chip
-    // [1125] phi from display_chip_rom::@7 to display_print_chip [phi:display_chip_rom::@7->display_print_chip]
-    // [1125] phi display_print_chip::text#11 = display_chip_rom::rom [phi:display_chip_rom::@7->display_print_chip#0] -- pbuz1=pbuc1 
+    adc.z display_chip_rom__6
+    sta display_print_chip.x
+    // [612] call display_print_chip
+    // [1372] phi from display_chip_rom::@7 to display_print_chip [phi:display_chip_rom::@7->display_print_chip]
+    // [1372] phi display_print_chip::text#11 = display_chip_rom::rom [phi:display_chip_rom::@7->display_print_chip#0] -- pbuz1=pbuc1 
     lda #<rom
     sta.z display_print_chip.text_2
     lda #>rom
     sta.z display_print_chip.text_2+1
-    // [1125] phi display_print_chip::w#10 = 3 [phi:display_chip_rom::@7->display_print_chip#1] -- vbuz1=vbuc1 
+    // [1372] phi display_print_chip::w#10 = 3 [phi:display_chip_rom::@7->display_print_chip#1] -- vbum1=vbuc1 
     lda #3
-    sta.z display_print_chip.w
-    // [1125] phi display_print_chip::x#10 = display_print_chip::x#2 [phi:display_chip_rom::@7->display_print_chip#2] -- register_copy 
+    sta display_print_chip.w
+    // [1372] phi display_print_chip::x#10 = display_print_chip::x#2 [phi:display_chip_rom::@7->display_print_chip#2] -- register_copy 
     jsr display_print_chip
     // display_chip_rom::@8
     // for (unsigned char r = 0; r < 8; r++)
-    // [594] display_chip_rom::r#1 = ++ display_chip_rom::r#2 -- vbuz1=_inc_vbuz1 
-    inc.z r
-    // [577] phi from display_chip_rom::@8 to display_chip_rom::@1 [phi:display_chip_rom::@8->display_chip_rom::@1]
-    // [577] phi display_chip_rom::r#2 = display_chip_rom::r#1 [phi:display_chip_rom::@8->display_chip_rom::@1#0] -- register_copy 
+    // [613] display_chip_rom::r#1 = ++ display_chip_rom::r#2 -- vbum1=_inc_vbum1 
+    inc r
+    // [596] phi from display_chip_rom::@8 to display_chip_rom::@1 [phi:display_chip_rom::@8->display_chip_rom::@1]
+    // [596] phi display_chip_rom::r#2 = display_chip_rom::r#1 [phi:display_chip_rom::@8->display_chip_rom::@1#0] -- register_copy 
     jmp __b1
   .segment Data
     rom: .fill $10, 0
     source: .text "ROM  "
     .byte 0
+    r: .byte 0
 }
 .segment Code
   // display_info_smc
@@ -3699,65 +3896,62 @@ display_chip_rom: {
  * 
  * @remark The smc_booloader is a global variable. 
  */
-// void display_info_smc(__zp($b1) char info_status, __zp($46) char *info_text)
+// void display_info_smc(__mem() char info_status, __zp($5c) char *info_text)
 display_info_smc: {
-    .label display_info_smc__8 = $b1
-    .label x = $ad
-    .label y = $ac
-    .label info_status = $b1
-    .label info_text = $46
+    .label display_info_smc__9 = $61
+    .label info_text = $5c
     // unsigned char x = wherex()
-    // [596] call wherex
+    // [615] call wherex
     jsr wherex
-    // [597] wherex::return#10 = wherex::return#0
-    // display_info_smc::@3
-    // [598] display_info_smc::x#0 = wherex::return#10 -- vbuz1=vbum2 
+    // [616] wherex::return#10 = wherex::return#0 -- vbum1=vbum2 
     lda wherex.return
-    sta.z x
+    sta wherex.return_2
+    // display_info_smc::@3
+    // [617] display_info_smc::x#0 = wherex::return#10
     // unsigned char y = wherey()
-    // [599] call wherey
+    // [618] call wherey
     jsr wherey
-    // [600] wherey::return#10 = wherey::return#0
-    // display_info_smc::@4
-    // [601] display_info_smc::y#0 = wherey::return#10 -- vbuz1=vbum2 
+    // [619] wherey::return#10 = wherey::return#0 -- vbum1=vbum2 
     lda wherey.return
-    sta.z y
+    sta wherey.return_2
+    // display_info_smc::@4
+    // [620] display_info_smc::y#0 = wherey::return#10
     // status_smc = info_status
-    // [602] status_smc#0 = display_info_smc::info_status#10 -- vbum1=vbuz2 
-    lda.z info_status
+    // [621] status_smc#0 = display_info_smc::info_status#10 -- vbum1=vbum2 
+    lda info_status
     sta status_smc
     // display_smc_led(status_color[info_status])
-    // [603] display_smc_led::c#1 = status_color[display_info_smc::info_status#10] -- vbuz1=pbuc1_derefidx_vbuz2 
-    ldy.z info_status
+    // [622] display_smc_led::c#1 = status_color[display_info_smc::info_status#10] -- vbum1=pbuc1_derefidx_vbum2 
+    ldy info_status
     lda status_color,y
-    sta.z display_smc_led.c
-    // [604] call display_smc_led
-    // [1119] phi from display_info_smc::@4 to display_smc_led [phi:display_info_smc::@4->display_smc_led]
-    // [1119] phi display_smc_led::c#2 = display_smc_led::c#1 [phi:display_info_smc::@4->display_smc_led#0] -- register_copy 
+    sta display_smc_led.c
+    // [623] call display_smc_led
+    // [1366] phi from display_info_smc::@4 to display_smc_led [phi:display_info_smc::@4->display_smc_led]
+    // [1366] phi display_smc_led::c#2 = display_smc_led::c#1 [phi:display_info_smc::@4->display_smc_led#0] -- register_copy 
     jsr display_smc_led
-    // [605] phi from display_info_smc::@4 to display_info_smc::@5 [phi:display_info_smc::@4->display_info_smc::@5]
+    // [624] phi from display_info_smc::@4 to display_info_smc::@5 [phi:display_info_smc::@4->display_info_smc::@5]
     // display_info_smc::@5
     // gotoxy(INFO_X, INFO_Y)
-    // [606] call gotoxy
-    // [435] phi from display_info_smc::@5 to gotoxy [phi:display_info_smc::@5->gotoxy]
-    // [435] phi gotoxy::y#19 = $11 [phi:display_info_smc::@5->gotoxy#0] -- vbum1=vbuc1 
+    // [625] call gotoxy
+    // [454] phi from display_info_smc::@5 to gotoxy [phi:display_info_smc::@5->gotoxy]
+    // [454] phi gotoxy::y#27 = $11 [phi:display_info_smc::@5->gotoxy#0] -- vbum1=vbuc1 
     lda #$11
     sta gotoxy.y
-    // [435] phi gotoxy::x#19 = 4 [phi:display_info_smc::@5->gotoxy#1] -- vbum1=vbuc1 
+    // [454] phi gotoxy::x#27 = 4 [phi:display_info_smc::@5->gotoxy#1] -- vbum1=vbuc1 
     lda #4
     sta gotoxy.x
     jsr gotoxy
-    // [607] phi from display_info_smc::@5 to display_info_smc::@6 [phi:display_info_smc::@5->display_info_smc::@6]
+    // [626] phi from display_info_smc::@5 to display_info_smc::@6 [phi:display_info_smc::@5->display_info_smc::@6]
     // display_info_smc::@6
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [608] call printf_str
-    // [723] phi from display_info_smc::@6 to printf_str [phi:display_info_smc::@6->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_smc::@6->printf_str#0] -- pprz1=pprc1 
+    // [627] call printf_str
+    // [785] phi from display_info_smc::@6 to printf_str [phi:display_info_smc::@6->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_smc::@6->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_smc::s [phi:display_info_smc::@6->printf_str#1] -- pbuz1=pbuc1 
+    // [785] phi printf_str::s#54 = display_info_smc::s [phi:display_info_smc::@6->printf_str#1] -- pbuz1=pbuc1 
     lda #<s
     sta.z printf_str.s
     lda #>s
@@ -3765,92 +3959,128 @@ display_info_smc: {
     jsr printf_str
     // display_info_smc::@7
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [609] display_info_smc::$8 = display_info_smc::info_status#10 << 1 -- vbuz1=vbuz1_rol_1 
-    asl.z display_info_smc__8
-    // [610] printf_string::str#3 = status_text[display_info_smc::$8] -- pbuz1=qbuc1_derefidx_vbuz2 
-    ldy.z display_info_smc__8
+    // [628] display_info_smc::$9 = display_info_smc::info_status#10 << 1 -- vbuz1=vbum2_rol_1 
+    lda info_status
+    asl
+    sta.z display_info_smc__9
+    // [629] printf_string::str#5 = status_text[display_info_smc::$9] -- pbuz1=qbuc1_derefidx_vbuz2 
+    tay
     lda status_text,y
     sta.z printf_string.str
     lda status_text+1,y
     sta.z printf_string.str+1
-    // [611] call printf_string
-    // [1081] phi from display_info_smc::@7 to printf_string [phi:display_info_smc::@7->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#3 [phi:display_info_smc::@7->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = 9 [phi:display_info_smc::@7->printf_string#1] -- vbum1=vbuc1 
+    // [630] call printf_string
+    // [1320] phi from display_info_smc::@7 to printf_string [phi:display_info_smc::@7->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_smc::@7->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#5 [phi:display_info_smc::@7->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_smc::@7->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 9 [phi:display_info_smc::@7->printf_string#3] -- vbum1=vbuc1 
     lda #9
     sta printf_string.format_min_length
     jsr printf_string
-    // [612] phi from display_info_smc::@7 to display_info_smc::@8 [phi:display_info_smc::@7->display_info_smc::@8]
+    // [631] phi from display_info_smc::@7 to display_info_smc::@8 [phi:display_info_smc::@7->display_info_smc::@8]
     // display_info_smc::@8
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [613] call printf_str
-    // [723] phi from display_info_smc::@8 to printf_str [phi:display_info_smc::@8->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_smc::@8->printf_str#0] -- pprz1=pprc1 
+    // [632] call printf_str
+    // [785] phi from display_info_smc::@8 to printf_str [phi:display_info_smc::@8->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_smc::@8->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_smc::s1 [phi:display_info_smc::@8->printf_str#1] -- pbuz1=pbuc1 
+    // [785] phi printf_str::s#54 = display_info_smc::s1 [phi:display_info_smc::@8->printf_str#1] -- pbuz1=pbuc1 
     lda #<s1
     sta.z printf_str.s
     lda #>s1
     sta.z printf_str.s+1
     jsr printf_str
-    // [614] phi from display_info_smc::@8 to display_info_smc::@9 [phi:display_info_smc::@8->display_info_smc::@9]
+    // [633] phi from display_info_smc::@8 to display_info_smc::@9 [phi:display_info_smc::@8->display_info_smc::@9]
     // display_info_smc::@9
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [615] call printf_string
-    // [1081] phi from display_info_smc::@9 to printf_string [phi:display_info_smc::@9->printf_string]
-    // [1081] phi printf_string::str#12 = smc_version_text [phi:display_info_smc::@9->printf_string#0] -- pbuz1=pbuc1 
+    // [634] call printf_string
+    // [1320] phi from display_info_smc::@9 to printf_string [phi:display_info_smc::@9->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_smc::@9->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = smc_version_text [phi:display_info_smc::@9->printf_string#1] -- pbuz1=pbuc1 
     lda #<smc_version_text
     sta.z printf_string.str
     lda #>smc_version_text
     sta.z printf_string.str+1
-    // [1081] phi printf_string::format_min_length#12 = 8 [phi:display_info_smc::@9->printf_string#1] -- vbum1=vbuc1 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_smc::@9->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 8 [phi:display_info_smc::@9->printf_string#3] -- vbum1=vbuc1 
     lda #8
     sta printf_string.format_min_length
     jsr printf_string
-    // [616] phi from display_info_smc::@9 to display_info_smc::@10 [phi:display_info_smc::@9->display_info_smc::@10]
+    // [635] phi from display_info_smc::@9 to display_info_smc::@10 [phi:display_info_smc::@9->display_info_smc::@10]
     // display_info_smc::@10
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [617] call printf_str
-    // [723] phi from display_info_smc::@10 to printf_str [phi:display_info_smc::@10->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_smc::@10->printf_str#0] -- pprz1=pprc1 
+    // [636] call printf_str
+    // [785] phi from display_info_smc::@10 to printf_str [phi:display_info_smc::@10->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_smc::@10->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_smc::s2 [phi:display_info_smc::@10->printf_str#1] -- pbuz1=pbuc1 
+    // [785] phi printf_str::s#54 = display_info_smc::s2 [phi:display_info_smc::@10->printf_str#1] -- pbuz1=pbuc1 
     lda #<s2
     sta.z printf_str.s
     lda #>s2
     sta.z printf_str.s+1
     jsr printf_str
-    // [618] phi from display_info_smc::@10 to display_info_smc::@11 [phi:display_info_smc::@10->display_info_smc::@11]
+    // [637] phi from display_info_smc::@10 to display_info_smc::@11 [phi:display_info_smc::@10->display_info_smc::@11]
     // display_info_smc::@11
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [619] call printf_uint
-    // [1198] phi from display_info_smc::@11 to printf_uint [phi:display_info_smc::@11->printf_uint]
+    // [638] call printf_uint
+    // [1445] phi from display_info_smc::@11 to printf_uint [phi:display_info_smc::@11->printf_uint]
+    // [1445] phi printf_uint::format_zero_padding#10 = 0 [phi:display_info_smc::@11->printf_uint#0] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uint.format_zero_padding
+    // [1445] phi printf_uint::format_min_length#10 = 0 [phi:display_info_smc::@11->printf_uint#1] -- vbum1=vbuc1 
+    sta printf_uint.format_min_length
+    // [1445] phi printf_uint::putc#10 = &cputc [phi:display_info_smc::@11->printf_uint#2] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_uint.putc
+    lda #>cputc
+    sta.z printf_uint.putc+1
+    // [1445] phi printf_uint::format_radix#10 = DECIMAL [phi:display_info_smc::@11->printf_uint#3] -- vbum1=vbuc1 
+    lda #DECIMAL
+    sta printf_uint.format_radix
+    // [1445] phi printf_uint::uvalue#6 = smc_bootloader [phi:display_info_smc::@11->printf_uint#4] -- vwum1=vwuc1 
+    lda #<smc_bootloader
+    sta printf_uint.uvalue
+    lda #>smc_bootloader
+    sta printf_uint.uvalue+1
     jsr printf_uint
-    // [620] phi from display_info_smc::@11 to display_info_smc::@12 [phi:display_info_smc::@11->display_info_smc::@12]
+    // [639] phi from display_info_smc::@11 to display_info_smc::@12 [phi:display_info_smc::@11->display_info_smc::@12]
     // display_info_smc::@12
     // printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader)
-    // [621] call printf_str
-    // [723] phi from display_info_smc::@12 to printf_str [phi:display_info_smc::@12->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_smc::@12->printf_str#0] -- pprz1=pprc1 
+    // [640] call printf_str
+    // [785] phi from display_info_smc::@12 to printf_str [phi:display_info_smc::@12->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_smc::@12->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = s3 [phi:display_info_smc::@12->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s3
+    // [785] phi printf_str::s#54 = s [phi:display_info_smc::@12->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
     sta.z printf_str.s
-    lda #>s3
+    lda #>@s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_smc::@13
     // if(info_text)
-    // [622] if((char *)0==display_info_smc::info_text#10) goto display_info_smc::@1 -- pbuc1_eq_pbuz1_then_la1 
+    // [641] if((char *)0==display_info_smc::info_text#10) goto display_info_smc::@1 -- pbuc1_eq_pbuz1_then_la1 
     lda.z info_text
     cmp #<0
     bne !+
@@ -3858,37 +4088,57 @@ display_info_smc: {
     cmp #>0
     beq __b1
   !:
+    // [642] phi from display_info_smc::@13 to display_info_smc::@2 [phi:display_info_smc::@13->display_info_smc::@2]
     // display_info_smc::@2
+    // gotoxy(INFO_X+64-28, INFO_Y+1)
+    // [643] call gotoxy
+    // [454] phi from display_info_smc::@2 to gotoxy [phi:display_info_smc::@2->gotoxy]
+    // [454] phi gotoxy::y#27 = $11+1 [phi:display_info_smc::@2->gotoxy#0] -- vbum1=vbuc1 
+    lda #$11+1
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = 4+$40-$1c [phi:display_info_smc::@2->gotoxy#1] -- vbum1=vbuc1 
+    lda #4+$40-$1c
+    sta gotoxy.x
+    jsr gotoxy
+    // display_info_smc::@14
     // printf("%-25s", info_text)
-    // [623] printf_string::str#5 = display_info_smc::info_text#10 -- pbuz1=pbuz2 
+    // [644] printf_string::str#7 = display_info_smc::info_text#10 -- pbuz1=pbuz2 
     lda.z info_text
     sta.z printf_string.str
     lda.z info_text+1
     sta.z printf_string.str+1
-    // [624] call printf_string
-    // [1081] phi from display_info_smc::@2 to printf_string [phi:display_info_smc::@2->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#5 [phi:display_info_smc::@2->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = $19 [phi:display_info_smc::@2->printf_string#1] -- vbum1=vbuc1 
+    // [645] call printf_string
+    // [1320] phi from display_info_smc::@14 to printf_string [phi:display_info_smc::@14->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_smc::@14->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#7 [phi:display_info_smc::@14->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_smc::@14->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $19 [phi:display_info_smc::@14->printf_string#3] -- vbum1=vbuc1 
     lda #$19
     sta printf_string.format_min_length
     jsr printf_string
     // display_info_smc::@1
   __b1:
     // gotoxy(x, y)
-    // [625] gotoxy::x#14 = display_info_smc::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [646] gotoxy::x#17 = display_info_smc::x#0 -- vbum1=vbum2 
+    lda x
     sta gotoxy.x
-    // [626] gotoxy::y#14 = display_info_smc::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [647] gotoxy::y#17 = display_info_smc::y#0 -- vbum1=vbum2 
+    lda y
     sta gotoxy.y
-    // [627] call gotoxy
-    // [435] phi from display_info_smc::@1 to gotoxy [phi:display_info_smc::@1->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#14 [phi:display_info_smc::@1->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#14 [phi:display_info_smc::@1->gotoxy#1] -- register_copy 
+    // [648] call gotoxy
+    // [454] phi from display_info_smc::@1 to gotoxy [phi:display_info_smc::@1->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#17 [phi:display_info_smc::@1->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#17 [phi:display_info_smc::@1->gotoxy#1] -- register_copy 
     jsr gotoxy
     // display_info_smc::@return
     // }
-    // [628] return 
+    // [649] return 
     rts
   .segment Data
     s: .text "SMC  "
@@ -3897,6 +4147,9 @@ display_info_smc: {
     .byte 0
     s2: .text " BL:"
     .byte 0
+    .label x = wherex.return_2
+    .label y = wherey.return_2
+    info_status: .byte 0
 }
 .segment Code
   // display_info_vera
@@ -3905,188 +4158,230 @@ display_info_smc: {
  * 
  * @param info_status The STATUS_ 
  */
-// void display_info_vera(__zp($ab) char info_status, __zp($4b) char *info_text)
+// void display_info_vera(__mem() char info_status, __zp($5e) char *info_text)
 display_info_vera: {
-    .label display_info_vera__8 = $ab
-    .label x = $bb
-    .label y = $7d
-    .label info_status = $ab
-    .label info_text = $4b
+    .label display_info_vera__9 = $36
+    .label info_text = $5e
     // unsigned char x = wherex()
-    // [630] call wherex
+    // [651] call wherex
     jsr wherex
-    // [631] wherex::return#11 = wherex::return#0
-    // display_info_vera::@3
-    // [632] display_info_vera::x#0 = wherex::return#11 -- vbuz1=vbum2 
+    // [652] wherex::return#11 = wherex::return#0 -- vbum1=vbum2 
     lda wherex.return
-    sta.z x
+    sta wherex.return_3
+    // display_info_vera::@3
+    // [653] display_info_vera::x#0 = wherex::return#11
     // unsigned char y = wherey()
-    // [633] call wherey
+    // [654] call wherey
     jsr wherey
-    // [634] wherey::return#11 = wherey::return#0
-    // display_info_vera::@4
-    // [635] display_info_vera::y#0 = wherey::return#11 -- vbuz1=vbum2 
+    // [655] wherey::return#11 = wherey::return#0 -- vbum1=vbum2 
     lda wherey.return
-    sta.z y
+    sta wherey.return_3
+    // display_info_vera::@4
+    // [656] display_info_vera::y#0 = wherey::return#11
     // status_vera = info_status
-    // [636] status_vera#0 = display_info_vera::info_status#4 -- vbum1=vbuz2 
-    lda.z info_status
+    // [657] status_vera#120 = display_info_vera::info_status#18 -- vbum1=vbum2 
+    lda info_status
     sta status_vera
     // display_vera_led(status_color[info_status])
-    // [637] display_vera_led::c#1 = status_color[display_info_vera::info_status#4] -- vbuz1=pbuc1_derefidx_vbuz2 
-    ldy.z info_status
+    // [658] display_vera_led::c#1 = status_color[display_info_vera::info_status#18] -- vbum1=pbuc1_derefidx_vbum2 
+    ldy info_status
     lda status_color,y
-    sta.z display_vera_led.c
-    // [638] call display_vera_led
-    // [1169] phi from display_info_vera::@4 to display_vera_led [phi:display_info_vera::@4->display_vera_led]
-    // [1169] phi display_vera_led::c#2 = display_vera_led::c#1 [phi:display_info_vera::@4->display_vera_led#0] -- register_copy 
+    sta display_vera_led.c
+    // [659] call display_vera_led
+    // [1416] phi from display_info_vera::@4 to display_vera_led [phi:display_info_vera::@4->display_vera_led]
+    // [1416] phi display_vera_led::c#2 = display_vera_led::c#1 [phi:display_info_vera::@4->display_vera_led#0] -- register_copy 
     jsr display_vera_led
-    // [639] phi from display_info_vera::@4 to display_info_vera::@5 [phi:display_info_vera::@4->display_info_vera::@5]
+    // [660] phi from display_info_vera::@4 to display_info_vera::@5 [phi:display_info_vera::@4->display_info_vera::@5]
     // display_info_vera::@5
     // gotoxy(INFO_X, INFO_Y+1)
-    // [640] call gotoxy
-    // [435] phi from display_info_vera::@5 to gotoxy [phi:display_info_vera::@5->gotoxy]
-    // [435] phi gotoxy::y#19 = $11+1 [phi:display_info_vera::@5->gotoxy#0] -- vbum1=vbuc1 
+    // [661] call gotoxy
+    // [454] phi from display_info_vera::@5 to gotoxy [phi:display_info_vera::@5->gotoxy]
+    // [454] phi gotoxy::y#27 = $11+1 [phi:display_info_vera::@5->gotoxy#0] -- vbum1=vbuc1 
     lda #$11+1
     sta gotoxy.y
-    // [435] phi gotoxy::x#19 = 4 [phi:display_info_vera::@5->gotoxy#1] -- vbum1=vbuc1 
+    // [454] phi gotoxy::x#27 = 4 [phi:display_info_vera::@5->gotoxy#1] -- vbum1=vbuc1 
     lda #4
     sta gotoxy.x
     jsr gotoxy
-    // [641] phi from display_info_vera::@5 to display_info_vera::@6 [phi:display_info_vera::@5->display_info_vera::@6]
+    // [662] phi from display_info_vera::@5 to display_info_vera::@6 [phi:display_info_vera::@5->display_info_vera::@6]
     // display_info_vera::@6
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [642] call printf_str
-    // [723] phi from display_info_vera::@6 to printf_str [phi:display_info_vera::@6->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_vera::@6->printf_str#0] -- pprz1=pprc1 
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [663] call printf_str
+    // [785] phi from display_info_vera::@6 to printf_str [phi:display_info_vera::@6->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_vera::@6->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_vera::s [phi:display_info_vera::@6->printf_str#1] -- pbuz1=pbuc1 
+    // [785] phi printf_str::s#54 = display_info_vera::s [phi:display_info_vera::@6->printf_str#1] -- pbuz1=pbuc1 
     lda #<s
     sta.z printf_str.s
     lda #>s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_vera::@7
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [643] display_info_vera::$8 = display_info_vera::info_status#4 << 1 -- vbuz1=vbuz1_rol_1 
-    asl.z display_info_vera__8
-    // [644] printf_string::str#6 = status_text[display_info_vera::$8] -- pbuz1=qbuc1_derefidx_vbuz2 
-    ldy.z display_info_vera__8
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [664] display_info_vera::$9 = display_info_vera::info_status#18 << 1 -- vbuz1=vbum2_rol_1 
+    lda info_status
+    asl
+    sta.z display_info_vera__9
+    // [665] printf_string::str#8 = status_text[display_info_vera::$9] -- pbuz1=qbuc1_derefidx_vbuz2 
+    tay
     lda status_text,y
     sta.z printf_string.str
     lda status_text+1,y
     sta.z printf_string.str+1
-    // [645] call printf_string
-    // [1081] phi from display_info_vera::@7 to printf_string [phi:display_info_vera::@7->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#6 [phi:display_info_vera::@7->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = 9 [phi:display_info_vera::@7->printf_string#1] -- vbum1=vbuc1 
+    // [666] call printf_string
+    // [1320] phi from display_info_vera::@7 to printf_string [phi:display_info_vera::@7->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_vera::@7->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#8 [phi:display_info_vera::@7->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_vera::@7->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 9 [phi:display_info_vera::@7->printf_string#3] -- vbum1=vbuc1 
     lda #9
     sta printf_string.format_min_length
     jsr printf_string
-    // [646] phi from display_info_vera::@7 to display_info_vera::@8 [phi:display_info_vera::@7->display_info_vera::@8]
+    // [667] phi from display_info_vera::@7 to display_info_vera::@8 [phi:display_info_vera::@7->display_info_vera::@8]
     // display_info_vera::@8
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [647] call printf_str
-    // [723] phi from display_info_vera::@8 to printf_str [phi:display_info_vera::@8->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_vera::@8->printf_str#0] -- pprz1=pprc1 
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [668] call printf_str
+    // [785] phi from display_info_vera::@8 to printf_str [phi:display_info_vera::@8->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_vera::@8->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_vera::s1 [phi:display_info_vera::@8->printf_str#1] -- pbuz1=pbuc1 
+    // [785] phi printf_str::s#54 = display_info_vera::s1 [phi:display_info_vera::@8->printf_str#1] -- pbuz1=pbuc1 
     lda #<s1
     sta.z printf_str.s
     lda #>s1
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_vera::@9
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [648] printf_uchar::uvalue#0 = spi_manufacturer#12 -- vbum1=vbum2 
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [669] printf_uchar::uvalue#5 = spi_manufacturer#100 -- vbum1=vbum2 
     lda spi_manufacturer
     sta printf_uchar.uvalue
-    // [649] call printf_uchar
-    // [732] phi from display_info_vera::@9 to printf_uchar [phi:display_info_vera::@9->printf_uchar]
-    // [732] phi printf_uchar::format_zero_padding#10 = 0 [phi:display_info_vera::@9->printf_uchar#0] -- vbum1=vbuc1 
-    lda #0
+    // [670] call printf_uchar
+    // [835] phi from display_info_vera::@9 to printf_uchar [phi:display_info_vera::@9->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:display_info_vera::@9->printf_uchar#0] -- vbum1=vbuc1 
+    lda #1
     sta printf_uchar.format_zero_padding
-    // [732] phi printf_uchar::format_min_length#10 = 0 [phi:display_info_vera::@9->printf_uchar#1] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:display_info_vera::@9->printf_uchar#1] -- vbum1=vbuc1 
+    lda #0
     sta printf_uchar.format_min_length
-    // [732] phi printf_uchar::putc#10 = &cputc [phi:display_info_vera::@9->printf_uchar#2] -- pprz1=pprc1 
+    // [835] phi printf_uchar::putc#12 = &cputc [phi:display_info_vera::@9->printf_uchar#2] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_uchar.putc
     lda #>cputc
     sta.z printf_uchar.putc+1
-    // [732] phi printf_uchar::format_radix#10 = HEXADECIMAL [phi:display_info_vera::@9->printf_uchar#3] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:display_info_vera::@9->printf_uchar#3] -- vbum1=vbuc1 
     lda #HEXADECIMAL
     sta printf_uchar.format_radix
-    // [732] phi printf_uchar::uvalue#6 = printf_uchar::uvalue#0 [phi:display_info_vera::@9->printf_uchar#4] -- register_copy 
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#5 [phi:display_info_vera::@9->printf_uchar#4] -- register_copy 
     jsr printf_uchar
+    // [671] phi from display_info_vera::@9 to display_info_vera::@10 [phi:display_info_vera::@9->display_info_vera::@10]
     // display_info_vera::@10
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [650] printf_uchar::uvalue#1 = spi_memory_type#12 -- vbum1=vbum2 
-    lda spi_memory_type
-    sta printf_uchar.uvalue
-    // [651] call printf_uchar
-    // [732] phi from display_info_vera::@10 to printf_uchar [phi:display_info_vera::@10->printf_uchar]
-    // [732] phi printf_uchar::format_zero_padding#10 = 0 [phi:display_info_vera::@10->printf_uchar#0] -- vbum1=vbuc1 
-    lda #0
-    sta printf_uchar.format_zero_padding
-    // [732] phi printf_uchar::format_min_length#10 = 0 [phi:display_info_vera::@10->printf_uchar#1] -- vbum1=vbuc1 
-    sta printf_uchar.format_min_length
-    // [732] phi printf_uchar::putc#10 = &cputc [phi:display_info_vera::@10->printf_uchar#2] -- pprz1=pprc1 
-    lda #<cputc
-    sta.z printf_uchar.putc
-    lda #>cputc
-    sta.z printf_uchar.putc+1
-    // [732] phi printf_uchar::format_radix#10 = HEXADECIMAL [phi:display_info_vera::@10->printf_uchar#3] -- vbum1=vbuc1 
-    lda #HEXADECIMAL
-    sta printf_uchar.format_radix
-    // [732] phi printf_uchar::uvalue#6 = printf_uchar::uvalue#1 [phi:display_info_vera::@10->printf_uchar#4] -- register_copy 
-    jsr printf_uchar
-    // display_info_vera::@11
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [652] printf_uchar::uvalue#2 = spi_memory_capacity#12 -- vbum1=vbum2 
-    lda spi_memory_capacity
-    sta printf_uchar.uvalue
-    // [653] call printf_uchar
-    // [732] phi from display_info_vera::@11 to printf_uchar [phi:display_info_vera::@11->printf_uchar]
-    // [732] phi printf_uchar::format_zero_padding#10 = 0 [phi:display_info_vera::@11->printf_uchar#0] -- vbum1=vbuc1 
-    lda #0
-    sta printf_uchar.format_zero_padding
-    // [732] phi printf_uchar::format_min_length#10 = 0 [phi:display_info_vera::@11->printf_uchar#1] -- vbum1=vbuc1 
-    sta printf_uchar.format_min_length
-    // [732] phi printf_uchar::putc#10 = &cputc [phi:display_info_vera::@11->printf_uchar#2] -- pprz1=pprc1 
-    lda #<cputc
-    sta.z printf_uchar.putc
-    lda #>cputc
-    sta.z printf_uchar.putc+1
-    // [732] phi printf_uchar::format_radix#10 = HEXADECIMAL [phi:display_info_vera::@11->printf_uchar#3] -- vbum1=vbuc1 
-    lda #HEXADECIMAL
-    sta printf_uchar.format_radix
-    // [732] phi printf_uchar::uvalue#6 = printf_uchar::uvalue#2 [phi:display_info_vera::@11->printf_uchar#4] -- register_copy 
-    jsr printf_uchar
-    // [654] phi from display_info_vera::@11 to display_info_vera::@12 [phi:display_info_vera::@11->display_info_vera::@12]
-    // display_info_vera::@12
-    // printf("VERA %-9s SPI %x%x%x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
-    // [655] call printf_str
-    // [723] phi from display_info_vera::@12 to printf_str [phi:display_info_vera::@12->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_vera::@12->printf_str#0] -- pprz1=pprc1 
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [672] call printf_str
+    // [785] phi from display_info_vera::@10 to printf_str [phi:display_info_vera::@10->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_vera::@10->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_vera::s2 [phi:display_info_vera::@12->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s2
+    // [785] phi printf_str::s#54 = s [phi:display_info_vera::@10->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
     sta.z printf_str.s
-    lda #>s2
+    lda #>@s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // display_info_vera::@11
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [673] printf_uchar::uvalue#6 = spi_memory_type#110 -- vbum1=vbum2 
+    lda spi_memory_type
+    sta printf_uchar.uvalue
+    // [674] call printf_uchar
+    // [835] phi from display_info_vera::@11 to printf_uchar [phi:display_info_vera::@11->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:display_info_vera::@11->printf_uchar#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:display_info_vera::@11->printf_uchar#1] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &cputc [phi:display_info_vera::@11->printf_uchar#2] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_uchar.putc
+    lda #>cputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:display_info_vera::@11->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#6 [phi:display_info_vera::@11->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // [675] phi from display_info_vera::@11 to display_info_vera::@12 [phi:display_info_vera::@11->display_info_vera::@12]
+    // display_info_vera::@12
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [676] call printf_str
+    // [785] phi from display_info_vera::@12 to printf_str [phi:display_info_vera::@12->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_vera::@12->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s [phi:display_info_vera::@12->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
+    sta.z printf_str.s
+    lda #>@s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_vera::@13
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [677] printf_uchar::uvalue#7 = spi_memory_capacity#109 -- vbum1=vbum2 
+    lda spi_memory_capacity
+    sta printf_uchar.uvalue
+    // [678] call printf_uchar
+    // [835] phi from display_info_vera::@13 to printf_uchar [phi:display_info_vera::@13->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:display_info_vera::@13->printf_uchar#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:display_info_vera::@13->printf_uchar#1] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &cputc [phi:display_info_vera::@13->printf_uchar#2] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_uchar.putc
+    lda #>cputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:display_info_vera::@13->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#7 [phi:display_info_vera::@13->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // [679] phi from display_info_vera::@13 to display_info_vera::@14 [phi:display_info_vera::@13->display_info_vera::@14]
+    // display_info_vera::@14
+    // printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity)
+    // [680] call printf_str
+    // [785] phi from display_info_vera::@14 to printf_str [phi:display_info_vera::@14->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_vera::@14->printf_str#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_str.putc
+    lda #>cputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = display_info_vera::s4 [phi:display_info_vera::@14->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s4
+    sta.z printf_str.s
+    lda #>s4
+    sta.z printf_str.s+1
+    jsr printf_str
+    // display_info_vera::@15
     // if(info_text)
-    // [656] if((char *)0==display_info_vera::info_text#10) goto display_info_vera::@1 -- pbuc1_eq_pbuz1_then_la1 
+    // [681] if((char *)0==display_info_vera::info_text#18) goto display_info_vera::@1 -- pbuc1_eq_pbuz1_then_la1 
     lda.z info_text
     cmp #<0
     bne !+
@@ -4094,160 +4389,413 @@ display_info_vera: {
     cmp #>0
     beq __b1
   !:
+    // [682] phi from display_info_vera::@15 to display_info_vera::@2 [phi:display_info_vera::@15->display_info_vera::@2]
     // display_info_vera::@2
+    // gotoxy(INFO_X+64-28, INFO_Y+1)
+    // [683] call gotoxy
+    // [454] phi from display_info_vera::@2 to gotoxy [phi:display_info_vera::@2->gotoxy]
+    // [454] phi gotoxy::y#27 = $11+1 [phi:display_info_vera::@2->gotoxy#0] -- vbum1=vbuc1 
+    lda #$11+1
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = 4+$40-$1c [phi:display_info_vera::@2->gotoxy#1] -- vbum1=vbuc1 
+    lda #4+$40-$1c
+    sta gotoxy.x
+    jsr gotoxy
+    // display_info_vera::@16
     // printf("%-25s", info_text)
-    // [657] printf_string::str#7 = display_info_vera::info_text#10 -- pbuz1=pbuz2 
+    // [684] printf_string::str#9 = display_info_vera::info_text#18 -- pbuz1=pbuz2 
     lda.z info_text
     sta.z printf_string.str
     lda.z info_text+1
     sta.z printf_string.str+1
-    // [658] call printf_string
-    // [1081] phi from display_info_vera::@2 to printf_string [phi:display_info_vera::@2->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#7 [phi:display_info_vera::@2->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = $19 [phi:display_info_vera::@2->printf_string#1] -- vbum1=vbuc1 
+    // [685] call printf_string
+    // [1320] phi from display_info_vera::@16 to printf_string [phi:display_info_vera::@16->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_vera::@16->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#9 [phi:display_info_vera::@16->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_vera::@16->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $19 [phi:display_info_vera::@16->printf_string#3] -- vbum1=vbuc1 
     lda #$19
     sta printf_string.format_min_length
     jsr printf_string
     // display_info_vera::@1
   __b1:
     // gotoxy(x, y)
-    // [659] gotoxy::x#16 = display_info_vera::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [686] gotoxy::x#20 = display_info_vera::x#0 -- vbum1=vbum2 
+    lda x
     sta gotoxy.x
-    // [660] gotoxy::y#16 = display_info_vera::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [687] gotoxy::y#20 = display_info_vera::y#0 -- vbum1=vbum2 
+    lda y
     sta gotoxy.y
-    // [661] call gotoxy
-    // [435] phi from display_info_vera::@1 to gotoxy [phi:display_info_vera::@1->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#16 [phi:display_info_vera::@1->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#16 [phi:display_info_vera::@1->gotoxy#1] -- register_copy 
+    // [688] call gotoxy
+    // [454] phi from display_info_vera::@1 to gotoxy [phi:display_info_vera::@1->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#20 [phi:display_info_vera::@1->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#20 [phi:display_info_vera::@1->gotoxy#1] -- register_copy 
     jsr gotoxy
     // display_info_vera::@return
     // }
-    // [662] return 
+    // [689] return 
     rts
   .segment Data
     s: .text "VERA "
     .byte 0
     s1: .text " SPI "
     .byte 0
-    s2: .text "              "
+    s4: .text "              "
     .byte 0
+    .label x = wherex.return_3
+    .label y = wherey.return_3
+    info_status: .byte 0
 }
 .segment Code
-  // display_progress_text
-/**
- * @brief Print a block of text within the progress frame with a count of lines.
- * 
- * @param text A pointer to an array of strings to be displayed (char**).
- * @param lines The amount of lines to be displayed, starting from the top of the progress frame.
- */
-// void display_progress_text(__zp($39) char **text, __zp($b8) char lines)
-display_progress_text: {
-    .label display_progress_text__3 = $54
-    .label l = $7e
-    .label lines = $b8
-    .label text = $39
-    // display_progress_clear()
-    // [664] call display_progress_clear
-    // [551] phi from display_progress_text to display_progress_clear [phi:display_progress_text->display_progress_clear]
-    jsr display_progress_clear
-    // [665] phi from display_progress_text to display_progress_text::@1 [phi:display_progress_text->display_progress_text::@1]
-    // [665] phi display_progress_text::l#2 = 0 [phi:display_progress_text->display_progress_text::@1#0] -- vbuz1=vbuc1 
+  // main_intro
+main_intro: {
+    .label intro_status = $60
+    // display_progress_text(display_into_briefing_text, display_intro_briefing_count)
+    // [691] call display_progress_text
+    // [816] phi from main_intro to display_progress_text [phi:main_intro->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_into_briefing_text [phi:main_intro->display_progress_text#0] -- qbuz1=qbuc1 
+    lda #<display_into_briefing_text
+    sta.z display_progress_text.text
+    lda #>display_into_briefing_text
+    sta.z display_progress_text.text+1
+    // [816] phi display_progress_text::lines#11 = display_intro_briefing_count [phi:main_intro->display_progress_text#1] -- vbum1=vbuc1 
+    lda #display_intro_briefing_count
+    sta display_progress_text.lines
+    jsr display_progress_text
+    // [692] phi from main_intro to main_intro::@4 [phi:main_intro->main_intro::@4]
+    // main_intro::@4
+    // util_wait_space()
+    // [693] call util_wait_space
+    // [1121] phi from main_intro::@4 to util_wait_space [phi:main_intro::@4->util_wait_space]
+    jsr util_wait_space
+    // [694] phi from main_intro::@4 to main_intro::@5 [phi:main_intro::@4->main_intro::@5]
+    // main_intro::@5
+    // display_progress_text(display_into_colors_text, display_intro_colors_count)
+    // [695] call display_progress_text
+    // [816] phi from main_intro::@5 to display_progress_text [phi:main_intro::@5->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_into_colors_text [phi:main_intro::@5->display_progress_text#0] -- qbuz1=qbuc1 
+    lda #<display_into_colors_text
+    sta.z display_progress_text.text
+    lda #>display_into_colors_text
+    sta.z display_progress_text.text+1
+    // [816] phi display_progress_text::lines#11 = display_intro_colors_count [phi:main_intro::@5->display_progress_text#1] -- vbum1=vbuc1 
+    lda #display_intro_colors_count
+    sta display_progress_text.lines
+    jsr display_progress_text
+    // [696] phi from main_intro::@5 to main_intro::@1 [phi:main_intro::@5->main_intro::@1]
+    // [696] phi main_intro::intro_status#2 = 0 [phi:main_intro::@5->main_intro::@1#0] -- vbuz1=vbuc1 
     lda #0
-    sta.z l
-    // display_progress_text::@1
+    sta.z intro_status
+    // main_intro::@1
   __b1:
-    // for(unsigned char l=0; l<lines; l++)
-    // [666] if(display_progress_text::l#2<display_progress_text::lines#11) goto display_progress_text::@2 -- vbuz1_lt_vbuz2_then_la1 
-    lda.z l
-    cmp.z lines
+    // for(unsigned char intro_status=0; intro_status<11; intro_status++)
+    // [697] if(main_intro::intro_status#2<$b) goto main_intro::@2 -- vbuz1_lt_vbuc1_then_la1 
+    lda.z intro_status
+    cmp #$b
     bcc __b2
-    // display_progress_text::@return
+    // [698] phi from main_intro::@1 to main_intro::@3 [phi:main_intro::@1->main_intro::@3]
+    // main_intro::@3
+    // util_wait_space()
+    // [699] call util_wait_space
+    // [1121] phi from main_intro::@3 to util_wait_space [phi:main_intro::@3->util_wait_space]
+    jsr util_wait_space
+    // [700] phi from main_intro::@3 to main_intro::@7 [phi:main_intro::@3->main_intro::@7]
+    // main_intro::@7
+    // display_progress_clear()
+    // [701] call display_progress_clear
+    // [570] phi from main_intro::@7 to display_progress_clear [phi:main_intro::@7->display_progress_clear]
+    jsr display_progress_clear
+    // main_intro::@return
     // }
-    // [667] return 
+    // [702] return 
     rts
-    // display_progress_text::@2
+    // main_intro::@2
   __b2:
-    // display_progress_line(l, text[l])
-    // [668] display_progress_text::$3 = display_progress_text::l#2 << 1 -- vbuz1=vbuz2_rol_1 
-    lda.z l
-    asl
-    sta.z display_progress_text__3
-    // [669] display_progress_line::line#0 = display_progress_text::l#2 -- vbuz1=vbuz2 
-    lda.z l
-    sta.z display_progress_line.line
-    // [670] display_progress_line::text#0 = display_progress_text::text#10[display_progress_text::$3] -- pbuz1=qbuz2_derefidx_vbuz3 
-    ldy.z display_progress_text__3
-    lda (text),y
-    sta.z display_progress_line.text
-    iny
-    lda (text),y
-    sta.z display_progress_line.text+1
-    // [671] call display_progress_line
-    // [704] phi from display_progress_text::@2 to display_progress_line [phi:display_progress_text::@2->display_progress_line]
-    // [704] phi display_progress_line::text#3 = display_progress_line::text#0 [phi:display_progress_text::@2->display_progress_line#0] -- register_copy 
-    // [704] phi display_progress_line::line#3 = display_progress_line::line#0 [phi:display_progress_text::@2->display_progress_line#1] -- register_copy 
-    jsr display_progress_line
-    // display_progress_text::@3
-    // for(unsigned char l=0; l<lines; l++)
-    // [672] display_progress_text::l#1 = ++ display_progress_text::l#2 -- vbuz1=_inc_vbuz1 
-    inc.z l
-    // [665] phi from display_progress_text::@3 to display_progress_text::@1 [phi:display_progress_text::@3->display_progress_text::@1]
-    // [665] phi display_progress_text::l#2 = display_progress_text::l#1 [phi:display_progress_text::@3->display_progress_text::@1#0] -- register_copy 
+    // display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE)
+    // [703] display_info_led::y#3 = PROGRESS_Y+3 + main_intro::intro_status#2 -- vbum1=vbuc1_plus_vbuz2 
+    lda #PROGRESS_Y+3
+    clc
+    adc.z intro_status
+    sta display_info_led.y
+    // [704] display_info_led::tc#3 = status_color[main_intro::intro_status#2] -- vbum1=pbuc1_derefidx_vbuz2 
+    ldy.z intro_status
+    lda status_color,y
+    sta display_info_led.tc
+    // [705] call display_info_led
+    // [1456] phi from main_intro::@2 to display_info_led [phi:main_intro::@2->display_info_led]
+    // [1456] phi display_info_led::y#4 = display_info_led::y#3 [phi:main_intro::@2->display_info_led#0] -- register_copy 
+    // [1456] phi display_info_led::x#4 = PROGRESS_X+3 [phi:main_intro::@2->display_info_led#1] -- vbum1=vbuc1 
+    lda #PROGRESS_X+3
+    sta display_info_led.x
+    // [1456] phi display_info_led::tc#4 = display_info_led::tc#3 [phi:main_intro::@2->display_info_led#2] -- register_copy 
+    jsr display_info_led
+    // main_intro::@6
+    // for(unsigned char intro_status=0; intro_status<11; intro_status++)
+    // [706] main_intro::intro_status#1 = ++ main_intro::intro_status#2 -- vbuz1=_inc_vbuz1 
+    inc.z intro_status
+    // [696] phi from main_intro::@6 to main_intro::@1 [phi:main_intro::@6->main_intro::@1]
+    // [696] phi main_intro::intro_status#2 = main_intro::intro_status#1 [phi:main_intro::@6->main_intro::@1#0] -- register_copy 
     jmp __b1
 }
-  // util_wait_space
-util_wait_space: {
-    // util_wait_key("Press [SPACE] to continue ...", " ")
-    // [674] call util_wait_key
-    // [775] phi from util_wait_space to util_wait_key [phi:util_wait_space->util_wait_key]
-    // [775] phi util_wait_key::filter#13 = s3 [phi:util_wait_space->util_wait_key#0] -- pbuz1=pbuc1 
-    lda #<s3
-    sta.z util_wait_key.filter
-    lda #>s3
-    sta.z util_wait_key.filter+1
-    // [775] phi util_wait_key::info_text#3 = util_wait_space::info_text [phi:util_wait_space->util_wait_key#1] -- pbuz1=pbuc1 
-    lda #<info_text
-    sta.z util_wait_key.info_text
-    lda #>info_text
-    sta.z util_wait_key.info_text+1
-    jsr util_wait_key
-    // util_wait_space::@return
+  // main_vera_detect
+main_vera_detect: {
+    // vera_detect()
+    // [708] call vera_detect
+    // [1467] phi from main_vera_detect to vera_detect [phi:main_vera_detect->vera_detect]
+    jsr vera_detect
+    // [709] phi from main_vera_detect to main_vera_detect::@1 [phi:main_vera_detect->main_vera_detect::@1]
+    // main_vera_detect::@1
+    // display_chip_vera()
+    // [710] call display_chip_vera
+    // [590] phi from main_vera_detect::@1 to display_chip_vera [phi:main_vera_detect::@1->display_chip_vera]
+    jsr display_chip_vera
+    // main_vera_detect::@2
+    // [711] spi_manufacturer#407 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [712] spi_memory_type#408 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [713] spi_memory_capacity#409 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_DETECTED, NULL)
+    // [714] call display_info_vera
+    // [650] phi from main_vera_detect::@2 to display_info_vera [phi:main_vera_detect::@2->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = 0 [phi:main_vera_detect::@2->display_info_vera#0] -- pbuz1=vbuc1 
+    lda #<0
+    sta.z display_info_vera.info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#409 [phi:main_vera_detect::@2->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#408 [phi:main_vera_detect::@2->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#407 [phi:main_vera_detect::@2->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_DETECTED [phi:main_vera_detect::@2->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_DETECTED
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // main_vera_detect::@return
     // }
-    // [675] return 
+    // [715] return 
     rts
+}
+  // main_vera_check
+main_vera_check: {
+    .label vera_bytes_read = $ac
+    // display_action_progress("Checking VERA.BIN ...")
+    // [717] call display_action_progress
+    // [556] phi from main_vera_check to display_action_progress [phi:main_vera_check->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main_vera_check::info_text [phi:main_vera_check->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_action_progress.info_text
+    lda #>info_text
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [718] phi from main_vera_check to main_vera_check::@4 [phi:main_vera_check->main_vera_check::@4]
+    // main_vera_check::@4
+    // unsigned long vera_bytes_read = vera_read(STATUS_CHECKING)
+    // [719] call vera_read
+  // Read the VERA.BIN file.
+    // [1470] phi from main_vera_check::@4 to vera_read [phi:main_vera_check::@4->vera_read]
+    // [1470] phi __errno#117 = 0 [phi:main_vera_check::@4->vera_read#0] -- vwsm1=vwsc1 
+    lda #<0
+    sta __errno
+    sta __errno+1
+    // [1470] phi __stdio_filecount#105 = 0 [phi:main_vera_check::@4->vera_read#1] -- vbum1=vbuc1 
+    sta __stdio_filecount
+    // [1470] phi vera_read::info_status#10 = STATUS_CHECKING [phi:main_vera_check::@4->vera_read#2] -- vbum1=vbuc1 
+    lda #STATUS_CHECKING
+    sta vera_read.info_status
+    jsr vera_read
+    // unsigned long vera_bytes_read = vera_read(STATUS_CHECKING)
+    // [720] vera_read::return#2 = vera_read::return#0
+    // main_vera_check::@5
+    // [721] main_vera_check::vera_bytes_read#0 = vera_read::return#2 -- vduz1=vdum2 
+    lda vera_read.return
+    sta.z vera_bytes_read
+    lda vera_read.return+1
+    sta.z vera_bytes_read+1
+    lda vera_read.return+2
+    sta.z vera_bytes_read+2
+    lda vera_read.return+3
+    sta.z vera_bytes_read+3
+    // wait_moment(10)
+    // [722] call wait_moment
+    // [794] phi from main_vera_check::@5 to wait_moment [phi:main_vera_check::@5->wait_moment]
+    // [794] phi wait_moment::w#12 = $a [phi:main_vera_check::@5->wait_moment#0] -- vbum1=vbuc1 
+    lda #$a
+    sta wait_moment.w
+    jsr wait_moment
+    // main_vera_check::@6
+    // if (!vera_bytes_read)
+    // [723] if(0==main_vera_check::vera_bytes_read#0) goto main_vera_check::@1 -- 0_eq_vduz1_then_la1 
+    // In case no file was found, set the status to none and skip to the next, else, mention the amount of bytes read.
+    lda.z vera_bytes_read
+    ora.z vera_bytes_read+1
+    ora.z vera_bytes_read+2
+    ora.z vera_bytes_read+3
+    beq __b1
+    // main_vera_check::@3
+    // vera_file_size = vera_bytes_read
+    // [724] vera_file_size#0 = main_vera_check::vera_bytes_read#0 -- vdum1=vduz2 
+    // VF5 | VERA.BIN all ok | Display the VERA.BIN release version and github commit id (if any) and set VERA to Flash | Flash
+    // We know the file size, so we indicate it in the status panel.
+    lda.z vera_bytes_read
+    sta vera_file_size
+    lda.z vera_bytes_read+1
+    sta vera_file_size+1
+    lda.z vera_bytes_read+2
+    sta vera_file_size+2
+    lda.z vera_bytes_read+3
+    sta vera_file_size+3
+    // sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO")
+    // [725] call snprintf_init
+    jsr snprintf_init
+    // [726] phi from main_vera_check::@3 to main_vera_check::@7 [phi:main_vera_check::@3->main_vera_check::@7]
+    // main_vera_check::@7
+    // sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO")
+    // [727] call printf_str
+    // [785] phi from main_vera_check::@7 to printf_str [phi:main_vera_check::@7->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main_vera_check::@7->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main_vera_check::s [phi:main_vera_check::@7->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [728] phi from main_vera_check::@7 to main_vera_check::@8 [phi:main_vera_check::@7->main_vera_check::@8]
+    // main_vera_check::@8
+    // sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO")
+    // [729] call printf_string
+    // [1320] phi from main_vera_check::@8 to printf_string [phi:main_vera_check::@8->printf_string]
+    // [1320] phi printf_string::putc#15 = &snputc [phi:main_vera_check::@8->printf_string#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_string.putc
+    lda #>snputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = main_vera_check::str [phi:main_vera_check::@8->printf_string#1] -- pbuz1=pbuc1 
+    lda #<str
+    sta.z printf_string.str
+    lda #>str
+    sta.z printf_string.str+1
+    // [1320] phi printf_string::format_justify_left#15 = 0 [phi:main_vera_check::@8->printf_string#2] -- vbum1=vbuc1 
+    lda #0
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 0 [phi:main_vera_check::@8->printf_string#3] -- vbum1=vbuc1 
+    sta printf_string.format_min_length
+    jsr printf_string
+    // main_vera_check::@9
+    // sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO")
+    // [730] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [731] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // [733] spi_manufacturer#406 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [734] spi_memory_type#407 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [735] spi_memory_capacity#408 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_FLASH, info_text)
+    // [736] call display_info_vera
+    // [650] phi from main_vera_check::@9 to display_info_vera [phi:main_vera_check::@9->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = info_text [phi:main_vera_check::@9->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_info_vera.info_text
+    lda #>@info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#408 [phi:main_vera_check::@9->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#407 [phi:main_vera_check::@9->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#406 [phi:main_vera_check::@9->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_FLASH [phi:main_vera_check::@9->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_FLASH
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [737] phi from main_vera_check::@9 to main_vera_check::@2 [phi:main_vera_check::@9->main_vera_check::@2]
+    // [737] phi vera_file_size#1 = vera_file_size#0 [phi:main_vera_check::@9->main_vera_check::@2#0] -- register_copy 
+    // main_vera_check::@2
+  __b2:
+    // vera_preamable_SPI()
+    // [738] call vera_preamable_SPI
+    jsr vera_preamable_SPI
+    // [739] phi from main_vera_check::@2 to main_vera_check::@10 [phi:main_vera_check::@2->main_vera_check::@10]
+    // main_vera_check::@10
+    // wait_moment(16)
+    // [740] call wait_moment
+    // [794] phi from main_vera_check::@10 to wait_moment [phi:main_vera_check::@10->wait_moment]
+    // [794] phi wait_moment::w#12 = $10 [phi:main_vera_check::@10->wait_moment#0] -- vbum1=vbuc1 
+    lda #$10
+    sta wait_moment.w
+    jsr wait_moment
+    // main_vera_check::@return
+    // }
+    // [741] return 
+    rts
+    // main_vera_check::@1
+  __b1:
+    // [742] spi_manufacturer#405 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [743] spi_memory_type#406 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [744] spi_memory_capacity#407 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_SKIP, "No VERA.BIN")
+    // [745] call display_info_vera
+  // VF1 | no VERA.BIN  | Ask the user to place the VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+  // VF2 | VERA.BIN size 0 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+  // TODO: VF4 | ROM.BIN size over 0x20000 | Ask the user to place a correct VERA.BIN file onto the SDcard. Set VERA to Issue. | Issue
+    // [650] phi from main_vera_check::@1 to display_info_vera [phi:main_vera_check::@1->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_check::info_text1 [phi:main_vera_check::@1->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text1
+    sta.z display_info_vera.info_text
+    lda #>info_text1
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#407 [phi:main_vera_check::@1->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#406 [phi:main_vera_check::@1->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#405 [phi:main_vera_check::@1->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_SKIP [phi:main_vera_check::@1->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_SKIP
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [737] phi from main_vera_check::@1 to main_vera_check::@2 [phi:main_vera_check::@1->main_vera_check::@2]
+    // [737] phi vera_file_size#1 = 0 [phi:main_vera_check::@1->main_vera_check::@2#0] -- vdum1=vduc1 
+    lda #<0
+    sta vera_file_size
+    sta vera_file_size+1
+    lda #<0>>$10
+    sta vera_file_size+2
+    lda #>0>>$10
+    sta vera_file_size+3
+    jmp __b2
   .segment Data
-    info_text: .text "Press [SPACE] to continue ..."
+    info_text: .text "Checking VERA.BIN ..."
+    .byte 0
+    info_text1: .text "No VERA.BIN"
+    .byte 0
+    s: .text "VERA.BIN:"
+    .byte 0
+    str: .text "RELEASE TEXT TODO"
     .byte 0
 }
 .segment Code
-  // vera_detect
-/**
- * @file cx16-vera.c
-
- * @author MooingLemur (https://github.com/mooinglemur)
- * @author Sven Van de Velde (https://github.com/FlightControl-User)
- * 
- * @brief COMMANDER X16 VERA FIRMWARE UPDATE ROUTINES
- *
- * @version 2.0
- * @date 2023-10-11
- *
- * @copyright Copyright (c) 2023
- *
- */
-vera_detect: {
-    // spi_get_jedec()
-    // [677] call spi_get_jedec
-  // This conditional compilation ensures that only the detection interpretation happens if it is switched on.
-    // [1204] phi from vera_detect to spi_get_jedec [phi:vera_detect->spi_get_jedec]
-    jsr spi_get_jedec
-    // vera_detect::@return
-    // }
-    // [678] return 
-    rts
-}
   // smc_supported_rom
 /**
  * @brief Search in the smc file header for supported ROM.BIN releases.
@@ -4256,52 +4804,54 @@ vera_detect: {
  * @param rom_release The ROM release to search for.
  * @return unsigned char true if found.
  */
-// __zp($56) char smc_supported_rom(__zp($aa) char rom_release)
+// __mem() char smc_supported_rom(__mem() char rom_release)
 smc_supported_rom: {
-    .label i = $6b
-    .label return = $56
-    .label rom_release = $aa
-    // [680] phi from smc_supported_rom to smc_supported_rom::@1 [phi:smc_supported_rom->smc_supported_rom::@1]
-    // [680] phi smc_supported_rom::i#2 = $1f [phi:smc_supported_rom->smc_supported_rom::@1#0] -- vbuz1=vbuc1 
+    // [747] phi from smc_supported_rom to smc_supported_rom::@1 [phi:smc_supported_rom->smc_supported_rom::@1]
+    // [747] phi smc_supported_rom::i#2 = $1f [phi:smc_supported_rom->smc_supported_rom::@1#0] -- vbum1=vbuc1 
     lda #$1f
-    sta.z i
+    sta i
     // smc_supported_rom::@1
   __b1:
     // for(unsigned char i=31; i>3; i--)
-    // [681] if(smc_supported_rom::i#2>=3+1) goto smc_supported_rom::@2 -- vbuz1_ge_vbuc1_then_la1 
-    lda.z i
+    // [748] if(smc_supported_rom::i#2>=3+1) goto smc_supported_rom::@2 -- vbum1_ge_vbuc1_then_la1 
+    lda i
     cmp #3+1
     bcs __b2
-    // [683] phi from smc_supported_rom::@1 to smc_supported_rom::@return [phi:smc_supported_rom::@1->smc_supported_rom::@return]
-    // [683] phi smc_supported_rom::return#2 = 0 [phi:smc_supported_rom::@1->smc_supported_rom::@return#0] -- vbuz1=vbuc1 
+    // [750] phi from smc_supported_rom::@1 to smc_supported_rom::@return [phi:smc_supported_rom::@1->smc_supported_rom::@return]
+    // [750] phi smc_supported_rom::return#2 = 0 [phi:smc_supported_rom::@1->smc_supported_rom::@return#0] -- vbum1=vbuc1 
     lda #0
-    sta.z return
+    sta return
     rts
     // smc_supported_rom::@2
   __b2:
     // if(smc_file_header[i] == rom_release)
-    // [682] if(smc_file_header[smc_supported_rom::i#2]!=smc_supported_rom::rom_release#0) goto smc_supported_rom::@3 -- pbuc1_derefidx_vbuz1_neq_vbuz2_then_la1 
-    lda.z rom_release
-    ldy.z i
+    // [749] if(smc_file_header[smc_supported_rom::i#2]!=smc_supported_rom::rom_release#0) goto smc_supported_rom::@3 -- pbuc1_derefidx_vbum1_neq_vbum2_then_la1 
+    lda rom_release
+    ldy i
     cmp smc_file_header,y
     bne __b3
-    // [683] phi from smc_supported_rom::@2 to smc_supported_rom::@return [phi:smc_supported_rom::@2->smc_supported_rom::@return]
-    // [683] phi smc_supported_rom::return#2 = 1 [phi:smc_supported_rom::@2->smc_supported_rom::@return#0] -- vbuz1=vbuc1 
+    // [750] phi from smc_supported_rom::@2 to smc_supported_rom::@return [phi:smc_supported_rom::@2->smc_supported_rom::@return]
+    // [750] phi smc_supported_rom::return#2 = 1 [phi:smc_supported_rom::@2->smc_supported_rom::@return#0] -- vbum1=vbuc1 
     lda #1
-    sta.z return
+    sta return
     // smc_supported_rom::@return
     // }
-    // [684] return 
+    // [751] return 
     rts
     // smc_supported_rom::@3
   __b3:
     // for(unsigned char i=31; i>3; i--)
-    // [685] smc_supported_rom::i#1 = -- smc_supported_rom::i#2 -- vbuz1=_dec_vbuz1 
-    dec.z i
-    // [680] phi from smc_supported_rom::@3 to smc_supported_rom::@1 [phi:smc_supported_rom::@3->smc_supported_rom::@1]
-    // [680] phi smc_supported_rom::i#2 = smc_supported_rom::i#1 [phi:smc_supported_rom::@3->smc_supported_rom::@1#0] -- register_copy 
+    // [752] smc_supported_rom::i#1 = -- smc_supported_rom::i#2 -- vbum1=_dec_vbum1 
+    dec i
+    // [747] phi from smc_supported_rom::@3 to smc_supported_rom::@1 [phi:smc_supported_rom::@3->smc_supported_rom::@1]
+    // [747] phi smc_supported_rom::i#2 = smc_supported_rom::i#1 [phi:smc_supported_rom::@3->smc_supported_rom::@1#0] -- register_copy 
     jmp __b1
+  .segment Data
+    i: .byte 0
+    return: .byte 0
+    rom_release: .byte 0
 }
+.segment Code
   // check_status_roms
 /**
  * @brief Check the status of all the ROMs.
@@ -4309,38 +4859,34 @@ smc_supported_rom: {
  * @param status The status to be checked.
  * @return unsigned char true if one chip is equal to the status.
  */
-// __zp($b1) char check_status_roms(__zp($5c) char status)
+// __mem() char check_status_roms(__mem() char status)
 check_status_roms: {
-    .label check_status_rom1_check_status_roms__0 = $3b
-    .label check_status_rom1_return = $3b
-    .label rom_chip = $7f
-    .label return = $b1
-    .label status = $5c
-    // [687] phi from check_status_roms to check_status_roms::@1 [phi:check_status_roms->check_status_roms::@1]
-    // [687] phi check_status_roms::rom_chip#2 = 0 [phi:check_status_roms->check_status_roms::@1#0] -- vbuz1=vbuc1 
+    .label check_status_rom1_check_status_roms__0 = $61
+    // [754] phi from check_status_roms to check_status_roms::@1 [phi:check_status_roms->check_status_roms::@1]
+    // [754] phi check_status_roms::rom_chip#2 = 0 [phi:check_status_roms->check_status_roms::@1#0] -- vbum1=vbuc1 
     lda #0
-    sta.z rom_chip
+    sta rom_chip
     // check_status_roms::@1
   __b1:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [688] if(check_status_roms::rom_chip#2<8) goto check_status_roms::check_status_rom1 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z rom_chip
+    // [755] if(check_status_roms::rom_chip#2<8) goto check_status_roms::check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda rom_chip
     cmp #8
     bcc check_status_rom1
-    // [689] phi from check_status_roms::@1 to check_status_roms::@return [phi:check_status_roms::@1->check_status_roms::@return]
-    // [689] phi check_status_roms::return#2 = 0 [phi:check_status_roms::@1->check_status_roms::@return#0] -- vbuz1=vbuc1 
+    // [756] phi from check_status_roms::@1 to check_status_roms::@return [phi:check_status_roms::@1->check_status_roms::@return]
+    // [756] phi check_status_roms::return#2 = 0 [phi:check_status_roms::@1->check_status_roms::@return#0] -- vbum1=vbuc1 
     lda #0
-    sta.z return
+    sta return
     // check_status_roms::@return
     // }
-    // [690] return 
+    // [757] return 
     rts
     // check_status_roms::check_status_rom1
   check_status_rom1:
     // status_rom[rom_chip] == status
-    // [691] check_status_roms::check_status_rom1_$0 = status_rom[check_status_roms::rom_chip#2] == check_status_roms::status#6 -- vboz1=pbuc1_derefidx_vbuz2_eq_vbuz3 
-    lda.z status
-    ldy.z rom_chip
+    // [758] check_status_roms::check_status_rom1_$0 = status_rom[check_status_roms::rom_chip#2] == check_status_roms::status#6 -- vboz1=pbuc1_derefidx_vbum2_eq_vbum3 
+    lda status
+    ldy rom_chip
     eor status_rom,y
     beq !+
     lda #1
@@ -4348,123 +4894,255 @@ check_status_roms: {
     eor #1
     sta.z check_status_rom1_check_status_roms__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [692] check_status_roms::check_status_rom1_return#0 = (char)check_status_roms::check_status_rom1_$0
+    // [759] check_status_roms::check_status_rom1_return#0 = (char)check_status_roms::check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_rom1_return
     // check_status_roms::@3
     // if(check_status_rom(rom_chip, status))
-    // [693] if(0==check_status_roms::check_status_rom1_return#0) goto check_status_roms::@2 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_rom1_return
+    // [760] if(0==check_status_roms::check_status_rom1_return#0) goto check_status_roms::@2 -- 0_eq_vbum1_then_la1 
     beq __b2
-    // [689] phi from check_status_roms::@3 to check_status_roms::@return [phi:check_status_roms::@3->check_status_roms::@return]
-    // [689] phi check_status_roms::return#2 = 1 [phi:check_status_roms::@3->check_status_roms::@return#0] -- vbuz1=vbuc1 
+    // [756] phi from check_status_roms::@3 to check_status_roms::@return [phi:check_status_roms::@3->check_status_roms::@return]
+    // [756] phi check_status_roms::return#2 = 1 [phi:check_status_roms::@3->check_status_roms::@return#0] -- vbum1=vbuc1 
     lda #1
-    sta.z return
+    sta return
     rts
     // check_status_roms::@2
   __b2:
     // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [694] check_status_roms::rom_chip#1 = ++ check_status_roms::rom_chip#2 -- vbuz1=_inc_vbuz1 
-    inc.z rom_chip
-    // [687] phi from check_status_roms::@2 to check_status_roms::@1 [phi:check_status_roms::@2->check_status_roms::@1]
-    // [687] phi check_status_roms::rom_chip#2 = check_status_roms::rom_chip#1 [phi:check_status_roms::@2->check_status_roms::@1#0] -- register_copy 
+    // [761] check_status_roms::rom_chip#1 = ++ check_status_roms::rom_chip#2 -- vbum1=_inc_vbum1 
+    inc rom_chip
+    // [754] phi from check_status_roms::@2 to check_status_roms::@1 [phi:check_status_roms::@2->check_status_roms::@1]
+    // [754] phi check_status_roms::rom_chip#2 = check_status_roms::rom_chip#1 [phi:check_status_roms::@2->check_status_roms::@1#0] -- register_copy 
     jmp __b1
+  .segment Data
+    check_status_rom1_return: .byte 0
+    rom_chip: .byte 0
+    return: .byte 0
+    status: .byte 0
 }
-  // check_status_roms_less
-/**
- * @brief Check the status of all the ROMs mutually.
- * 
- * @param status The status to be checked.
- * @return unsigned char true if all chips are equal to the status.
- */
-// __zp($b8) char check_status_roms_less(char status)
-check_status_roms_less: {
-    .label check_status_rom1_check_status_roms_less__0 = $ad
-    .label check_status_rom1_return = $ad
-    .label rom_chip = $ab
-    .label return = $b8
-    // [696] phi from check_status_roms_less to check_status_roms_less::@1 [phi:check_status_roms_less->check_status_roms_less::@1]
-    // [696] phi check_status_roms_less::rom_chip#2 = 0 [phi:check_status_roms_less->check_status_roms_less::@1#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z rom_chip
-    // check_status_roms_less::@1
+.segment Code
+  // clrscr
+// clears the screen and moves the cursor to the upper left-hand corner of the screen.
+clrscr: {
+    .label clrscr__0 = $61
+    .label clrscr__1 = $36
+    .label clrscr__2 = $7a
+    // unsigned int line_text = __conio.mapbase_offset
+    // [762] clrscr::line_text#0 = *((unsigned int *)&__conio+3) -- vwum1=_deref_pwuc1 
+    lda __conio+3
+    sta line_text
+    lda __conio+3+1
+    sta line_text+1
+    // *VERA_CTRL &= ~VERA_ADDRSEL
+    // [763] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    lda #VERA_ADDRSEL^$ff
+    and VERA_CTRL
+    sta VERA_CTRL
+    // __conio.mapbase_bank | VERA_INC_1
+    // [764] clrscr::$0 = *((char *)&__conio+5) | VERA_INC_1 -- vbuz1=_deref_pbuc1_bor_vbuc2 
+    lda #VERA_INC_1
+    ora __conio+5
+    sta.z clrscr__0
+    // *VERA_ADDRX_H = __conio.mapbase_bank | VERA_INC_1
+    // [765] *VERA_ADDRX_H = clrscr::$0 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_H
+    // unsigned char l = __conio.mapheight
+    // [766] clrscr::l#0 = *((char *)&__conio+9) -- vbum1=_deref_pbuc1 
+    lda __conio+9
+    sta l
+    // [767] phi from clrscr clrscr::@3 to clrscr::@1 [phi:clrscr/clrscr::@3->clrscr::@1]
+    // [767] phi clrscr::l#4 = clrscr::l#0 [phi:clrscr/clrscr::@3->clrscr::@1#0] -- register_copy 
+    // [767] phi clrscr::ch#0 = clrscr::line_text#0 [phi:clrscr/clrscr::@3->clrscr::@1#1] -- register_copy 
+    // clrscr::@1
   __b1:
-    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [697] if(check_status_roms_less::rom_chip#2<8) goto check_status_roms_less::check_status_rom1 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z rom_chip
-    cmp #8
-    bcc check_status_rom1
-    // [698] phi from check_status_roms_less::@1 to check_status_roms_less::@return [phi:check_status_roms_less::@1->check_status_roms_less::@return]
-    // [698] phi check_status_roms_less::return#2 = 1 [phi:check_status_roms_less::@1->check_status_roms_less::@return#0] -- vbuz1=vbuc1 
-    lda #1
-    sta.z return
-    // check_status_roms_less::@return
-    // }
-    // [699] return 
-    rts
-    // check_status_roms_less::check_status_rom1
-  check_status_rom1:
-    // status_rom[rom_chip] == status
-    // [700] check_status_roms_less::check_status_rom1_$0 = status_rom[check_status_roms_less::rom_chip#2] == STATUS_SKIP -- vboz1=pbuc1_derefidx_vbuz2_eq_vbuc2 
-    lda #STATUS_SKIP
-    ldy.z rom_chip
-    eor status_rom,y
-    beq !+
-    lda #1
-  !:
-    eor #1
-    sta.z check_status_rom1_check_status_roms_less__0
-    // return (unsigned char)(status_rom[rom_chip] == status);
-    // [701] check_status_roms_less::check_status_rom1_return#0 = (char)check_status_roms_less::check_status_rom1_$0
-    // check_status_roms_less::@3
-    // if(check_status_rom(rom_chip, status) > status)
-    // [702] if(check_status_roms_less::check_status_rom1_return#0<STATUS_SKIP+1) goto check_status_roms_less::@2 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z check_status_rom1_return
-    cmp #STATUS_SKIP+1
-    bcc __b2
-    // [698] phi from check_status_roms_less::@3 to check_status_roms_less::@return [phi:check_status_roms_less::@3->check_status_roms_less::@return]
-    // [698] phi check_status_roms_less::return#2 = 0 [phi:check_status_roms_less::@3->check_status_roms_less::@return#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z return
-    rts
-    // check_status_roms_less::@2
+    // BYTE0(ch)
+    // [768] clrscr::$1 = byte0  clrscr::ch#0 -- vbuz1=_byte0_vwum2 
+    lda ch
+    sta.z clrscr__1
+    // *VERA_ADDRX_L = BYTE0(ch)
+    // [769] *VERA_ADDRX_L = clrscr::$1 -- _deref_pbuc1=vbuz1 
+    // Set address
+    sta VERA_ADDRX_L
+    // BYTE1(ch)
+    // [770] clrscr::$2 = byte1  clrscr::ch#0 -- vbuz1=_byte1_vwum2 
+    lda ch+1
+    sta.z clrscr__2
+    // *VERA_ADDRX_M = BYTE1(ch)
+    // [771] *VERA_ADDRX_M = clrscr::$2 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_M
+    // unsigned char c = __conio.mapwidth+1
+    // [772] clrscr::c#0 = *((char *)&__conio+8) + 1 -- vbum1=_deref_pbuc1_plus_1 
+    lda __conio+8
+    inc
+    sta c
+    // [773] phi from clrscr::@1 clrscr::@2 to clrscr::@2 [phi:clrscr::@1/clrscr::@2->clrscr::@2]
+    // [773] phi clrscr::c#2 = clrscr::c#0 [phi:clrscr::@1/clrscr::@2->clrscr::@2#0] -- register_copy 
+    // clrscr::@2
   __b2:
-    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
-    // [703] check_status_roms_less::rom_chip#1 = ++ check_status_roms_less::rom_chip#2 -- vbuz1=_inc_vbuz1 
-    inc.z rom_chip
-    // [696] phi from check_status_roms_less::@2 to check_status_roms_less::@1 [phi:check_status_roms_less::@2->check_status_roms_less::@1]
-    // [696] phi check_status_roms_less::rom_chip#2 = check_status_roms_less::rom_chip#1 [phi:check_status_roms_less::@2->check_status_roms_less::@1#0] -- register_copy 
-    jmp __b1
-}
-  // display_progress_line
-/**
- * @brief Print one line of text in the progress frame at a line position.
- * 
- * @param line The start line, counting from 0.
- * @param text The text to be displayed.
- */
-// void display_progress_line(__zp($6b) char line, __zp($35) char *text)
-display_progress_line: {
-    .label line = $6b
-    .label text = $35
-    // cputsxy(PROGRESS_X, PROGRESS_Y+line, text)
-    // [705] cputsxy::y#0 = PROGRESS_Y + display_progress_line::line#3 -- vbum1=vbuc1_plus_vbuz2 
-    lda #PROGRESS_Y
+    // *VERA_DATA0 = ' '
+    // [774] *VERA_DATA0 = ' ' -- _deref_pbuc1=vbuc2 
+    lda #' '
+    sta VERA_DATA0
+    // *VERA_DATA0 = __conio.color
+    // [775] *VERA_DATA0 = *((char *)&__conio+$d) -- _deref_pbuc1=_deref_pbuc2 
+    lda __conio+$d
+    sta VERA_DATA0
+    // c--;
+    // [776] clrscr::c#1 = -- clrscr::c#2 -- vbum1=_dec_vbum1 
+    dec c
+    // while(c)
+    // [777] if(0!=clrscr::c#1) goto clrscr::@2 -- 0_neq_vbum1_then_la1 
+    lda c
+    bne __b2
+    // clrscr::@3
+    // line_text += __conio.rowskip
+    // [778] clrscr::line_text#1 = clrscr::ch#0 + *((unsigned int *)&__conio+$a) -- vwum1=vwum1_plus__deref_pwuc1 
     clc
-    adc.z line
-    sta cputsxy.y
-    // [706] cputsxy::s#0 = display_progress_line::text#3
-    // [707] call cputsxy
-    // [530] phi from display_progress_line to cputsxy [phi:display_progress_line->cputsxy]
-    // [530] phi cputsxy::s#3 = cputsxy::s#0 [phi:display_progress_line->cputsxy#0] -- register_copy 
-    // [530] phi cputsxy::y#3 = cputsxy::y#0 [phi:display_progress_line->cputsxy#1] -- register_copy 
-    // [530] phi cputsxy::x#3 = PROGRESS_X [phi:display_progress_line->cputsxy#2] -- vbum1=vbuc1 
-    lda #PROGRESS_X
-    sta cputsxy.x
-    jsr cputsxy
-    // display_progress_line::@return
+    lda line_text
+    adc __conio+$a
+    sta line_text
+    lda line_text+1
+    adc __conio+$a+1
+    sta line_text+1
+    // l--;
+    // [779] clrscr::l#1 = -- clrscr::l#4 -- vbum1=_dec_vbum1 
+    dec l
+    // while(l)
+    // [780] if(0!=clrscr::l#1) goto clrscr::@1 -- 0_neq_vbum1_then_la1 
+    lda l
+    bne __b1
+    // clrscr::@4
+    // __conio.cursor_x = 0
+    // [781] *((char *)&__conio) = 0 -- _deref_pbuc1=vbuc2 
+    lda #0
+    sta __conio
+    // __conio.cursor_y = 0
+    // [782] *((char *)&__conio+1) = 0 -- _deref_pbuc1=vbuc2 
+    sta __conio+1
+    // __conio.offset = __conio.mapbase_offset
+    // [783] *((unsigned int *)&__conio+$13) = *((unsigned int *)&__conio+3) -- _deref_pwuc1=_deref_pwuc2 
+    lda __conio+3
+    sta __conio+$13
+    lda __conio+3+1
+    sta __conio+$13+1
+    // clrscr::@return
     // }
-    // [708] return 
+    // [784] return 
     rts
+  .segment Data
+    .label line_text = ch
+    l: .byte 0
+    ch: .word 0
+    c: .byte 0
 }
+.segment Code
+  // printf_str
+/// Print a NUL-terminated string
+// void printf_str(__zp($37) void (*putc)(char), __zp($3f) const char *s)
+printf_str: {
+    .label s = $3f
+    .label putc = $37
+    // [786] phi from printf_str printf_str::@2 to printf_str::@1 [phi:printf_str/printf_str::@2->printf_str::@1]
+    // [786] phi printf_str::s#53 = printf_str::s#54 [phi:printf_str/printf_str::@2->printf_str::@1#0] -- register_copy 
+    // printf_str::@1
+  __b1:
+    // while(c=*s++)
+    // [787] printf_str::c#1 = *printf_str::s#53 -- vbum1=_deref_pbuz2 
+    ldy #0
+    lda (s),y
+    sta c
+    // [788] printf_str::s#0 = ++ printf_str::s#53 -- pbuz1=_inc_pbuz1 
+    inc.z s
+    bne !+
+    inc.z s+1
+  !:
+    // [789] if(0!=printf_str::c#1) goto printf_str::@2 -- 0_neq_vbum1_then_la1 
+    lda c
+    bne __b2
+    // printf_str::@return
+    // }
+    // [790] return 
+    rts
+    // printf_str::@2
+  __b2:
+    // putc(c)
+    // [791] stackpush(char) = printf_str::c#1 -- _stackpushbyte_=vbum1 
+    lda c
+    pha
+    // [792] callexecute *printf_str::putc#54  -- call__deref_pprz1 
+    jsr icall5
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    jmp __b1
+    // Outside Flow
+  icall5:
+    jmp (putc)
+  .segment Data
+    c: .byte 0
+}
+.segment Code
+  // wait_moment
+/**
+ * @brief 
+ * 
+ */
+// void wait_moment(__mem() char w)
+wait_moment: {
+    // [795] phi from wait_moment to wait_moment::@1 [phi:wait_moment->wait_moment::@1]
+    // [795] phi wait_moment::j#2 = 0 [phi:wait_moment->wait_moment::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta j
+    // wait_moment::@1
+  __b1:
+    // for(unsigned char j=0; j<w; j++)
+    // [796] if(wait_moment::j#2<wait_moment::w#12) goto wait_moment::@2 -- vbum1_lt_vbum2_then_la1 
+    lda j
+    cmp w
+    bcc __b4
+    // wait_moment::@return
+    // }
+    // [797] return 
+    rts
+    // [798] phi from wait_moment::@1 to wait_moment::@2 [phi:wait_moment::@1->wait_moment::@2]
+  __b4:
+    // [798] phi wait_moment::i#2 = $ffff [phi:wait_moment::@1->wait_moment::@2#0] -- vwum1=vwuc1 
+    lda #<$ffff
+    sta i
+    lda #>$ffff
+    sta i+1
+    // wait_moment::@2
+  __b2:
+    // for(unsigned int i=65535; i>0; i--)
+    // [799] if(wait_moment::i#2>0) goto wait_moment::@3 -- vwum1_gt_0_then_la1 
+    lda i+1
+    bne __b3
+    lda i
+    bne __b3
+  !:
+    // wait_moment::@4
+    // for(unsigned char j=0; j<w; j++)
+    // [800] wait_moment::j#1 = ++ wait_moment::j#2 -- vbum1=_inc_vbum1 
+    inc j
+    // [795] phi from wait_moment::@4 to wait_moment::@1 [phi:wait_moment::@4->wait_moment::@1]
+    // [795] phi wait_moment::j#2 = wait_moment::j#1 [phi:wait_moment::@4->wait_moment::@1#0] -- register_copy 
+    jmp __b1
+    // wait_moment::@3
+  __b3:
+    // for(unsigned int i=65535; i>0; i--)
+    // [801] wait_moment::i#1 = -- wait_moment::i#2 -- vwum1=_dec_vwum1 
+    lda i
+    bne !+
+    dec i+1
+  !:
+    dec i
+    // [798] phi from wait_moment::@3 to wait_moment::@2 [phi:wait_moment::@3->wait_moment::@2]
+    // [798] phi wait_moment::i#2 = wait_moment::i#1 [phi:wait_moment::@3->wait_moment::@2#0] -- register_copy 
+    jmp __b2
+  .segment Data
+    i: .word 0
+    j: .byte 0
+    w: .byte 0
+}
+.segment Code
   // system_reset
 /**
  * @brief 
@@ -4475,174 +5153,250 @@ system_reset: {
     .const bank_set_brom1_bank = 0
     // system_reset::bank_set_bram1
     // BRAM = bank
-    // [710] BRAM = system_reset::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
+    // [803] BRAM = system_reset::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_bram1_bank
     sta.z BRAM
     // system_reset::bank_set_brom1
     // BROM = bank
-    // [711] BROM = system_reset::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
+    // [804] BROM = system_reset::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_brom1_bank
     sta.z BROM
     // system_reset::@2
     // asm
     // asm { jmp($FFFC)  }
     jmp ($fffc)
-    // [713] phi from system_reset::@1 system_reset::@2 to system_reset::@1 [phi:system_reset::@1/system_reset::@2->system_reset::@1]
+    // [806] phi from system_reset::@1 system_reset::@2 to system_reset::@1 [phi:system_reset::@1/system_reset::@2->system_reset::@1]
     // system_reset::@1
   __b1:
     jmp __b1
 }
-  // wait_moment
+  // check_status_roms_less
 /**
- * @brief 
+ * @brief Check the status of all the ROMs mutually.
  * 
+ * @param status The status to be checked.
+ * @return unsigned char true if all chips are equal to the status.
  */
-wait_moment: {
-    .label i = $35
-    // [715] phi from wait_moment to wait_moment::@1 [phi:wait_moment->wait_moment::@1]
-    // [715] phi wait_moment::i#2 = $ffff [phi:wait_moment->wait_moment::@1#0] -- vwuz1=vwuc1 
-    lda #<$ffff
-    sta.z i
-    lda #>$ffff
-    sta.z i+1
-    // wait_moment::@1
+// __mem() char check_status_roms_less(char status)
+check_status_roms_less: {
+    .label check_status_rom1_check_status_roms_less__0 = $36
+    // [808] phi from check_status_roms_less to check_status_roms_less::@1 [phi:check_status_roms_less->check_status_roms_less::@1]
+    // [808] phi check_status_roms_less::rom_chip#2 = 0 [phi:check_status_roms_less->check_status_roms_less::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta rom_chip
+    // check_status_roms_less::@1
   __b1:
-    // for(unsigned int i=65535; i>0; i--)
-    // [716] if(wait_moment::i#2>0) goto wait_moment::@2 -- vwuz1_gt_0_then_la1 
-    lda.z i+1
-    bne __b2
-    lda.z i
-    bne __b2
-  !:
-    // wait_moment::@return
+    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
+    // [809] if(check_status_roms_less::rom_chip#2<8) goto check_status_roms_less::check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda rom_chip
+    cmp #8
+    bcc check_status_rom1
+    // [810] phi from check_status_roms_less::@1 to check_status_roms_less::@return [phi:check_status_roms_less::@1->check_status_roms_less::@return]
+    // [810] phi check_status_roms_less::return#2 = 1 [phi:check_status_roms_less::@1->check_status_roms_less::@return#0] -- vbum1=vbuc1 
+    lda #1
+    sta return
+    // check_status_roms_less::@return
     // }
-    // [717] return 
+    // [811] return 
     rts
-    // wait_moment::@2
-  __b2:
-    // for(unsigned int i=65535; i>0; i--)
-    // [718] wait_moment::i#1 = -- wait_moment::i#2 -- vwuz1=_dec_vwuz1 
-    lda.z i
-    bne !+
-    dec.z i+1
+    // check_status_roms_less::check_status_rom1
+  check_status_rom1:
+    // status_rom[rom_chip] == status
+    // [812] check_status_roms_less::check_status_rom1_$0 = status_rom[check_status_roms_less::rom_chip#2] == STATUS_SKIP -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
+    lda #STATUS_SKIP
+    ldy rom_chip
+    eor status_rom,y
+    beq !+
+    lda #1
   !:
-    dec.z i
-    // [715] phi from wait_moment::@2 to wait_moment::@1 [phi:wait_moment::@2->wait_moment::@1]
-    // [715] phi wait_moment::i#2 = wait_moment::i#1 [phi:wait_moment::@2->wait_moment::@1#0] -- register_copy 
+    eor #1
+    sta.z check_status_rom1_check_status_roms_less__0
+    // return (unsigned char)(status_rom[rom_chip] == status);
+    // [813] check_status_roms_less::check_status_rom1_return#0 = (char)check_status_roms_less::check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_rom1_return
+    // check_status_roms_less::@3
+    // if(check_status_rom(rom_chip, status) > status)
+    // [814] if(check_status_roms_less::check_status_rom1_return#0<STATUS_SKIP+1) goto check_status_roms_less::@2 -- vbum1_lt_vbuc1_then_la1 
+    cmp #STATUS_SKIP+1
+    bcc __b2
+    // [810] phi from check_status_roms_less::@3 to check_status_roms_less::@return [phi:check_status_roms_less::@3->check_status_roms_less::@return]
+    // [810] phi check_status_roms_less::return#2 = 0 [phi:check_status_roms_less::@3->check_status_roms_less::@return#0] -- vbum1=vbuc1 
+    lda #0
+    sta return
+    rts
+    // check_status_roms_less::@2
+  __b2:
+    // for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++)
+    // [815] check_status_roms_less::rom_chip#1 = ++ check_status_roms_less::rom_chip#2 -- vbum1=_inc_vbum1 
+    inc rom_chip
+    // [808] phi from check_status_roms_less::@2 to check_status_roms_less::@1 [phi:check_status_roms_less::@2->check_status_roms_less::@1]
+    // [808] phi check_status_roms_less::rom_chip#2 = check_status_roms_less::rom_chip#1 [phi:check_status_roms_less::@2->check_status_roms_less::@1#0] -- register_copy 
     jmp __b1
+  .segment Data
+    check_status_rom1_return: .byte 0
+    rom_chip: .byte 0
+    return: .byte 0
 }
+.segment Code
+  // display_progress_text
+/**
+ * @brief Print a block of text within the progress frame with a count of lines.
+ * 
+ * @param text A pointer to an array of strings to be displayed (char**).
+ * @param lines The amount of lines to be displayed, starting from the top of the progress frame.
+ */
+// void display_progress_text(__zp($3d) char **text, __mem() char lines)
+display_progress_text: {
+    .label display_progress_text__3 = $7a
+    .label text = $3d
+    // display_progress_clear()
+    // [817] call display_progress_clear
+    // [570] phi from display_progress_text to display_progress_clear [phi:display_progress_text->display_progress_clear]
+    jsr display_progress_clear
+    // [818] phi from display_progress_text to display_progress_text::@1 [phi:display_progress_text->display_progress_text::@1]
+    // [818] phi display_progress_text::l#2 = 0 [phi:display_progress_text->display_progress_text::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta l
+    // display_progress_text::@1
+  __b1:
+    // for(unsigned char l=0; l<lines; l++)
+    // [819] if(display_progress_text::l#2<display_progress_text::lines#11) goto display_progress_text::@2 -- vbum1_lt_vbum2_then_la1 
+    lda l
+    cmp lines
+    bcc __b2
+    // display_progress_text::@return
+    // }
+    // [820] return 
+    rts
+    // display_progress_text::@2
+  __b2:
+    // display_progress_line(l, text[l])
+    // [821] display_progress_text::$3 = display_progress_text::l#2 << 1 -- vbuz1=vbum2_rol_1 
+    lda l
+    asl
+    sta.z display_progress_text__3
+    // [822] display_progress_line::line#0 = display_progress_text::l#2 -- vbum1=vbum2 
+    lda l
+    sta display_progress_line.line
+    // [823] display_progress_line::text#0 = display_progress_text::text#12[display_progress_text::$3] -- pbuz1=qbuz2_derefidx_vbuz3 
+    ldy.z display_progress_text__3
+    lda (text),y
+    sta.z display_progress_line.text
+    iny
+    lda (text),y
+    sta.z display_progress_line.text+1
+    // [824] call display_progress_line
+    // [826] phi from display_progress_text::@2 to display_progress_line [phi:display_progress_text::@2->display_progress_line]
+    // [826] phi display_progress_line::text#3 = display_progress_line::text#0 [phi:display_progress_text::@2->display_progress_line#0] -- register_copy 
+    // [826] phi display_progress_line::line#3 = display_progress_line::line#0 [phi:display_progress_text::@2->display_progress_line#1] -- register_copy 
+    jsr display_progress_line
+    // display_progress_text::@3
+    // for(unsigned char l=0; l<lines; l++)
+    // [825] display_progress_text::l#1 = ++ display_progress_text::l#2 -- vbum1=_inc_vbum1 
+    inc l
+    // [818] phi from display_progress_text::@3 to display_progress_text::@1 [phi:display_progress_text::@3->display_progress_text::@1]
+    // [818] phi display_progress_text::l#2 = display_progress_text::l#1 [phi:display_progress_text::@3->display_progress_text::@1#0] -- register_copy 
+    jmp __b1
+  .segment Data
+    l: .byte 0
+    lines: .byte 0
+}
+.segment Code
+  // display_progress_line
+/**
+ * @brief Print one line of text in the progress frame at a line position.
+ * 
+ * @param line The start line, counting from 0.
+ * @param text The text to be displayed.
+ */
+// void display_progress_line(__mem() char line, __zp($37) char *text)
+display_progress_line: {
+    .label text = $37
+    // cputsxy(PROGRESS_X, PROGRESS_Y+line, text)
+    // [827] cputsxy::y#0 = PROGRESS_Y + display_progress_line::line#3 -- vbum1=vbuc1_plus_vbum1 
+    lda #PROGRESS_Y
+    clc
+    adc cputsxy.y
+    sta cputsxy.y
+    // [828] cputsxy::s#0 = display_progress_line::text#3
+    // [829] call cputsxy
+    // [549] phi from display_progress_line to cputsxy [phi:display_progress_line->cputsxy]
+    // [549] phi cputsxy::s#3 = cputsxy::s#0 [phi:display_progress_line->cputsxy#0] -- register_copy 
+    // [549] phi cputsxy::y#3 = cputsxy::y#0 [phi:display_progress_line->cputsxy#1] -- register_copy 
+    // [549] phi cputsxy::x#3 = PROGRESS_X [phi:display_progress_line->cputsxy#2] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta cputsxy.x
+    jsr cputsxy
+    // display_progress_line::@return
+    // }
+    // [830] return 
+    rts
+  .segment Data
+    .label line = cputsxy.y
+}
+.segment Code
   // snprintf_init
 /// Initialize the snprintf() state
 // void snprintf_init(char *s, unsigned int n)
 snprintf_init: {
     // __snprintf_capacity = n
-    // [719] __snprintf_capacity = $ffff -- vwum1=vwuc1 
+    // [831] __snprintf_capacity = $ffff -- vwum1=vwuc1 
     lda #<$ffff
     sta __snprintf_capacity
     lda #>$ffff
     sta __snprintf_capacity+1
     // __snprintf_size = 0
-    // [720] __snprintf_size = 0 -- vwum1=vbuc1 
+    // [832] __snprintf_size = 0 -- vwum1=vbuc1 
     lda #<0
     sta __snprintf_size
     sta __snprintf_size+1
     // __snprintf_buffer = s
-    // [721] __snprintf_buffer = info_text -- pbuz1=pbuc1 
+    // [833] __snprintf_buffer = info_text -- pbuz1=pbuc1 
     lda #<info_text
     sta.z __snprintf_buffer
     lda #>info_text
     sta.z __snprintf_buffer+1
     // snprintf_init::@return
     // }
-    // [722] return 
+    // [834] return 
     rts
 }
-  // printf_str
-/// Print a NUL-terminated string
-// void printf_str(__zp($39) void (*putc)(char), __zp($37) const char *s)
-printf_str: {
-    .label s = $37
-    .label putc = $39
-    // [724] phi from printf_str printf_str::@2 to printf_str::@1 [phi:printf_str/printf_str::@2->printf_str::@1]
-    // [724] phi printf_str::s#20 = printf_str::s#21 [phi:printf_str/printf_str::@2->printf_str::@1#0] -- register_copy 
-    // printf_str::@1
-  __b1:
-    // while(c=*s++)
-    // [725] printf_str::c#1 = *printf_str::s#20 -- vbum1=_deref_pbuz2 
-    ldy #0
-    lda (s),y
-    sta c
-    // [726] printf_str::s#0 = ++ printf_str::s#20 -- pbuz1=_inc_pbuz1 
-    inc.z s
-    bne !+
-    inc.z s+1
-  !:
-    // [727] if(0!=printf_str::c#1) goto printf_str::@2 -- 0_neq_vbum1_then_la1 
-    lda c
-    bne __b2
-    // printf_str::@return
-    // }
-    // [728] return 
-    rts
-    // printf_str::@2
-  __b2:
-    // putc(c)
-    // [729] stackpush(char) = printf_str::c#1 -- _stackpushbyte_=vbum1 
-    lda c
-    pha
-    // [730] callexecute *printf_str::putc#21  -- call__deref_pprz1 
-    jsr icall4
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    jmp __b1
-    // Outside Flow
-  icall4:
-    jmp (putc)
-  .segment Data
-    c: .byte 0
-}
-.segment Code
   // printf_uchar
 // Print an unsigned char using a specific format
-// void printf_uchar(__zp($72) void (*putc)(char), __mem() char uvalue, __mem() char format_min_length, char format_justify_left, char format_sign_always, __mem() char format_zero_padding, char format_upper_case, __mem() char format_radix)
+// void printf_uchar(__zp($37) void (*putc)(char), __mem() char uvalue, __mem() char format_min_length, char format_justify_left, char format_sign_always, __mem() char format_zero_padding, char format_upper_case, __mem() char format_radix)
 printf_uchar: {
-    .label putc = $72
+    .label putc = $37
     // printf_uchar::@1
     // printf_buffer.sign = format.sign_always?'+':0
-    // [733] *((char *)&printf_buffer) = 0 -- _deref_pbuc1=vbuc2 
+    // [836] *((char *)&printf_buffer) = 0 -- _deref_pbuc1=vbuc2 
     // Handle any sign
     lda #0
     sta printf_buffer
     // uctoa(uvalue, printf_buffer.digits, format.radix)
-    // [734] uctoa::value#1 = printf_uchar::uvalue#6
-    // [735] uctoa::radix#0 = printf_uchar::format_radix#10
-    // [736] call uctoa
+    // [837] uctoa::value#1 = printf_uchar::uvalue#12
+    // [838] uctoa::radix#0 = printf_uchar::format_radix#12
+    // [839] call uctoa
     // Format number into buffer
     jsr uctoa
     // printf_uchar::@2
     // printf_number_buffer(putc, printf_buffer, format)
-    // [737] printf_number_buffer::putc#1 = printf_uchar::putc#10
-    // [738] printf_number_buffer::buffer_sign#1 = *((char *)&printf_buffer) -- vbum1=_deref_pbuc1 
+    // [840] printf_number_buffer::putc#2 = printf_uchar::putc#12
+    // [841] printf_number_buffer::buffer_sign#2 = *((char *)&printf_buffer) -- vbum1=_deref_pbuc1 
     lda printf_buffer
     sta printf_number_buffer.buffer_sign
-    // [739] printf_number_buffer::format_min_length#1 = printf_uchar::format_min_length#10
-    // [740] printf_number_buffer::format_zero_padding#1 = printf_uchar::format_zero_padding#10
-    // [741] call printf_number_buffer
+    // [842] printf_number_buffer::format_min_length#2 = printf_uchar::format_min_length#12
+    // [843] printf_number_buffer::format_zero_padding#2 = printf_uchar::format_zero_padding#12
+    // [844] call printf_number_buffer
   // Print using format
-    // [1248] phi from printf_uchar::@2 to printf_number_buffer [phi:printf_uchar::@2->printf_number_buffer]
-    // [1248] phi printf_number_buffer::format_upper_case#10 = 0 [phi:printf_uchar::@2->printf_number_buffer#0] -- vbum1=vbuc1 
-    lda #0
-    sta printf_number_buffer.format_upper_case
-    // [1248] phi printf_number_buffer::putc#10 = printf_number_buffer::putc#1 [phi:printf_uchar::@2->printf_number_buffer#1] -- register_copy 
-    // [1248] phi printf_number_buffer::buffer_sign#10 = printf_number_buffer::buffer_sign#1 [phi:printf_uchar::@2->printf_number_buffer#2] -- register_copy 
-    // [1248] phi printf_number_buffer::format_zero_padding#10 = printf_number_buffer::format_zero_padding#1 [phi:printf_uchar::@2->printf_number_buffer#3] -- register_copy 
-    // [1248] phi printf_number_buffer::format_justify_left#10 = 0 [phi:printf_uchar::@2->printf_number_buffer#4] -- vbum1=vbuc1 
-    sta printf_number_buffer.format_justify_left
-    // [1248] phi printf_number_buffer::format_min_length#2 = printf_number_buffer::format_min_length#1 [phi:printf_uchar::@2->printf_number_buffer#5] -- register_copy 
+    // [1628] phi from printf_uchar::@2 to printf_number_buffer [phi:printf_uchar::@2->printf_number_buffer]
+    // [1628] phi printf_number_buffer::putc#10 = printf_number_buffer::putc#2 [phi:printf_uchar::@2->printf_number_buffer#0] -- register_copy 
+    // [1628] phi printf_number_buffer::buffer_sign#10 = printf_number_buffer::buffer_sign#2 [phi:printf_uchar::@2->printf_number_buffer#1] -- register_copy 
+    // [1628] phi printf_number_buffer::format_zero_padding#10 = printf_number_buffer::format_zero_padding#2 [phi:printf_uchar::@2->printf_number_buffer#2] -- register_copy 
+    // [1628] phi printf_number_buffer::format_min_length#3 = printf_number_buffer::format_min_length#2 [phi:printf_uchar::@2->printf_number_buffer#3] -- register_copy 
     jsr printf_number_buffer
     // printf_uchar::@return
     // }
-    // [742] return 
+    // [845] return 
     rts
   .segment Data
     uvalue: .byte 0
@@ -4657,69 +5411,79 @@ printf_uchar: {
  * 
  * @param info_text The info text to be displayed.
  */
-// void display_action_text(__zp($72) char *info_text)
+// void display_action_text(__zp($5a) char *info_text)
 display_action_text: {
-    .label info_text = $72
-    .label x = $a9
-    .label y = $71
+    .label info_text = $5a
     // unsigned char x = wherex()
-    // [744] call wherex
+    // [847] call wherex
     jsr wherex
-    // [745] wherex::return#3 = wherex::return#0
-    // display_action_text::@1
-    // [746] display_action_text::x#0 = wherex::return#3 -- vbuz1=vbum2 
+    // [848] wherex::return#3 = wherex::return#0 -- vbum1=vbum2 
     lda wherex.return
-    sta.z x
+    sta wherex.return_1
+    // display_action_text::@1
+    // [849] display_action_text::x#0 = wherex::return#3
     // unsigned char y = wherey()
-    // [747] call wherey
+    // [850] call wherey
     jsr wherey
-    // [748] wherey::return#3 = wherey::return#0
-    // display_action_text::@2
-    // [749] display_action_text::y#0 = wherey::return#3 -- vbuz1=vbum2 
+    // [851] wherey::return#3 = wherey::return#0 -- vbum1=vbum2 
     lda wherey.return
-    sta.z y
+    sta wherey.return_1
+    // display_action_text::@2
+    // [852] display_action_text::y#0 = wherey::return#3
     // gotoxy(2, PROGRESS_Y-3)
-    // [750] call gotoxy
-    // [435] phi from display_action_text::@2 to gotoxy [phi:display_action_text::@2->gotoxy]
-    // [435] phi gotoxy::y#19 = PROGRESS_Y-3 [phi:display_action_text::@2->gotoxy#0] -- vbum1=vbuc1 
+    // [853] call gotoxy
+    // [454] phi from display_action_text::@2 to gotoxy [phi:display_action_text::@2->gotoxy]
+    // [454] phi gotoxy::y#27 = PROGRESS_Y-3 [phi:display_action_text::@2->gotoxy#0] -- vbum1=vbuc1 
     lda #PROGRESS_Y-3
     sta gotoxy.y
-    // [435] phi gotoxy::x#19 = 2 [phi:display_action_text::@2->gotoxy#1] -- vbum1=vbuc1 
+    // [454] phi gotoxy::x#27 = 2 [phi:display_action_text::@2->gotoxy#1] -- vbum1=vbuc1 
     lda #2
     sta gotoxy.x
     jsr gotoxy
     // display_action_text::@3
     // printf("%-65s", info_text)
-    // [751] printf_string::str#2 = display_action_text::info_text#6 -- pbuz1=pbuz2 
+    // [854] printf_string::str#4 = display_action_text::info_text#19 -- pbuz1=pbuz2 
     lda.z info_text
     sta.z printf_string.str
     lda.z info_text+1
     sta.z printf_string.str+1
-    // [752] call printf_string
-    // [1081] phi from display_action_text::@3 to printf_string [phi:display_action_text::@3->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#2 [phi:display_action_text::@3->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = $41 [phi:display_action_text::@3->printf_string#1] -- vbum1=vbuc1 
+    // [855] call printf_string
+    // [1320] phi from display_action_text::@3 to printf_string [phi:display_action_text::@3->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_action_text::@3->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#4 [phi:display_action_text::@3->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_action_text::@3->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $41 [phi:display_action_text::@3->printf_string#3] -- vbum1=vbuc1 
     lda #$41
     sta printf_string.format_min_length
     jsr printf_string
     // display_action_text::@4
     // gotoxy(x, y)
-    // [753] gotoxy::x#12 = display_action_text::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [856] gotoxy::x#15 = display_action_text::x#0 -- vbum1=vbum2 
+    lda x
     sta gotoxy.x
-    // [754] gotoxy::y#12 = display_action_text::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [857] gotoxy::y#15 = display_action_text::y#0 -- vbum1=vbum2 
+    lda y
     sta gotoxy.y
-    // [755] call gotoxy
-    // [435] phi from display_action_text::@4 to gotoxy [phi:display_action_text::@4->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#12 [phi:display_action_text::@4->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#12 [phi:display_action_text::@4->gotoxy#1] -- register_copy 
+    // [858] call gotoxy
+    // [454] phi from display_action_text::@4 to gotoxy [phi:display_action_text::@4->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#15 [phi:display_action_text::@4->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#15 [phi:display_action_text::@4->gotoxy#1] -- register_copy 
     jsr gotoxy
     // display_action_text::@return
     // }
-    // [756] return 
+    // [859] return 
     rts
+  .segment Data
+    .label x = wherex.return_1
+    .label y = wherey.return_1
 }
+.segment Code
   // smc_reset
 /**
  * @brief Shut down the CX16 through an SMC reboot.
@@ -4733,28 +5497,28 @@ smc_reset: {
     .const bank_set_brom1_bank = 0
     // smc_reset::bank_set_bram1
     // BRAM = bank
-    // [758] BRAM = smc_reset::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
+    // [861] BRAM = smc_reset::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_bram1_bank
     sta.z BRAM
     // smc_reset::bank_set_brom1
     // BROM = bank
-    // [759] BROM = smc_reset::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
+    // [862] BROM = smc_reset::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_brom1_bank
     sta.z BROM
     // smc_reset::@1
     // cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_REBOOT, 0)
-    // [760] smc_reset::cx16_k_i2c_write_byte1_device = $42 -- vbum1=vbuc1 
+    // [863] smc_reset::cx16_k_i2c_write_byte1_device = $42 -- vbum1=vbuc1 
     lda #$42
     sta cx16_k_i2c_write_byte1_device
-    // [761] smc_reset::cx16_k_i2c_write_byte1_offset = $82 -- vbum1=vbuc1 
+    // [864] smc_reset::cx16_k_i2c_write_byte1_offset = $82 -- vbum1=vbuc1 
     lda #$82
     sta cx16_k_i2c_write_byte1_offset
-    // [762] smc_reset::cx16_k_i2c_write_byte1_value = 0 -- vbum1=vbuc1 
+    // [865] smc_reset::cx16_k_i2c_write_byte1_value = 0 -- vbum1=vbuc1 
     lda #0
     sta cx16_k_i2c_write_byte1_value
     // smc_reset::cx16_k_i2c_write_byte1
     // unsigned char result
-    // [763] smc_reset::cx16_k_i2c_write_byte1_result = 0 -- vbum1=vbuc1 
+    // [866] smc_reset::cx16_k_i2c_write_byte1_result = 0 -- vbum1=vbuc1 
     sta cx16_k_i2c_write_byte1_result
     // asm
     // asm { ldxdevice ldyoffset ldavalue stzresult jsrCX16_I2C_WRITE_BYTE rolresult  }
@@ -4766,7 +5530,7 @@ smc_reset: {
     rol cx16_k_i2c_write_byte1_result
     // smc_reset::@return
     // }
-    // [765] return 
+    // [868] return 
     rts
   .segment Data
     cx16_k_i2c_write_byte1_device: .byte 0
@@ -4782,37 +5546,34 @@ smc_reset: {
  * @param status The status to be checked.
  * @return unsigned char true if one chip is equal to the status.
  */
-// __zp($6b) char check_status_card_roms(char status)
+// __mem() char check_status_card_roms(char status)
 check_status_card_roms: {
-    .label check_status_rom1_check_status_card_roms__0 = $ac
-    .label check_status_rom1_return = $ac
-    .label rom_chip = $7e
-    .label return = $6b
-    // [767] phi from check_status_card_roms to check_status_card_roms::@1 [phi:check_status_card_roms->check_status_card_roms::@1]
-    // [767] phi check_status_card_roms::rom_chip#2 = 1 [phi:check_status_card_roms->check_status_card_roms::@1#0] -- vbuz1=vbuc1 
+    .label check_status_rom1_check_status_card_roms__0 = $7a
+    // [870] phi from check_status_card_roms to check_status_card_roms::@1 [phi:check_status_card_roms->check_status_card_roms::@1]
+    // [870] phi check_status_card_roms::rom_chip#2 = 1 [phi:check_status_card_roms->check_status_card_roms::@1#0] -- vbum1=vbuc1 
     lda #1
-    sta.z rom_chip
+    sta rom_chip
     // check_status_card_roms::@1
   __b1:
     // for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++)
-    // [768] if(check_status_card_roms::rom_chip#2<8) goto check_status_card_roms::check_status_rom1 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z rom_chip
+    // [871] if(check_status_card_roms::rom_chip#2<8) goto check_status_card_roms::check_status_rom1 -- vbum1_lt_vbuc1_then_la1 
+    lda rom_chip
     cmp #8
     bcc check_status_rom1
-    // [769] phi from check_status_card_roms::@1 to check_status_card_roms::@return [phi:check_status_card_roms::@1->check_status_card_roms::@return]
-    // [769] phi check_status_card_roms::return#2 = 0 [phi:check_status_card_roms::@1->check_status_card_roms::@return#0] -- vbuz1=vbuc1 
+    // [872] phi from check_status_card_roms::@1 to check_status_card_roms::@return [phi:check_status_card_roms::@1->check_status_card_roms::@return]
+    // [872] phi check_status_card_roms::return#2 = 0 [phi:check_status_card_roms::@1->check_status_card_roms::@return#0] -- vbum1=vbuc1 
     lda #0
-    sta.z return
+    sta return
     // check_status_card_roms::@return
     // }
-    // [770] return 
+    // [873] return 
     rts
     // check_status_card_roms::check_status_rom1
   check_status_rom1:
     // status_rom[rom_chip] == status
-    // [771] check_status_card_roms::check_status_rom1_$0 = status_rom[check_status_card_roms::rom_chip#2] == STATUS_FLASH -- vboz1=pbuc1_derefidx_vbuz2_eq_vbuc2 
+    // [874] check_status_card_roms::check_status_rom1_$0 = status_rom[check_status_card_roms::rom_chip#2] == STATUS_FLASH -- vboz1=pbuc1_derefidx_vbum2_eq_vbuc2 
     lda #STATUS_FLASH
-    ldy.z rom_chip
+    ldy rom_chip
     eor status_rom,y
     beq !+
     lda #1
@@ -4820,26 +5581,966 @@ check_status_card_roms: {
     eor #1
     sta.z check_status_rom1_check_status_card_roms__0
     // return (unsigned char)(status_rom[rom_chip] == status);
-    // [772] check_status_card_roms::check_status_rom1_return#0 = (char)check_status_card_roms::check_status_rom1_$0
+    // [875] check_status_card_roms::check_status_rom1_return#0 = (char)check_status_card_roms::check_status_rom1_$0 -- vbum1=vbuz2 
+    sta check_status_rom1_return
     // check_status_card_roms::@3
     // if(check_status_rom(rom_chip, status))
-    // [773] if(0==check_status_card_roms::check_status_rom1_return#0) goto check_status_card_roms::@2 -- 0_eq_vbuz1_then_la1 
-    lda.z check_status_rom1_return
+    // [876] if(0==check_status_card_roms::check_status_rom1_return#0) goto check_status_card_roms::@2 -- 0_eq_vbum1_then_la1 
     beq __b2
-    // [769] phi from check_status_card_roms::@3 to check_status_card_roms::@return [phi:check_status_card_roms::@3->check_status_card_roms::@return]
-    // [769] phi check_status_card_roms::return#2 = 1 [phi:check_status_card_roms::@3->check_status_card_roms::@return#0] -- vbuz1=vbuc1 
+    // [872] phi from check_status_card_roms::@3 to check_status_card_roms::@return [phi:check_status_card_roms::@3->check_status_card_roms::@return]
+    // [872] phi check_status_card_roms::return#2 = 1 [phi:check_status_card_roms::@3->check_status_card_roms::@return#0] -- vbum1=vbuc1 
     lda #1
-    sta.z return
+    sta return
     rts
     // check_status_card_roms::@2
   __b2:
     // for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++)
-    // [774] check_status_card_roms::rom_chip#1 = ++ check_status_card_roms::rom_chip#2 -- vbuz1=_inc_vbuz1 
-    inc.z rom_chip
-    // [767] phi from check_status_card_roms::@2 to check_status_card_roms::@1 [phi:check_status_card_roms::@2->check_status_card_roms::@1]
-    // [767] phi check_status_card_roms::rom_chip#2 = check_status_card_roms::rom_chip#1 [phi:check_status_card_roms::@2->check_status_card_roms::@1#0] -- register_copy 
+    // [877] check_status_card_roms::rom_chip#1 = ++ check_status_card_roms::rom_chip#2 -- vbum1=_inc_vbum1 
+    inc rom_chip
+    // [870] phi from check_status_card_roms::@2 to check_status_card_roms::@1 [phi:check_status_card_roms::@2->check_status_card_roms::@1]
+    // [870] phi check_status_card_roms::rom_chip#2 = check_status_card_roms::rom_chip#1 [phi:check_status_card_roms::@2->check_status_card_roms::@1#0] -- register_copy 
     jmp __b1
+  .segment Data
+    check_status_rom1_return: .byte 0
+    rom_chip: .byte 0
+    return: .byte 0
 }
+.segment Code
+  // main_vera_flash
+main_vera_flash: {
+    .label vera_bytes_read = $ac
+    .label vera_differences = $b5
+    .label spi_ensure_detect = $7f
+    .label vera_erase_error = $7a
+    .label vera_flashed = $b9
+    .label spi_ensure_detect_1 = $a9
+    // display_progress_clear()
+    // [879] call display_progress_clear
+    // [570] phi from main_vera_flash to display_progress_clear [phi:main_vera_flash->display_progress_clear]
+    jsr display_progress_clear
+    // [880] phi from main_vera_flash to main_vera_flash::@20 [phi:main_vera_flash->main_vera_flash::@20]
+    // main_vera_flash::@20
+    // sprintf(info_text, "Reading VERA.BIN ... (.) data ( ) empty")
+    // [881] call snprintf_init
+    jsr snprintf_init
+    // [882] phi from main_vera_flash::@20 to main_vera_flash::@21 [phi:main_vera_flash::@20->main_vera_flash::@21]
+    // main_vera_flash::@21
+    // sprintf(info_text, "Reading VERA.BIN ... (.) data ( ) empty")
+    // [883] call printf_str
+    // [785] phi from main_vera_flash::@21 to printf_str [phi:main_vera_flash::@21->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main_vera_flash::@21->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main_vera_flash::s [phi:main_vera_flash::@21->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // main_vera_flash::@22
+    // sprintf(info_text, "Reading VERA.BIN ... (.) data ( ) empty")
+    // [884] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [885] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_progress(info_text)
+    // [887] call display_action_progress
+    // [556] phi from main_vera_flash::@22 to display_action_progress [phi:main_vera_flash::@22->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = info_text [phi:main_vera_flash::@22->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_action_progress.info_text
+    lda #>@info_text
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [888] phi from main_vera_flash::@22 to main_vera_flash::@23 [phi:main_vera_flash::@22->main_vera_flash::@23]
+    // main_vera_flash::@23
+    // unsigned long vera_bytes_read = vera_read(STATUS_READING)
+    // [889] call vera_read
+    // [1470] phi from main_vera_flash::@23 to vera_read [phi:main_vera_flash::@23->vera_read]
+    // [1470] phi __errno#117 = __errno#18 [phi:main_vera_flash::@23->vera_read#0] -- register_copy 
+    // [1470] phi __stdio_filecount#105 = __stdio_filecount#26 [phi:main_vera_flash::@23->vera_read#1] -- register_copy 
+    // [1470] phi vera_read::info_status#10 = STATUS_READING [phi:main_vera_flash::@23->vera_read#2] -- vbum1=vbuc1 
+    lda #STATUS_READING
+    sta vera_read.info_status
+    jsr vera_read
+    // unsigned long vera_bytes_read = vera_read(STATUS_READING)
+    // [890] vera_read::return#3 = vera_read::return#0
+    // main_vera_flash::@24
+    // [891] main_vera_flash::vera_bytes_read#0 = vera_read::return#3 -- vduz1=vdum2 
+    lda vera_read.return
+    sta.z vera_bytes_read
+    lda vera_read.return+1
+    sta.z vera_bytes_read+1
+    lda vera_read.return+2
+    sta.z vera_bytes_read+2
+    lda vera_read.return+3
+    sta.z vera_bytes_read+3
+    // if(vera_bytes_read)
+    // [892] if(0==main_vera_flash::vera_bytes_read#0) goto main_vera_flash::@1 -- 0_eq_vduz1_then_la1 
+    lda.z vera_bytes_read
+    ora.z vera_bytes_read+1
+    ora.z vera_bytes_read+2
+    ora.z vera_bytes_read+3
+    bne !__b1+
+    jmp __b1
+  !__b1:
+    // [893] phi from main_vera_flash::@24 to main_vera_flash::@2 [phi:main_vera_flash::@24->main_vera_flash::@2]
+    // main_vera_flash::@2
+    // display_action_progress("VERA SPI activation ...")
+    // [894] call display_action_progress
+  // Now we loop until jumper JP1 has been placed!
+    // [556] phi from main_vera_flash::@2 to display_action_progress [phi:main_vera_flash::@2->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main_vera_flash::info_text [phi:main_vera_flash::@2->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_action_progress.info_text
+    lda #>info_text
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [895] phi from main_vera_flash::@2 to main_vera_flash::@25 [phi:main_vera_flash::@2->main_vera_flash::@25]
+    // main_vera_flash::@25
+    // display_action_text("Please close the jumper JP1 on the VERA board!")
+    // [896] call display_action_text
+    // [846] phi from main_vera_flash::@25 to display_action_text [phi:main_vera_flash::@25->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main_vera_flash::info_text1 [phi:main_vera_flash::@25->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text1
+    sta.z display_action_text.info_text
+    lda #>info_text1
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [897] phi from main_vera_flash::@25 to main_vera_flash::@26 [phi:main_vera_flash::@25->main_vera_flash::@26]
+    // main_vera_flash::@26
+    // display_progress_text(display_close_jp1_spi_vera_text, display_close_jp1_spi_vera_count)
+    // [898] call display_progress_text
+    // [816] phi from main_vera_flash::@26 to display_progress_text [phi:main_vera_flash::@26->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_close_jp1_spi_vera_text [phi:main_vera_flash::@26->display_progress_text#0] -- qbuz1=qbuc1 
+    lda #<display_close_jp1_spi_vera_text
+    sta.z display_progress_text.text
+    lda #>display_close_jp1_spi_vera_text
+    sta.z display_progress_text.text+1
+    // [816] phi display_progress_text::lines#11 = display_close_jp1_spi_vera_count [phi:main_vera_flash::@26->display_progress_text#1] -- vbum1=vbuc1 
+    lda #display_close_jp1_spi_vera_count
+    sta display_progress_text.lines
+    jsr display_progress_text
+    // [899] phi from main_vera_flash::@26 to main_vera_flash::@27 [phi:main_vera_flash::@26->main_vera_flash::@27]
+    // main_vera_flash::@27
+    // vera_detect()
+    // [900] call vera_detect
+    // [1467] phi from main_vera_flash::@27 to vera_detect [phi:main_vera_flash::@27->vera_detect]
+    jsr vera_detect
+    // [901] phi from main_vera_flash::@27 main_vera_flash::@7 to main_vera_flash::@3 [phi:main_vera_flash::@27/main_vera_flash::@7->main_vera_flash::@3]
+  __b2:
+    // [901] phi main_vera_flash::spi_ensure_detect#11 = 0 [phi:main_vera_flash::@27/main_vera_flash::@7->main_vera_flash::@3#0] -- vbuz1=vbuc1 
+    lda #0
+    sta.z spi_ensure_detect
+    // main_vera_flash::@3
+  __b3:
+    // while(spi_ensure_detect < 16)
+    // [902] if(main_vera_flash::spi_ensure_detect#11<$10) goto main_vera_flash::@4 -- vbuz1_lt_vbuc1_then_la1 
+    lda.z spi_ensure_detect
+    cmp #$10
+    bcs !__b4+
+    jmp __b4
+  !__b4:
+    // [903] phi from main_vera_flash::@3 to main_vera_flash::@5 [phi:main_vera_flash::@3->main_vera_flash::@5]
+    // main_vera_flash::@5
+    // display_action_text("The jumper JP1 has been closed on the VERA!")
+    // [904] call display_action_text
+    // [846] phi from main_vera_flash::@5 to display_action_text [phi:main_vera_flash::@5->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main_vera_flash::info_text2 [phi:main_vera_flash::@5->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text2
+    sta.z display_action_text.info_text
+    lda #>info_text2
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [905] phi from main_vera_flash::@5 to main_vera_flash::@30 [phi:main_vera_flash::@5->main_vera_flash::@30]
+    // main_vera_flash::@30
+    // display_progress_clear()
+    // [906] call display_progress_clear
+    // [570] phi from main_vera_flash::@30 to display_progress_clear [phi:main_vera_flash::@30->display_progress_clear]
+    jsr display_progress_clear
+    // [907] phi from main_vera_flash::@30 to main_vera_flash::@31 [phi:main_vera_flash::@30->main_vera_flash::@31]
+    // main_vera_flash::@31
+    // display_action_progress("Comparing VERA ... (.) data, (=) same, (*) different.")
+    // [908] call display_action_progress
+  // Now we compare the RAM with the actual VERA contents.
+    // [556] phi from main_vera_flash::@31 to display_action_progress [phi:main_vera_flash::@31->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main_vera_flash::info_text3 [phi:main_vera_flash::@31->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text3
+    sta.z display_action_progress.info_text
+    lda #>info_text3
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // main_vera_flash::@32
+    // [909] spi_manufacturer#412 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [910] spi_memory_type#413 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [911] spi_memory_capacity#414 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_COMPARING, NULL)
+    // [912] call display_info_vera
+    // [650] phi from main_vera_flash::@32 to display_info_vera [phi:main_vera_flash::@32->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = 0 [phi:main_vera_flash::@32->display_info_vera#0] -- pbuz1=vbuc1 
+    lda #<0
+    sta.z display_info_vera.info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#414 [phi:main_vera_flash::@32->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#413 [phi:main_vera_flash::@32->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#412 [phi:main_vera_flash::@32->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_COMPARING [phi:main_vera_flash::@32->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_COMPARING
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [913] phi from main_vera_flash::@32 to main_vera_flash::@33 [phi:main_vera_flash::@32->main_vera_flash::@33]
+    // main_vera_flash::@33
+    // unsigned long vera_differences = vera_verify()
+    // [914] call vera_verify
+    // Verify VERA ...
+    jsr vera_verify
+    // [915] vera_verify::return#2 = vera_verify::vera_different_bytes#11
+    // main_vera_flash::@34
+    // [916] main_vera_flash::vera_differences#0 = vera_verify::return#2 -- vduz1=vdum2 
+    lda vera_verify.return
+    sta.z vera_differences
+    lda vera_verify.return+1
+    sta.z vera_differences+1
+    lda vera_verify.return+2
+    sta.z vera_differences+2
+    lda vera_verify.return+3
+    sta.z vera_differences+3
+    // if (!vera_differences)
+    // [917] if(0==main_vera_flash::vera_differences#0) goto main_vera_flash::@10 -- 0_eq_vduz1_then_la1 
+    lda.z vera_differences
+    ora.z vera_differences+1
+    ora.z vera_differences+2
+    ora.z vera_differences+3
+    bne !__b10+
+    jmp __b10
+  !__b10:
+    // [918] phi from main_vera_flash::@34 to main_vera_flash::@8 [phi:main_vera_flash::@34->main_vera_flash::@8]
+    // main_vera_flash::@8
+    // sprintf(info_text, "%05x differences!", vera_differences)
+    // [919] call snprintf_init
+    jsr snprintf_init
+    // main_vera_flash::@36
+    // [920] printf_ulong::uvalue#6 = main_vera_flash::vera_differences#0 -- vdum1=vduz2 
+    lda.z vera_differences
+    sta printf_ulong.uvalue
+    lda.z vera_differences+1
+    sta printf_ulong.uvalue+1
+    lda.z vera_differences+2
+    sta printf_ulong.uvalue+2
+    lda.z vera_differences+3
+    sta printf_ulong.uvalue+3
+    // [921] call printf_ulong
+    // [1720] phi from main_vera_flash::@36 to printf_ulong [phi:main_vera_flash::@36->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:main_vera_flash::@36->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:main_vera_flash::@36->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#6 [phi:main_vera_flash::@36->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // [922] phi from main_vera_flash::@36 to main_vera_flash::@37 [phi:main_vera_flash::@36->main_vera_flash::@37]
+    // main_vera_flash::@37
+    // sprintf(info_text, "%05x differences!", vera_differences)
+    // [923] call printf_str
+    // [785] phi from main_vera_flash::@37 to printf_str [phi:main_vera_flash::@37->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main_vera_flash::@37->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main_vera_flash::s1 [phi:main_vera_flash::@37->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // main_vera_flash::@38
+    // sprintf(info_text, "%05x differences!", vera_differences)
+    // [924] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [925] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // [927] spi_manufacturer#413 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [928] spi_memory_type#414 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [929] spi_memory_capacity#415 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_FLASH, info_text)
+    // [930] call display_info_vera
+    // [650] phi from main_vera_flash::@38 to display_info_vera [phi:main_vera_flash::@38->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = info_text [phi:main_vera_flash::@38->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_info_vera.info_text
+    lda #>@info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#415 [phi:main_vera_flash::@38->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#414 [phi:main_vera_flash::@38->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#413 [phi:main_vera_flash::@38->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_FLASH [phi:main_vera_flash::@38->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_FLASH
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [931] phi from main_vera_flash::@38 to main_vera_flash::@39 [phi:main_vera_flash::@38->main_vera_flash::@39]
+    // main_vera_flash::@39
+    // unsigned char vera_erase_error = vera_erase()
+    // [932] call vera_erase
+    jsr vera_erase
+    // [933] vera_erase::return#3 = vera_erase::return#2
+    // main_vera_flash::@40
+    // [934] main_vera_flash::vera_erase_error#0 = vera_erase::return#3 -- vbuz1=vbum2 
+    lda vera_erase.return
+    sta.z vera_erase_error
+    // if(vera_erase_error)
+    // [935] if(0==main_vera_flash::vera_erase_error#0) goto main_vera_flash::@11 -- 0_eq_vbuz1_then_la1 
+    beq __b11
+    // [936] phi from main_vera_flash::@40 to main_vera_flash::@9 [phi:main_vera_flash::@40->main_vera_flash::@9]
+    // main_vera_flash::@9
+    // display_action_progress("There was an error cleaning your VERA flash memory!")
+    // [937] call display_action_progress
+    // [556] phi from main_vera_flash::@9 to display_action_progress [phi:main_vera_flash::@9->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main_vera_flash::info_text7 [phi:main_vera_flash::@9->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text7
+    sta.z display_action_progress.info_text
+    lda #>info_text7
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [938] phi from main_vera_flash::@9 to main_vera_flash::@42 [phi:main_vera_flash::@9->main_vera_flash::@42]
+    // main_vera_flash::@42
+    // display_action_text("DO NOT RESET or REBOOT YOUR CX16 AND WAIT!")
+    // [939] call display_action_text
+    // [846] phi from main_vera_flash::@42 to display_action_text [phi:main_vera_flash::@42->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main_vera_flash::info_text8 [phi:main_vera_flash::@42->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text8
+    sta.z display_action_text.info_text
+    lda #>info_text8
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // main_vera_flash::@43
+    // [940] spi_manufacturer#414 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [941] spi_memory_type#415 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [942] spi_memory_capacity#416 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_ERROR, "ERASE ERROR!")
+    // [943] call display_info_vera
+    // [650] phi from main_vera_flash::@43 to display_info_vera [phi:main_vera_flash::@43->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text9 [phi:main_vera_flash::@43->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text9
+    sta.z display_info_vera.info_text
+    lda #>info_text9
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#416 [phi:main_vera_flash::@43->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#415 [phi:main_vera_flash::@43->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#414 [phi:main_vera_flash::@43->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_ERROR [phi:main_vera_flash::@43->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_ERROR
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [944] phi from main_vera_flash::@43 to main_vera_flash::@44 [phi:main_vera_flash::@43->main_vera_flash::@44]
+    // main_vera_flash::@44
+    // display_info_smc(STATUS_ERROR, NULL)
+    // [945] call display_info_smc
+    // [614] phi from main_vera_flash::@44 to display_info_smc [phi:main_vera_flash::@44->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = 0 [phi:main_vera_flash::@44->display_info_smc#0] -- pbuz1=vbuc1 
+    lda #<0
+    sta.z display_info_smc.info_text
+    sta.z display_info_smc.info_text+1
+    // [614] phi display_info_smc::info_status#10 = STATUS_ERROR [phi:main_vera_flash::@44->display_info_smc#1] -- vbum1=vbuc1 
+    lda #STATUS_ERROR
+    sta display_info_smc.info_status
+    jsr display_info_smc
+    // [946] phi from main_vera_flash::@44 to main_vera_flash::@45 [phi:main_vera_flash::@44->main_vera_flash::@45]
+    // main_vera_flash::@45
+    // display_info_roms(STATUS_ERROR, NULL)
+    // [947] call display_info_roms
+    // [1744] phi from main_vera_flash::@45 to display_info_roms [phi:main_vera_flash::@45->display_info_roms]
+    jsr display_info_roms
+    // [948] phi from main_vera_flash::@45 to main_vera_flash::@46 [phi:main_vera_flash::@45->main_vera_flash::@46]
+    // main_vera_flash::@46
+    // wait_moment(32)
+    // [949] call wait_moment
+    // [794] phi from main_vera_flash::@46 to wait_moment [phi:main_vera_flash::@46->wait_moment]
+    // [794] phi wait_moment::w#12 = $20 [phi:main_vera_flash::@46->wait_moment#0] -- vbum1=vbuc1 
+    lda #$20
+    sta wait_moment.w
+    jsr wait_moment
+    // [950] phi from main_vera_flash::@46 to main_vera_flash::@47 [phi:main_vera_flash::@46->main_vera_flash::@47]
+    // main_vera_flash::@47
+    // spi_deselect()
+    // [951] call spi_deselect
+    jsr spi_deselect
+    // main_vera_flash::@return
+    // }
+    // [952] return 
+    rts
+    // [953] phi from main_vera_flash::@40 to main_vera_flash::@11 [phi:main_vera_flash::@40->main_vera_flash::@11]
+    // main_vera_flash::@11
+  __b11:
+    // unsigned long vera_flashed = vera_flash()
+    // [954] call vera_flash
+    // [1754] phi from main_vera_flash::@11 to vera_flash [phi:main_vera_flash::@11->vera_flash]
+    jsr vera_flash
+    // unsigned long vera_flashed = vera_flash()
+    // [955] vera_flash::return#3 = vera_flash::return#2
+    // main_vera_flash::@41
+    // [956] main_vera_flash::vera_flashed#0 = vera_flash::return#3 -- vduz1=vdum2 
+    lda vera_flash.return
+    sta.z vera_flashed
+    lda vera_flash.return+1
+    sta.z vera_flashed+1
+    lda vera_flash.return+2
+    sta.z vera_flashed+2
+    lda vera_flash.return+3
+    sta.z vera_flashed+3
+    // if(vera_flashed)
+    // [957] if(0!=main_vera_flash::vera_flashed#0) goto main_vera_flash::@12 -- 0_neq_vduz1_then_la1 
+    lda.z vera_flashed
+    ora.z vera_flashed+1
+    ora.z vera_flashed+2
+    ora.z vera_flashed+3
+    bne __b12
+    // main_vera_flash::@13
+    // [958] spi_manufacturer#409 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [959] spi_memory_type#410 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [960] spi_memory_capacity#411 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_ERROR, info_text)
+    // [961] call display_info_vera
+  // VFL2 | Flash VERA resulting in errors
+    // [650] phi from main_vera_flash::@13 to display_info_vera [phi:main_vera_flash::@13->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = info_text [phi:main_vera_flash::@13->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_info_vera.info_text
+    lda #>@info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#411 [phi:main_vera_flash::@13->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#410 [phi:main_vera_flash::@13->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#409 [phi:main_vera_flash::@13->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_ERROR [phi:main_vera_flash::@13->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_ERROR
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [962] phi from main_vera_flash::@13 to main_vera_flash::@51 [phi:main_vera_flash::@13->main_vera_flash::@51]
+    // main_vera_flash::@51
+    // display_action_progress("There was an error updating your VERA flash memory!")
+    // [963] call display_action_progress
+    // [556] phi from main_vera_flash::@51 to display_action_progress [phi:main_vera_flash::@51->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main_vera_flash::info_text10 [phi:main_vera_flash::@51->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text10
+    sta.z display_action_progress.info_text
+    lda #>info_text10
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [964] phi from main_vera_flash::@51 to main_vera_flash::@52 [phi:main_vera_flash::@51->main_vera_flash::@52]
+    // main_vera_flash::@52
+    // display_action_text("DO NOT RESET or REBOOT YOUR CX16 AND WAIT!")
+    // [965] call display_action_text
+    // [846] phi from main_vera_flash::@52 to display_action_text [phi:main_vera_flash::@52->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main_vera_flash::info_text8 [phi:main_vera_flash::@52->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text8
+    sta.z display_action_text.info_text
+    lda #>info_text8
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // main_vera_flash::@53
+    // [966] spi_manufacturer#416 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [967] spi_memory_type#417 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [968] spi_memory_capacity#418 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_ERROR, "FLASH ERROR!")
+    // [969] call display_info_vera
+    // [650] phi from main_vera_flash::@53 to display_info_vera [phi:main_vera_flash::@53->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text12 [phi:main_vera_flash::@53->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text12
+    sta.z display_info_vera.info_text
+    lda #>info_text12
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#418 [phi:main_vera_flash::@53->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#417 [phi:main_vera_flash::@53->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#416 [phi:main_vera_flash::@53->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_ERROR [phi:main_vera_flash::@53->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_ERROR
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [970] phi from main_vera_flash::@53 to main_vera_flash::@54 [phi:main_vera_flash::@53->main_vera_flash::@54]
+    // main_vera_flash::@54
+    // display_info_smc(STATUS_ERROR, NULL)
+    // [971] call display_info_smc
+    // [614] phi from main_vera_flash::@54 to display_info_smc [phi:main_vera_flash::@54->display_info_smc]
+    // [614] phi display_info_smc::info_text#10 = 0 [phi:main_vera_flash::@54->display_info_smc#0] -- pbuz1=vbuc1 
+    lda #<0
+    sta.z display_info_smc.info_text
+    sta.z display_info_smc.info_text+1
+    // [614] phi display_info_smc::info_status#10 = STATUS_ERROR [phi:main_vera_flash::@54->display_info_smc#1] -- vbum1=vbuc1 
+    lda #STATUS_ERROR
+    sta display_info_smc.info_status
+    jsr display_info_smc
+    // [972] phi from main_vera_flash::@54 to main_vera_flash::@55 [phi:main_vera_flash::@54->main_vera_flash::@55]
+    // main_vera_flash::@55
+    // display_info_roms(STATUS_ERROR, NULL)
+    // [973] call display_info_roms
+    // [1744] phi from main_vera_flash::@55 to display_info_roms [phi:main_vera_flash::@55->display_info_roms]
+    jsr display_info_roms
+    // [974] phi from main_vera_flash::@55 to main_vera_flash::@56 [phi:main_vera_flash::@55->main_vera_flash::@56]
+    // main_vera_flash::@56
+    // wait_moment(32)
+    // [975] call wait_moment
+    // [794] phi from main_vera_flash::@56 to wait_moment [phi:main_vera_flash::@56->wait_moment]
+    // [794] phi wait_moment::w#12 = $20 [phi:main_vera_flash::@56->wait_moment#0] -- vbum1=vbuc1 
+    lda #$20
+    sta wait_moment.w
+    jsr wait_moment
+    // [976] phi from main_vera_flash::@56 to main_vera_flash::@57 [phi:main_vera_flash::@56->main_vera_flash::@57]
+    // main_vera_flash::@57
+    // spi_deselect()
+    // [977] call spi_deselect
+    jsr spi_deselect
+    rts
+    // [978] phi from main_vera_flash::@41 to main_vera_flash::@12 [phi:main_vera_flash::@41->main_vera_flash::@12]
+    // main_vera_flash::@12
+  __b12:
+    // sprintf(info_text, "%x bytes flashed!", vera_flashed)
+    // [979] call snprintf_init
+    jsr snprintf_init
+    // main_vera_flash::@48
+    // [980] printf_ulong::uvalue#7 = main_vera_flash::vera_flashed#0 -- vdum1=vduz2 
+    lda.z vera_flashed
+    sta printf_ulong.uvalue
+    lda.z vera_flashed+1
+    sta printf_ulong.uvalue+1
+    lda.z vera_flashed+2
+    sta printf_ulong.uvalue+2
+    lda.z vera_flashed+3
+    sta printf_ulong.uvalue+3
+    // [981] call printf_ulong
+    // [1720] phi from main_vera_flash::@48 to printf_ulong [phi:main_vera_flash::@48->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 0 [phi:main_vera_flash::@48->printf_ulong#0] -- vbum1=vbuc1 
+    lda #0
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 0 [phi:main_vera_flash::@48->printf_ulong#1] -- vbum1=vbuc1 
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#7 [phi:main_vera_flash::@48->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // [982] phi from main_vera_flash::@48 to main_vera_flash::@49 [phi:main_vera_flash::@48->main_vera_flash::@49]
+    // main_vera_flash::@49
+    // sprintf(info_text, "%x bytes flashed!", vera_flashed)
+    // [983] call printf_str
+    // [785] phi from main_vera_flash::@49 to printf_str [phi:main_vera_flash::@49->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:main_vera_flash::@49->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = main_vera_flash::s2 [phi:main_vera_flash::@49->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s2
+    sta.z printf_str.s
+    lda #>s2
+    sta.z printf_str.s+1
+    jsr printf_str
+    // main_vera_flash::@50
+    // sprintf(info_text, "%x bytes flashed!", vera_flashed)
+    // [984] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [985] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // [987] spi_manufacturer#415 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [988] spi_memory_type#416 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [989] spi_memory_capacity#417 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_FLASHED, info_text)
+    // [990] call display_info_vera
+    // [650] phi from main_vera_flash::@50 to display_info_vera [phi:main_vera_flash::@50->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = info_text [phi:main_vera_flash::@50->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_info_vera.info_text
+    lda #>@info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#417 [phi:main_vera_flash::@50->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#416 [phi:main_vera_flash::@50->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#415 [phi:main_vera_flash::@50->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_FLASHED [phi:main_vera_flash::@50->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_FLASHED
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [991] phi from main_vera_flash::@10 main_vera_flash::@50 to main_vera_flash::@14 [phi:main_vera_flash::@10/main_vera_flash::@50->main_vera_flash::@14]
+    // main_vera_flash::@14
+  __b14:
+    // wait_moment(32)
+    // [992] call wait_moment
+    // [794] phi from main_vera_flash::@14 to wait_moment [phi:main_vera_flash::@14->wait_moment]
+    // [794] phi wait_moment::w#12 = $20 [phi:main_vera_flash::@14->wait_moment#0] -- vbum1=vbuc1 
+    lda #$20
+    sta wait_moment.w
+    jsr wait_moment
+    // [993] phi from main_vera_flash::@14 to main_vera_flash::@58 [phi:main_vera_flash::@14->main_vera_flash::@58]
+    // main_vera_flash::@58
+    // display_action_progress("VERA SPI de-activation ...")
+    // [994] call display_action_progress
+  // Now we loop until jumper JP1 is open again!
+    // [556] phi from main_vera_flash::@58 to display_action_progress [phi:main_vera_flash::@58->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = main_vera_flash::info_text13 [phi:main_vera_flash::@58->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text13
+    sta.z display_action_progress.info_text
+    lda #>info_text13
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // [995] phi from main_vera_flash::@58 to main_vera_flash::@59 [phi:main_vera_flash::@58->main_vera_flash::@59]
+    // main_vera_flash::@59
+    // display_action_text("Please OPEN the jumper JP1 on the VERA board!")
+    // [996] call display_action_text
+    // [846] phi from main_vera_flash::@59 to display_action_text [phi:main_vera_flash::@59->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main_vera_flash::info_text14 [phi:main_vera_flash::@59->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text14
+    sta.z display_action_text.info_text
+    lda #>info_text14
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [997] phi from main_vera_flash::@59 to main_vera_flash::@60 [phi:main_vera_flash::@59->main_vera_flash::@60]
+    // main_vera_flash::@60
+    // display_progress_text(display_open_jp1_spi_vera_text, display_open_jp1_spi_vera_count)
+    // [998] call display_progress_text
+    // [816] phi from main_vera_flash::@60 to display_progress_text [phi:main_vera_flash::@60->display_progress_text]
+    // [816] phi display_progress_text::text#12 = display_open_jp1_spi_vera_text [phi:main_vera_flash::@60->display_progress_text#0] -- qbuz1=qbuc1 
+    lda #<display_open_jp1_spi_vera_text
+    sta.z display_progress_text.text
+    lda #>display_open_jp1_spi_vera_text
+    sta.z display_progress_text.text+1
+    // [816] phi display_progress_text::lines#11 = display_open_jp1_spi_vera_count [phi:main_vera_flash::@60->display_progress_text#1] -- vbum1=vbuc1 
+    lda #display_open_jp1_spi_vera_count
+    sta display_progress_text.lines
+    jsr display_progress_text
+    // [999] phi from main_vera_flash::@60 to main_vera_flash::@61 [phi:main_vera_flash::@60->main_vera_flash::@61]
+    // main_vera_flash::@61
+    // vera_detect()
+    // [1000] call vera_detect
+    // [1467] phi from main_vera_flash::@61 to vera_detect [phi:main_vera_flash::@61->vera_detect]
+    jsr vera_detect
+    // [1001] phi from main_vera_flash::@19 main_vera_flash::@61 to main_vera_flash::@15 [phi:main_vera_flash::@19/main_vera_flash::@61->main_vera_flash::@15]
+  __b5:
+    // [1001] phi main_vera_flash::spi_ensure_detect#12 = 0 [phi:main_vera_flash::@19/main_vera_flash::@61->main_vera_flash::@15#0] -- vbuz1=vbuc1 
+    lda #0
+    sta.z spi_ensure_detect_1
+    // main_vera_flash::@15
+  __b15:
+    // while(spi_ensure_detect < 16)
+    // [1002] if(main_vera_flash::spi_ensure_detect#12<$10) goto main_vera_flash::@16 -- vbuz1_lt_vbuc1_then_la1 
+    lda.z spi_ensure_detect_1
+    cmp #$10
+    bcc __b16
+    // [1003] phi from main_vera_flash::@15 to main_vera_flash::@17 [phi:main_vera_flash::@15->main_vera_flash::@17]
+    // main_vera_flash::@17
+    // display_action_text("The jumper JP1 has been opened on the VERA!")
+    // [1004] call display_action_text
+    // [846] phi from main_vera_flash::@17 to display_action_text [phi:main_vera_flash::@17->display_action_text]
+    // [846] phi display_action_text::info_text#19 = main_vera_flash::info_text15 [phi:main_vera_flash::@17->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text15
+    sta.z display_action_text.info_text
+    lda #>info_text15
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [1005] phi from main_vera_flash::@17 main_vera_flash::@24 to main_vera_flash::@1 [phi:main_vera_flash::@17/main_vera_flash::@24->main_vera_flash::@1]
+    // main_vera_flash::@1
+  __b1:
+    // spi_deselect()
+    // [1006] call spi_deselect
+    jsr spi_deselect
+    rts
+    // [1007] phi from main_vera_flash::@15 to main_vera_flash::@16 [phi:main_vera_flash::@15->main_vera_flash::@16]
+    // main_vera_flash::@16
+  __b16:
+    // vera_detect()
+    // [1008] call vera_detect
+    // [1467] phi from main_vera_flash::@16 to vera_detect [phi:main_vera_flash::@16->vera_detect]
+    jsr vera_detect
+    // [1009] phi from main_vera_flash::@16 to main_vera_flash::@62 [phi:main_vera_flash::@16->main_vera_flash::@62]
+    // main_vera_flash::@62
+    // wait_moment(1)
+    // [1010] call wait_moment
+    // [794] phi from main_vera_flash::@62 to wait_moment [phi:main_vera_flash::@62->wait_moment]
+    // [794] phi wait_moment::w#12 = 1 [phi:main_vera_flash::@62->wait_moment#0] -- vbum1=vbuc1 
+    lda #1
+    sta wait_moment.w
+    jsr wait_moment
+    // main_vera_flash::@63
+    // if(spi_manufacturer != 0xEF && spi_memory_type != 0x40 && spi_memory_capacity != 0x15)
+    // [1011] if(spi_read::return#0==$ef) goto main_vera_flash::@19 -- vbum1_eq_vbuc1_then_la1 
+    lda #$ef
+    cmp spi_read.return
+    beq __b19
+    // main_vera_flash::@68
+    // [1012] if(spi_read::return#1==$40) goto main_vera_flash::@19 -- vbum1_eq_vbuc1_then_la1 
+    lda #$40
+    cmp spi_read.return_1
+    beq __b19
+    // main_vera_flash::@67
+    // [1013] if(spi_read::return#10!=$15) goto main_vera_flash::@18 -- vbum1_neq_vbuc1_then_la1 
+    lda #$15
+    cmp spi_read.return_3
+    bne __b18
+    // main_vera_flash::@19
+  __b19:
+    // [1014] spi_manufacturer#411 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1015] spi_memory_type#412 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1016] spi_memory_capacity#413 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_WAITING, "Open JP1 jumper pins!")
+    // [1017] call display_info_vera
+    // [650] phi from main_vera_flash::@19 to display_info_vera [phi:main_vera_flash::@19->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text17 [phi:main_vera_flash::@19->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text17
+    sta.z display_info_vera.info_text
+    lda #>info_text17
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#413 [phi:main_vera_flash::@19->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#412 [phi:main_vera_flash::@19->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#411 [phi:main_vera_flash::@19->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_WAITING [phi:main_vera_flash::@19->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_WAITING
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    jmp __b5
+    // main_vera_flash::@18
+  __b18:
+    // [1018] spi_manufacturer#410 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1019] spi_memory_type#411 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1020] spi_memory_capacity#412 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_DETECTED, "JP1 jumper pins opened!")
+    // [1021] call display_info_vera
+    // [650] phi from main_vera_flash::@18 to display_info_vera [phi:main_vera_flash::@18->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text16 [phi:main_vera_flash::@18->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text16
+    sta.z display_info_vera.info_text
+    lda #>info_text16
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#412 [phi:main_vera_flash::@18->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#411 [phi:main_vera_flash::@18->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#410 [phi:main_vera_flash::@18->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_DETECTED [phi:main_vera_flash::@18->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_DETECTED
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // main_vera_flash::@64
+    // spi_ensure_detect++;
+    // [1022] main_vera_flash::spi_ensure_detect#4 = ++ main_vera_flash::spi_ensure_detect#12 -- vbuz1=_inc_vbuz1 
+    inc.z spi_ensure_detect_1
+    // [1001] phi from main_vera_flash::@64 to main_vera_flash::@15 [phi:main_vera_flash::@64->main_vera_flash::@15]
+    // [1001] phi main_vera_flash::spi_ensure_detect#12 = main_vera_flash::spi_ensure_detect#4 [phi:main_vera_flash::@64->main_vera_flash::@15#0] -- register_copy 
+    jmp __b15
+    // main_vera_flash::@10
+  __b10:
+    // [1023] spi_manufacturer#408 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1024] spi_memory_type#409 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1025] spi_memory_capacity#410 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_SKIP, "No update required")
+    // [1026] call display_info_vera
+  // VFL1 | VERA and VERA.BIN equal | Display that there are no differences between the VERA and VERA.BIN. Set VERA to Flashed. | None
+    // [650] phi from main_vera_flash::@10 to display_info_vera [phi:main_vera_flash::@10->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text6 [phi:main_vera_flash::@10->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text6
+    sta.z display_info_vera.info_text
+    lda #>info_text6
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#410 [phi:main_vera_flash::@10->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#409 [phi:main_vera_flash::@10->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#408 [phi:main_vera_flash::@10->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_SKIP [phi:main_vera_flash::@10->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_SKIP
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    jmp __b14
+    // [1027] phi from main_vera_flash::@3 to main_vera_flash::@4 [phi:main_vera_flash::@3->main_vera_flash::@4]
+    // main_vera_flash::@4
+  __b4:
+    // vera_detect()
+    // [1028] call vera_detect
+    // [1467] phi from main_vera_flash::@4 to vera_detect [phi:main_vera_flash::@4->vera_detect]
+    jsr vera_detect
+    // [1029] phi from main_vera_flash::@4 to main_vera_flash::@28 [phi:main_vera_flash::@4->main_vera_flash::@28]
+    // main_vera_flash::@28
+    // wait_moment(1)
+    // [1030] call wait_moment
+    // [794] phi from main_vera_flash::@28 to wait_moment [phi:main_vera_flash::@28->wait_moment]
+    // [794] phi wait_moment::w#12 = 1 [phi:main_vera_flash::@28->wait_moment#0] -- vbum1=vbuc1 
+    lda #1
+    sta wait_moment.w
+    jsr wait_moment
+    // main_vera_flash::@29
+    // if(spi_manufacturer == 0xEF && spi_memory_type == 0x40 && spi_memory_capacity == 0x15)
+    // [1031] if(spi_read::return#0!=$ef) goto main_vera_flash::@7 -- vbum1_neq_vbuc1_then_la1 
+    lda #$ef
+    cmp spi_read.return
+    bne __b7
+    // main_vera_flash::@66
+    // [1032] if(spi_read::return#1!=$40) goto main_vera_flash::@7 -- vbum1_neq_vbuc1_then_la1 
+    lda #$40
+    cmp spi_read.return_1
+    bne __b7
+    // main_vera_flash::@65
+    // [1033] if(spi_read::return#10==$15) goto main_vera_flash::@6 -- vbum1_eq_vbuc1_then_la1 
+    lda #$15
+    cmp spi_read.return_3
+    beq __b6
+    // main_vera_flash::@7
+  __b7:
+    // [1034] spi_manufacturer#418 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1035] spi_memory_type#419 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1036] spi_memory_capacity#420 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_WAITING, "Close JP1 jumper pins!")
+    // [1037] call display_info_vera
+    // [650] phi from main_vera_flash::@7 to display_info_vera [phi:main_vera_flash::@7->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text5 [phi:main_vera_flash::@7->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text5
+    sta.z display_info_vera.info_text
+    lda #>info_text5
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#420 [phi:main_vera_flash::@7->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#419 [phi:main_vera_flash::@7->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#418 [phi:main_vera_flash::@7->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_WAITING [phi:main_vera_flash::@7->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_WAITING
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    jmp __b2
+    // main_vera_flash::@6
+  __b6:
+    // [1038] spi_manufacturer#417 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1039] spi_memory_type#418 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1040] spi_memory_capacity#419 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_DETECTED, "JP1 jumper pins closed!")
+    // [1041] call display_info_vera
+    // [650] phi from main_vera_flash::@6 to display_info_vera [phi:main_vera_flash::@6->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = main_vera_flash::info_text4 [phi:main_vera_flash::@6->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text4
+    sta.z display_info_vera.info_text
+    lda #>info_text4
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#419 [phi:main_vera_flash::@6->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#418 [phi:main_vera_flash::@6->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#417 [phi:main_vera_flash::@6->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_DETECTED [phi:main_vera_flash::@6->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_DETECTED
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // main_vera_flash::@35
+    // spi_ensure_detect++;
+    // [1042] main_vera_flash::spi_ensure_detect#1 = ++ main_vera_flash::spi_ensure_detect#11 -- vbuz1=_inc_vbuz1 
+    inc.z spi_ensure_detect
+    // [901] phi from main_vera_flash::@35 to main_vera_flash::@3 [phi:main_vera_flash::@35->main_vera_flash::@3]
+    // [901] phi main_vera_flash::spi_ensure_detect#11 = main_vera_flash::spi_ensure_detect#1 [phi:main_vera_flash::@35->main_vera_flash::@3#0] -- register_copy 
+    jmp __b3
+  .segment Data
+    s: .text "Reading VERA.BIN ... (.) data ( ) empty"
+    .byte 0
+    info_text: .text "VERA SPI activation ..."
+    .byte 0
+    info_text1: .text "Please close the jumper JP1 on the VERA board!"
+    .byte 0
+    info_text2: .text "The jumper JP1 has been closed on the VERA!"
+    .byte 0
+    info_text3: .text "Comparing VERA ... (.) data, (=) same, (*) different."
+    .byte 0
+    info_text4: .text "JP1 jumper pins closed!"
+    .byte 0
+    info_text5: .text "Close JP1 jumper pins!"
+    .byte 0
+    info_text6: .text "No update required"
+    .byte 0
+    s1: .text " differences!"
+    .byte 0
+    info_text7: .text "There was an error cleaning your VERA flash memory!"
+    .byte 0
+    info_text8: .text "DO NOT RESET or REBOOT YOUR CX16 AND WAIT!"
+    .byte 0
+    info_text9: .text "ERASE ERROR!"
+    .byte 0
+    s2: .text " bytes flashed!"
+    .byte 0
+    info_text10: .text "There was an error updating your VERA flash memory!"
+    .byte 0
+    info_text12: .text "FLASH ERROR!"
+    .byte 0
+    info_text13: .text "VERA SPI de-activation ..."
+    .byte 0
+    info_text14: .text "Please OPEN the jumper JP1 on the VERA board!"
+    .byte 0
+    info_text15: .text "The jumper JP1 has been opened on the VERA!"
+    .byte 0
+    info_text16: .text "JP1 jumper pins opened!"
+    .byte 0
+    info_text17: .text "Open JP1 jumper pins!"
+    .byte 0
+}
+.segment Code
   // util_wait_key
 /**
  * @brief 
@@ -4848,65 +6549,61 @@ check_status_card_roms: {
  * @param filter 
  * @return unsigned char 
  */
-// __zp($aa) char util_wait_key(__zp($72) char *info_text, __zp($48) char *filter)
+// __mem() char util_wait_key(__zp($5a) char *info_text, __zp($48) char *filter)
 util_wait_key: {
     .const bank_set_bram1_bank = 0
     .const bank_set_brom1_bank = 4
-    .label util_wait_key__9 = $37
-    .label bram = $bb
-    .label return = $be
-    .label return_1 = $aa
-    .label info_text = $72
-    .label ch = $77
+    .label util_wait_key__9 = $3f
+    .label info_text = $5a
     .label filter = $48
     // display_action_text(info_text)
-    // [776] display_action_text::info_text#0 = util_wait_key::info_text#3
-    // [777] call display_action_text
-    // [743] phi from util_wait_key to display_action_text [phi:util_wait_key->display_action_text]
-    // [743] phi display_action_text::info_text#6 = display_action_text::info_text#0 [phi:util_wait_key->display_action_text#0] -- register_copy 
+    // [1044] display_action_text::info_text#6 = util_wait_key::info_text#3
+    // [1045] call display_action_text
+    // [846] phi from util_wait_key to display_action_text [phi:util_wait_key->display_action_text]
+    // [846] phi display_action_text::info_text#19 = display_action_text::info_text#6 [phi:util_wait_key->display_action_text#0] -- register_copy 
     jsr display_action_text
     // util_wait_key::bank_get_bram1
     // return BRAM;
-    // [778] util_wait_key::bram#0 = BRAM -- vbuz1=vbuz2 
+    // [1046] util_wait_key::bram#0 = BRAM -- vbum1=vbuz2 
     lda.z BRAM
-    sta.z bram
+    sta bram
     // util_wait_key::bank_get_brom1
     // return BROM;
-    // [779] util_wait_key::bank_get_brom1_return#0 = BROM -- vbum1=vbuz2 
+    // [1047] util_wait_key::bank_get_brom1_return#0 = BROM -- vbum1=vbuz2 
     lda.z BROM
     sta bank_get_brom1_return
     // util_wait_key::bank_set_bram1
     // BRAM = bank
-    // [780] BRAM = util_wait_key::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
+    // [1048] BRAM = util_wait_key::bank_set_bram1_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_bram1_bank
     sta.z BRAM
     // util_wait_key::bank_set_brom1
     // BROM = bank
-    // [781] BROM = util_wait_key::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
+    // [1049] BROM = util_wait_key::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
     lda #bank_set_brom1_bank
     sta.z BROM
-    // [782] phi from util_wait_key::@2 util_wait_key::@5 util_wait_key::bank_set_brom1 to util_wait_key::kbhit1 [phi:util_wait_key::@2/util_wait_key::@5/util_wait_key::bank_set_brom1->util_wait_key::kbhit1]
+    // [1050] phi from util_wait_key::@2 util_wait_key::@5 util_wait_key::bank_set_brom1 to util_wait_key::kbhit1 [phi:util_wait_key::@2/util_wait_key::@5/util_wait_key::bank_set_brom1->util_wait_key::kbhit1]
     // util_wait_key::kbhit1
   kbhit1:
     // util_wait_key::kbhit1_cbm_k_clrchn1
     // asm
     // asm { jsrCBM_CLRCHN  }
     jsr CBM_CLRCHN
-    // [784] phi from util_wait_key::kbhit1_cbm_k_clrchn1 to util_wait_key::kbhit1_@2 [phi:util_wait_key::kbhit1_cbm_k_clrchn1->util_wait_key::kbhit1_@2]
+    // [1052] phi from util_wait_key::kbhit1_cbm_k_clrchn1 to util_wait_key::kbhit1_@2 [phi:util_wait_key::kbhit1_cbm_k_clrchn1->util_wait_key::kbhit1_@2]
     // util_wait_key::kbhit1_@2
     // cbm_k_getin()
-    // [785] call cbm_k_getin
+    // [1053] call cbm_k_getin
     jsr cbm_k_getin
-    // [786] cbm_k_getin::return#2 = cbm_k_getin::return#1
+    // [1054] cbm_k_getin::return#2 = cbm_k_getin::return#1
     // util_wait_key::@4
-    // [787] util_wait_key::ch#4 = cbm_k_getin::return#2 -- vwuz1=vbum2 
+    // [1055] util_wait_key::ch#4 = cbm_k_getin::return#2 -- vwum1=vbum2 
     lda cbm_k_getin.return
-    sta.z ch
+    sta ch
     lda #0
-    sta.z ch+1
+    sta ch+1
     // util_wait_key::@3
     // if (filter)
-    // [788] if((char *)0!=util_wait_key::filter#13) goto util_wait_key::@1 -- pbuc1_neq_pbuz1_then_la1 
+    // [1056] if((char *)0!=util_wait_key::filter#13) goto util_wait_key::@1 -- pbuc1_neq_pbuz1_then_la1 
     // if there is a filter, check the filter, otherwise return ch.
     lda.z filter+1
     cmp #>0
@@ -4916,54 +6613,58 @@ util_wait_key: {
     bne __b1
     // util_wait_key::@2
     // if(ch)
-    // [789] if(0!=util_wait_key::ch#4) goto util_wait_key::bank_set_bram2 -- 0_neq_vwuz1_then_la1 
-    lda.z ch
-    ora.z ch+1
+    // [1057] if(0!=util_wait_key::ch#4) goto util_wait_key::bank_set_bram2 -- 0_neq_vwum1_then_la1 
+    lda ch
+    ora ch+1
     bne bank_set_bram2
     jmp kbhit1
     // util_wait_key::bank_set_bram2
   bank_set_bram2:
     // BRAM = bank
-    // [790] BRAM = util_wait_key::bram#0 -- vbuz1=vbuz2 
-    lda.z bram
+    // [1058] BRAM = util_wait_key::bram#0 -- vbuz1=vbum2 
+    lda bram
     sta.z BRAM
     // util_wait_key::bank_set_brom2
     // BROM = bank
-    // [791] BROM = util_wait_key::bank_get_brom1_return#0 -- vbuz1=vbum2 
+    // [1059] BROM = util_wait_key::bank_get_brom1_return#0 -- vbuz1=vbum2 
     lda bank_get_brom1_return
     sta.z BROM
     // util_wait_key::@return
     // }
-    // [792] return 
+    // [1060] return 
     rts
     // util_wait_key::@1
   __b1:
     // strchr(filter, ch)
-    // [793] strchr::str#0 = (const void *)util_wait_key::filter#13 -- pvoz1=pvoz2 
+    // [1061] strchr::str#0 = (const void *)util_wait_key::filter#13 -- pvoz1=pvoz2 
     lda.z filter
     sta.z strchr.str
     lda.z filter+1
     sta.z strchr.str+1
-    // [794] strchr::c#0 = util_wait_key::ch#4 -- vbum1=vwuz2 
-    lda.z ch
+    // [1062] strchr::c#0 = util_wait_key::ch#4 -- vbum1=vwum2 
+    lda ch
     sta strchr.c
-    // [795] call strchr
-    // [799] phi from util_wait_key::@1 to strchr [phi:util_wait_key::@1->strchr]
-    // [799] phi strchr::c#4 = strchr::c#0 [phi:util_wait_key::@1->strchr#0] -- register_copy 
-    // [799] phi strchr::str#2 = strchr::str#0 [phi:util_wait_key::@1->strchr#1] -- register_copy 
+    // [1063] call strchr
+    // [1067] phi from util_wait_key::@1 to strchr [phi:util_wait_key::@1->strchr]
+    // [1067] phi strchr::c#4 = strchr::c#0 [phi:util_wait_key::@1->strchr#0] -- register_copy 
+    // [1067] phi strchr::str#2 = strchr::str#0 [phi:util_wait_key::@1->strchr#1] -- register_copy 
     jsr strchr
     // strchr(filter, ch)
-    // [796] strchr::return#3 = strchr::return#2
+    // [1064] strchr::return#3 = strchr::return#2
     // util_wait_key::@5
-    // [797] util_wait_key::$9 = strchr::return#3
+    // [1065] util_wait_key::$9 = strchr::return#3
     // if(strchr(filter, ch) != NULL)
-    // [798] if(util_wait_key::$9!=0) goto util_wait_key::bank_set_bram2 -- pvoz1_neq_0_then_la1 
+    // [1066] if(util_wait_key::$9!=0) goto util_wait_key::bank_set_bram2 -- pvoz1_neq_0_then_la1 
     lda.z util_wait_key__9
     ora.z util_wait_key__9+1
     bne bank_set_bram2
     jmp kbhit1
   .segment Data
+    bram: .byte 0
     bank_get_brom1_return: .byte 0
+    return: .byte 0
+    return_1: .byte 0
+    ch: .word 0
 }
 .segment Code
   // strchr
@@ -4971,48 +6672,48 @@ util_wait_key: {
 // - str: The memory to search
 // - c: A character to search for
 // Return: A pointer to the matching byte or NULL if the character does not occur in the given memory area.
-// __zp($37) void * strchr(__zp($37) const void *str, __mem() char c)
+// __zp($3f) void * strchr(__zp($3f) const void *str, __mem() char c)
 strchr: {
-    .label ptr = $37
-    .label return = $37
-    .label str = $37
-    // [800] strchr::ptr#6 = (char *)strchr::str#2
-    // [801] phi from strchr strchr::@3 to strchr::@1 [phi:strchr/strchr::@3->strchr::@1]
-    // [801] phi strchr::ptr#2 = strchr::ptr#6 [phi:strchr/strchr::@3->strchr::@1#0] -- register_copy 
+    .label ptr = $3f
+    .label return = $3f
+    .label str = $3f
+    // [1068] strchr::ptr#6 = (char *)strchr::str#2
+    // [1069] phi from strchr strchr::@3 to strchr::@1 [phi:strchr/strchr::@3->strchr::@1]
+    // [1069] phi strchr::ptr#2 = strchr::ptr#6 [phi:strchr/strchr::@3->strchr::@1#0] -- register_copy 
     // strchr::@1
   __b1:
     // while(*ptr)
-    // [802] if(0!=*strchr::ptr#2) goto strchr::@2 -- 0_neq__deref_pbuz1_then_la1 
+    // [1070] if(0!=*strchr::ptr#2) goto strchr::@2 -- 0_neq__deref_pbuz1_then_la1 
     ldy #0
     lda (ptr),y
     cmp #0
     bne __b2
-    // [803] phi from strchr::@1 to strchr::@return [phi:strchr::@1->strchr::@return]
-    // [803] phi strchr::return#2 = (void *) 0 [phi:strchr::@1->strchr::@return#0] -- pvoz1=pvoc1 
+    // [1071] phi from strchr::@1 to strchr::@return [phi:strchr::@1->strchr::@return]
+    // [1071] phi strchr::return#2 = (void *) 0 [phi:strchr::@1->strchr::@return#0] -- pvoz1=pvoc1 
     tya
     sta.z return
     sta.z return+1
     // strchr::@return
     // }
-    // [804] return 
+    // [1072] return 
     rts
     // strchr::@2
   __b2:
     // if(*ptr==c)
-    // [805] if(*strchr::ptr#2!=strchr::c#4) goto strchr::@3 -- _deref_pbuz1_neq_vbum2_then_la1 
+    // [1073] if(*strchr::ptr#2!=strchr::c#4) goto strchr::@3 -- _deref_pbuz1_neq_vbum2_then_la1 
     ldy #0
     lda (ptr),y
     cmp c
     bne __b3
     // strchr::@4
-    // [806] strchr::return#8 = (void *)strchr::ptr#2
-    // [803] phi from strchr::@4 to strchr::@return [phi:strchr::@4->strchr::@return]
-    // [803] phi strchr::return#2 = strchr::return#8 [phi:strchr::@4->strchr::@return#0] -- register_copy 
+    // [1074] strchr::return#8 = (void *)strchr::ptr#2
+    // [1071] phi from strchr::@4 to strchr::@return [phi:strchr::@4->strchr::@return]
+    // [1071] phi strchr::return#2 = strchr::return#8 [phi:strchr::@4->strchr::@return#0] -- register_copy 
     rts
     // strchr::@3
   __b3:
     // ptr++;
-    // [807] strchr::ptr#1 = ++ strchr::ptr#2 -- pbuz1=_inc_pbuz1 
+    // [1075] strchr::ptr#1 = ++ strchr::ptr#2 -- pbuz1=_inc_pbuz1 
     inc.z ptr
     bne !+
     inc.z ptr+1
@@ -5030,103 +6731,100 @@ strchr: {
  * @param info_status The status.
  * @param info_text The status text.
  */
-// void display_info_rom(__zp($60) char rom_chip, __zp($51) char info_status, __zp($52) char *info_text)
+// void display_info_rom(__mem() char rom_chip, __mem() char info_status, __zp($46) char *info_text)
 display_info_rom: {
-    .label display_info_rom__6 = $7d
-    .label display_info_rom__12 = $51
-    .label display_info_rom__13 = $b5
-    .label x = $74
-    .label y = $58
-    .label info_status = $51
-    .label info_text = $52
-    .label rom_chip = $60
-    .label display_info_rom__16 = $7d
-    .label display_info_rom__17 = $7d
+    .label display_info_rom__6 = $41
+    .label display_info_rom__13 = $61
+    .label display_info_rom__14 = $36
+    .label info_text = $46
+    .label display_info_rom__17 = $41
+    .label display_info_rom__18 = $41
     // unsigned char x = wherex()
-    // [809] call wherex
+    // [1077] call wherex
     jsr wherex
-    // [810] wherex::return#12 = wherex::return#0
-    // display_info_rom::@3
-    // [811] display_info_rom::x#0 = wherex::return#12 -- vbuz1=vbum2 
+    // [1078] wherex::return#12 = wherex::return#0 -- vbum1=vbum2 
     lda wherex.return
-    sta.z x
+    sta wherex.return_4
+    // display_info_rom::@3
+    // [1079] display_info_rom::x#0 = wherex::return#12
     // unsigned char y = wherey()
-    // [812] call wherey
+    // [1080] call wherey
     jsr wherey
-    // [813] wherey::return#12 = wherey::return#0
-    // display_info_rom::@4
-    // [814] display_info_rom::y#0 = wherey::return#12 -- vbuz1=vbum2 
+    // [1081] wherey::return#12 = wherey::return#0 -- vbum1=vbum2 
     lda wherey.return
-    sta.z y
+    sta wherey.return_4
+    // display_info_rom::@4
+    // [1082] display_info_rom::y#0 = wherey::return#12
     // status_rom[rom_chip] = info_status
-    // [815] status_rom[display_info_rom::rom_chip#10] = display_info_rom::info_status#10 -- pbuc1_derefidx_vbuz1=vbuz2 
-    lda.z info_status
-    ldy.z rom_chip
+    // [1083] status_rom[display_info_rom::rom_chip#10] = display_info_rom::info_status#10 -- pbuc1_derefidx_vbum1=vbum2 
+    lda info_status
+    ldy rom_chip
     sta status_rom,y
     // display_rom_led(rom_chip, status_color[info_status])
-    // [816] display_rom_led::chip#1 = display_info_rom::rom_chip#10 -- vbuz1=vbuz2 
+    // [1084] display_rom_led::chip#1 = display_info_rom::rom_chip#10 -- vbum1=vbum2 
     tya
-    sta.z display_rom_led.chip
-    // [817] display_rom_led::c#1 = status_color[display_info_rom::info_status#10] -- vbuz1=pbuc1_derefidx_vbuz2 
-    ldy.z info_status
+    sta display_rom_led.chip
+    // [1085] display_rom_led::c#1 = status_color[display_info_rom::info_status#10] -- vbum1=pbuc1_derefidx_vbum2 
+    ldy info_status
     lda status_color,y
-    sta.z display_rom_led.c
-    // [818] call display_rom_led
-    // [1187] phi from display_info_rom::@4 to display_rom_led [phi:display_info_rom::@4->display_rom_led]
-    // [1187] phi display_rom_led::c#2 = display_rom_led::c#1 [phi:display_info_rom::@4->display_rom_led#0] -- register_copy 
-    // [1187] phi display_rom_led::chip#2 = display_rom_led::chip#1 [phi:display_info_rom::@4->display_rom_led#1] -- register_copy 
+    sta display_rom_led.c
+    // [1086] call display_rom_led
+    // [1434] phi from display_info_rom::@4 to display_rom_led [phi:display_info_rom::@4->display_rom_led]
+    // [1434] phi display_rom_led::c#2 = display_rom_led::c#1 [phi:display_info_rom::@4->display_rom_led#0] -- register_copy 
+    // [1434] phi display_rom_led::chip#2 = display_rom_led::chip#1 [phi:display_info_rom::@4->display_rom_led#1] -- register_copy 
     jsr display_rom_led
     // display_info_rom::@5
     // gotoxy(INFO_X, INFO_Y+rom_chip+2)
-    // [819] gotoxy::y#17 = display_info_rom::rom_chip#10 + $11+2 -- vbum1=vbuz2_plus_vbuc1 
+    // [1087] gotoxy::y#22 = display_info_rom::rom_chip#10 + $11+2 -- vbum1=vbum2_plus_vbuc1 
     lda #$11+2
     clc
-    adc.z rom_chip
+    adc rom_chip
     sta gotoxy.y
-    // [820] call gotoxy
-    // [435] phi from display_info_rom::@5 to gotoxy [phi:display_info_rom::@5->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#17 [phi:display_info_rom::@5->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = 4 [phi:display_info_rom::@5->gotoxy#1] -- vbum1=vbuc1 
+    // [1088] call gotoxy
+    // [454] phi from display_info_rom::@5 to gotoxy [phi:display_info_rom::@5->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#22 [phi:display_info_rom::@5->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = 4 [phi:display_info_rom::@5->gotoxy#1] -- vbum1=vbuc1 
     lda #4
     sta gotoxy.x
     jsr gotoxy
     // display_info_rom::@6
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [821] display_info_rom::$13 = display_info_rom::rom_chip#10 << 1 -- vbuz1=vbuz2_rol_1 
-    lda.z rom_chip
+    // [1089] display_info_rom::$14 = display_info_rom::rom_chip#10 << 1 -- vbuz1=vbum2_rol_1 
+    lda rom_chip
     asl
-    sta.z display_info_rom__13
+    sta.z display_info_rom__14
     // rom_chip*13
-    // [822] display_info_rom::$16 = display_info_rom::$13 + display_info_rom::rom_chip#10 -- vbuz1=vbuz2_plus_vbuz3 
+    // [1090] display_info_rom::$17 = display_info_rom::$14 + display_info_rom::rom_chip#10 -- vbuz1=vbuz2_plus_vbum3 
+    lda rom_chip
     clc
-    adc.z rom_chip
-    sta.z display_info_rom__16
-    // [823] display_info_rom::$17 = display_info_rom::$16 << 2 -- vbuz1=vbuz1_rol_2 
-    lda.z display_info_rom__17
-    asl
-    asl
+    adc.z display_info_rom__14
     sta.z display_info_rom__17
-    // [824] display_info_rom::$6 = display_info_rom::$17 + display_info_rom::rom_chip#10 -- vbuz1=vbuz1_plus_vbuz2 
-    lda.z display_info_rom__6
+    // [1091] display_info_rom::$18 = display_info_rom::$17 << 2 -- vbuz1=vbuz1_rol_2 
+    lda.z display_info_rom__18
+    asl
+    asl
+    sta.z display_info_rom__18
+    // [1092] display_info_rom::$6 = display_info_rom::$18 + display_info_rom::rom_chip#10 -- vbuz1=vbuz1_plus_vbum2 
+    lda rom_chip
     clc
-    adc.z rom_chip
+    adc.z display_info_rom__6
     sta.z display_info_rom__6
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [825] printf_string::str#10 = rom_release_text + display_info_rom::$6 -- pbuz1=pbuc1_plus_vbuz2 
+    // [1093] printf_string::str#12 = rom_release_text + display_info_rom::$6 -- pbuz1=pbuc1_plus_vbuz2 
     clc
     adc #<rom_release_text
     sta.z printf_string.str_1
     lda #>rom_release_text
     adc #0
     sta.z printf_string.str_1+1
-    // [826] call printf_str
-    // [723] phi from display_info_rom::@6 to printf_str [phi:display_info_rom::@6->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_rom::@6->printf_str#0] -- pprz1=pprc1 
+    // [1094] call printf_str
+    // [785] phi from display_info_rom::@6 to printf_str [phi:display_info_rom::@6->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_rom::@6->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = display_info_rom::s [phi:display_info_rom::@6->printf_str#1] -- pbuz1=pbuc1 
+    // [785] phi printf_str::s#54 = display_info_rom::s [phi:display_info_rom::@6->printf_str#1] -- pbuz1=pbuc1 
     lda #<s
     sta.z printf_str.s
     lda #>s
@@ -5134,139 +6832,163 @@ display_info_rom: {
     jsr printf_str
     // display_info_rom::@7
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [827] printf_uchar::uvalue#3 = display_info_rom::rom_chip#10 -- vbum1=vbuz2 
-    lda.z rom_chip
-    sta printf_uchar.uvalue
-    // [828] call printf_uchar
-    // [732] phi from display_info_rom::@7 to printf_uchar [phi:display_info_rom::@7->printf_uchar]
-    // [732] phi printf_uchar::format_zero_padding#10 = 0 [phi:display_info_rom::@7->printf_uchar#0] -- vbum1=vbuc1 
+    // [1095] printf_uchar::uvalue#8 = display_info_rom::rom_chip#10
+    // [1096] call printf_uchar
+    // [835] phi from display_info_rom::@7 to printf_uchar [phi:display_info_rom::@7->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 0 [phi:display_info_rom::@7->printf_uchar#0] -- vbum1=vbuc1 
     lda #0
     sta printf_uchar.format_zero_padding
-    // [732] phi printf_uchar::format_min_length#10 = 0 [phi:display_info_rom::@7->printf_uchar#1] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:display_info_rom::@7->printf_uchar#1] -- vbum1=vbuc1 
     sta printf_uchar.format_min_length
-    // [732] phi printf_uchar::putc#10 = &cputc [phi:display_info_rom::@7->printf_uchar#2] -- pprz1=pprc1 
+    // [835] phi printf_uchar::putc#12 = &cputc [phi:display_info_rom::@7->printf_uchar#2] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_uchar.putc
     lda #>cputc
     sta.z printf_uchar.putc+1
-    // [732] phi printf_uchar::format_radix#10 = DECIMAL [phi:display_info_rom::@7->printf_uchar#3] -- vbum1=vbuc1 
+    // [835] phi printf_uchar::format_radix#12 = DECIMAL [phi:display_info_rom::@7->printf_uchar#3] -- vbum1=vbuc1 
     lda #DECIMAL
     sta printf_uchar.format_radix
-    // [732] phi printf_uchar::uvalue#6 = printf_uchar::uvalue#3 [phi:display_info_rom::@7->printf_uchar#4] -- register_copy 
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#8 [phi:display_info_rom::@7->printf_uchar#4] -- register_copy 
     jsr printf_uchar
-    // [829] phi from display_info_rom::@7 to display_info_rom::@8 [phi:display_info_rom::@7->display_info_rom::@8]
+    // [1097] phi from display_info_rom::@7 to display_info_rom::@8 [phi:display_info_rom::@7->display_info_rom::@8]
     // display_info_rom::@8
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [830] call printf_str
-    // [723] phi from display_info_rom::@8 to printf_str [phi:display_info_rom::@8->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_rom::@8->printf_str#0] -- pprz1=pprc1 
+    // [1098] call printf_str
+    // [785] phi from display_info_rom::@8 to printf_str [phi:display_info_rom::@8->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_rom::@8->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = s3 [phi:display_info_rom::@8->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s3
+    // [785] phi printf_str::s#54 = s [phi:display_info_rom::@8->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
     sta.z printf_str.s
-    lda #>s3
+    lda #>@s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_rom::@9
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [831] display_info_rom::$12 = display_info_rom::info_status#10 << 1 -- vbuz1=vbuz1_rol_1 
-    asl.z display_info_rom__12
-    // [832] printf_string::str#8 = status_text[display_info_rom::$12] -- pbuz1=qbuc1_derefidx_vbuz2 
-    ldy.z display_info_rom__12
+    // [1099] display_info_rom::$13 = display_info_rom::info_status#10 << 1 -- vbuz1=vbum2_rol_1 
+    lda info_status
+    asl
+    sta.z display_info_rom__13
+    // [1100] printf_string::str#10 = status_text[display_info_rom::$13] -- pbuz1=qbuc1_derefidx_vbuz2 
+    tay
     lda status_text,y
     sta.z printf_string.str
     lda status_text+1,y
     sta.z printf_string.str+1
-    // [833] call printf_string
-    // [1081] phi from display_info_rom::@9 to printf_string [phi:display_info_rom::@9->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#8 [phi:display_info_rom::@9->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = 9 [phi:display_info_rom::@9->printf_string#1] -- vbum1=vbuc1 
+    // [1101] call printf_string
+    // [1320] phi from display_info_rom::@9 to printf_string [phi:display_info_rom::@9->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_rom::@9->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#10 [phi:display_info_rom::@9->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_rom::@9->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 9 [phi:display_info_rom::@9->printf_string#3] -- vbum1=vbuc1 
     lda #9
     sta printf_string.format_min_length
     jsr printf_string
-    // [834] phi from display_info_rom::@9 to display_info_rom::@10 [phi:display_info_rom::@9->display_info_rom::@10]
+    // [1102] phi from display_info_rom::@9 to display_info_rom::@10 [phi:display_info_rom::@9->display_info_rom::@10]
     // display_info_rom::@10
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [835] call printf_str
-    // [723] phi from display_info_rom::@10 to printf_str [phi:display_info_rom::@10->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_rom::@10->printf_str#0] -- pprz1=pprc1 
+    // [1103] call printf_str
+    // [785] phi from display_info_rom::@10 to printf_str [phi:display_info_rom::@10->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_rom::@10->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = s3 [phi:display_info_rom::@10->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s3
+    // [785] phi printf_str::s#54 = s [phi:display_info_rom::@10->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
     sta.z printf_str.s
-    lda #>s3
+    lda #>@s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_rom::@11
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [836] printf_string::str#9 = rom_device_names[display_info_rom::$13] -- pbuz1=qbuc1_derefidx_vbuz2 
-    ldy.z display_info_rom__13
+    // [1104] printf_string::str#11 = rom_device_names[display_info_rom::$14] -- pbuz1=qbuc1_derefidx_vbuz2 
+    ldy.z display_info_rom__14
     lda rom_device_names,y
     sta.z printf_string.str
     lda rom_device_names+1,y
     sta.z printf_string.str+1
-    // [837] call printf_string
-    // [1081] phi from display_info_rom::@11 to printf_string [phi:display_info_rom::@11->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#9 [phi:display_info_rom::@11->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = 6 [phi:display_info_rom::@11->printf_string#1] -- vbum1=vbuc1 
+    // [1105] call printf_string
+    // [1320] phi from display_info_rom::@11 to printf_string [phi:display_info_rom::@11->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_rom::@11->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#11 [phi:display_info_rom::@11->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_rom::@11->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 6 [phi:display_info_rom::@11->printf_string#3] -- vbum1=vbuc1 
     lda #6
     sta printf_string.format_min_length
     jsr printf_string
-    // [838] phi from display_info_rom::@11 to display_info_rom::@12 [phi:display_info_rom::@11->display_info_rom::@12]
+    // [1106] phi from display_info_rom::@11 to display_info_rom::@12 [phi:display_info_rom::@11->display_info_rom::@12]
     // display_info_rom::@12
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [839] call printf_str
-    // [723] phi from display_info_rom::@12 to printf_str [phi:display_info_rom::@12->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_rom::@12->printf_str#0] -- pprz1=pprc1 
+    // [1107] call printf_str
+    // [785] phi from display_info_rom::@12 to printf_str [phi:display_info_rom::@12->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_rom::@12->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = s3 [phi:display_info_rom::@12->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s3
+    // [785] phi printf_str::s#54 = s [phi:display_info_rom::@12->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
     sta.z printf_str.s
-    lda #>s3
+    lda #>@s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_rom::@13
-    // [840] printf_string::str#23 = printf_string::str#10 -- pbuz1=pbuz2 
+    // [1108] printf_string::str#26 = printf_string::str#12 -- pbuz1=pbuz2 
     lda.z printf_string.str_1
     sta.z printf_string.str
     lda.z printf_string.str_1+1
     sta.z printf_string.str+1
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [841] call printf_string
-    // [1081] phi from display_info_rom::@13 to printf_string [phi:display_info_rom::@13->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#23 [phi:display_info_rom::@13->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = $d [phi:display_info_rom::@13->printf_string#1] -- vbum1=vbuc1 
+    // [1109] call printf_string
+    // [1320] phi from display_info_rom::@13 to printf_string [phi:display_info_rom::@13->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_rom::@13->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#26 [phi:display_info_rom::@13->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_rom::@13->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $d [phi:display_info_rom::@13->printf_string#3] -- vbum1=vbuc1 
     lda #$d
     sta printf_string.format_min_length
     jsr printf_string
-    // [842] phi from display_info_rom::@13 to display_info_rom::@14 [phi:display_info_rom::@13->display_info_rom::@14]
+    // [1110] phi from display_info_rom::@13 to display_info_rom::@14 [phi:display_info_rom::@13->display_info_rom::@14]
     // display_info_rom::@14
     // printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13])
-    // [843] call printf_str
-    // [723] phi from display_info_rom::@14 to printf_str [phi:display_info_rom::@14->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:display_info_rom::@14->printf_str#0] -- pprz1=pprc1 
+    // [1111] call printf_str
+    // [785] phi from display_info_rom::@14 to printf_str [phi:display_info_rom::@14->printf_str]
+    // [785] phi printf_str::putc#54 = &cputc [phi:display_info_rom::@14->printf_str#0] -- pprz1=pprc1 
     lda #<cputc
     sta.z printf_str.putc
     lda #>cputc
     sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = s3 [phi:display_info_rom::@14->printf_str#1] -- pbuz1=pbuc1 
-    lda #<s3
+    // [785] phi printf_str::s#54 = s [phi:display_info_rom::@14->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s
     sta.z printf_str.s
-    lda #>s3
+    lda #>@s
     sta.z printf_str.s+1
     jsr printf_str
     // display_info_rom::@15
     // if(info_text)
-    // [844] if((char *)0==display_info_rom::info_text#10) goto display_info_rom::@1 -- pbuc1_eq_pbuz1_then_la1 
+    // [1112] if((char *)0==display_info_rom::info_text#10) goto display_info_rom::@1 -- pbuc1_eq_pbuz1_then_la1 
     lda.z info_text
     cmp #<0
     bne !+
@@ -5274,40 +6996,89 @@ display_info_rom: {
     cmp #>0
     beq __b1
   !:
+    // [1113] phi from display_info_rom::@15 to display_info_rom::@2 [phi:display_info_rom::@15->display_info_rom::@2]
     // display_info_rom::@2
+    // gotoxy(INFO_X+64-28, INFO_Y+1)
+    // [1114] call gotoxy
+    // [454] phi from display_info_rom::@2 to gotoxy [phi:display_info_rom::@2->gotoxy]
+    // [454] phi gotoxy::y#27 = $11+1 [phi:display_info_rom::@2->gotoxy#0] -- vbum1=vbuc1 
+    lda #$11+1
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = 4+$40-$1c [phi:display_info_rom::@2->gotoxy#1] -- vbum1=vbuc1 
+    lda #4+$40-$1c
+    sta gotoxy.x
+    jsr gotoxy
+    // display_info_rom::@16
     // printf("%-25s", info_text)
-    // [845] printf_string::str#11 = display_info_rom::info_text#10 -- pbuz1=pbuz2 
+    // [1115] printf_string::str#13 = display_info_rom::info_text#10 -- pbuz1=pbuz2 
     lda.z info_text
     sta.z printf_string.str
     lda.z info_text+1
     sta.z printf_string.str+1
-    // [846] call printf_string
-    // [1081] phi from display_info_rom::@2 to printf_string [phi:display_info_rom::@2->printf_string]
-    // [1081] phi printf_string::str#12 = printf_string::str#11 [phi:display_info_rom::@2->printf_string#0] -- register_copy 
-    // [1081] phi printf_string::format_min_length#12 = $19 [phi:display_info_rom::@2->printf_string#1] -- vbum1=vbuc1 
+    // [1116] call printf_string
+    // [1320] phi from display_info_rom::@16 to printf_string [phi:display_info_rom::@16->printf_string]
+    // [1320] phi printf_string::putc#15 = &cputc [phi:display_info_rom::@16->printf_string#0] -- pprz1=pprc1 
+    lda #<cputc
+    sta.z printf_string.putc
+    lda #>cputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#13 [phi:display_info_rom::@16->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 1 [phi:display_info_rom::@16->printf_string#2] -- vbum1=vbuc1 
+    lda #1
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = $19 [phi:display_info_rom::@16->printf_string#3] -- vbum1=vbuc1 
     lda #$19
     sta printf_string.format_min_length
     jsr printf_string
     // display_info_rom::@1
   __b1:
     // gotoxy(x,y)
-    // [847] gotoxy::x#18 = display_info_rom::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [1117] gotoxy::x#23 = display_info_rom::x#0 -- vbum1=vbum2 
+    lda x
     sta gotoxy.x
-    // [848] gotoxy::y#18 = display_info_rom::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [1118] gotoxy::y#23 = display_info_rom::y#0 -- vbum1=vbum2 
+    lda y
     sta gotoxy.y
-    // [849] call gotoxy
-    // [435] phi from display_info_rom::@1 to gotoxy [phi:display_info_rom::@1->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#18 [phi:display_info_rom::@1->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#18 [phi:display_info_rom::@1->gotoxy#1] -- register_copy 
+    // [1119] call gotoxy
+    // [454] phi from display_info_rom::@1 to gotoxy [phi:display_info_rom::@1->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#23 [phi:display_info_rom::@1->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#23 [phi:display_info_rom::@1->gotoxy#1] -- register_copy 
     jsr gotoxy
     // display_info_rom::@return
     // }
-    // [850] return 
+    // [1120] return 
     rts
   .segment Data
     s: .text "ROM"
+    .byte 0
+    .label x = wherex.return_4
+    .label y = wherey.return_4
+    info_status: .byte 0
+    .label rom_chip = printf_uchar.uvalue
+}
+.segment Code
+  // util_wait_space
+util_wait_space: {
+    // util_wait_key("Press [SPACE] to continue ...", " ")
+    // [1122] call util_wait_key
+    // [1043] phi from util_wait_space to util_wait_key [phi:util_wait_space->util_wait_key]
+    // [1043] phi util_wait_key::filter#13 = s [phi:util_wait_space->util_wait_key#0] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z util_wait_key.filter
+    lda #>s
+    sta.z util_wait_key.filter+1
+    // [1043] phi util_wait_key::info_text#3 = util_wait_space::info_text [phi:util_wait_space->util_wait_key#1] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z util_wait_key.info_text
+    lda #>info_text
+    sta.z util_wait_key.info_text+1
+    jsr util_wait_key
+    // util_wait_space::@return
+    // }
+    // [1123] return 
+    rts
+  .segment Data
+    info_text: .text "Press [SPACE] to continue ..."
     .byte 0
 }
 .segment Code
@@ -5318,129 +7089,70 @@ display_info_rom: {
  * @param info_status The status.
  * @param info_text The status text.
  */
-// void display_info_cx16_rom(__zp($51) char info_status, __zp($52) char *info_text)
+// void display_info_cx16_rom(__mem() char info_status, __zp($46) char *info_text)
 display_info_cx16_rom: {
-    .label info_status = $51
-    .label info_text = $52
+    .label info_text = $46
     // display_info_rom(0, info_status, info_text)
-    // [852] display_info_rom::info_status#0 = display_info_cx16_rom::info_status#4
-    // [853] display_info_rom::info_text#0 = display_info_cx16_rom::info_text#4
-    // [854] call display_info_rom
-    // [808] phi from display_info_cx16_rom to display_info_rom [phi:display_info_cx16_rom->display_info_rom]
-    // [808] phi display_info_rom::info_text#10 = display_info_rom::info_text#0 [phi:display_info_cx16_rom->display_info_rom#0] -- register_copy 
-    // [808] phi display_info_rom::rom_chip#10 = 0 [phi:display_info_cx16_rom->display_info_rom#1] -- vbuz1=vbuc1 
+    // [1125] display_info_rom::info_status#0 = display_info_cx16_rom::info_status#4
+    // [1126] display_info_rom::info_text#0 = display_info_cx16_rom::info_text#4
+    // [1127] call display_info_rom
+    // [1076] phi from display_info_cx16_rom to display_info_rom [phi:display_info_cx16_rom->display_info_rom]
+    // [1076] phi display_info_rom::info_text#10 = display_info_rom::info_text#0 [phi:display_info_cx16_rom->display_info_rom#0] -- register_copy 
+    // [1076] phi display_info_rom::rom_chip#10 = 0 [phi:display_info_cx16_rom->display_info_rom#1] -- vbum1=vbuc1 
     lda #0
-    sta.z display_info_rom.rom_chip
-    // [808] phi display_info_rom::info_status#10 = display_info_rom::info_status#0 [phi:display_info_cx16_rom->display_info_rom#2] -- register_copy 
+    sta display_info_rom.rom_chip
+    // [1076] phi display_info_rom::info_status#10 = display_info_rom::info_status#0 [phi:display_info_cx16_rom->display_info_rom#2] -- register_copy 
     jsr display_info_rom
     // display_info_cx16_rom::@return
     // }
-    // [855] return 
+    // [1128] return 
     rts
+  .segment Data
+    .label info_status = display_info_rom.info_status
 }
-  // display_info_led
-/**
- * @brief Print the colored led of an info line in the info frame.
- * 
- * @param x Start X
- * @param y Start Y
- * @param tc Fore color
- * @param bc Back color
- */
-// void display_info_led(__zp($6f) char x, __zp($70) char y, __zp($5f) char tc, char bc)
-display_info_led: {
-    .label tc = $5f
-    .label y = $70
-    .label x = $6f
-    // textcolor(tc)
-    // [857] textcolor::color#13 = display_info_led::tc#4 -- vbum1=vbuz2 
-    lda.z tc
-    sta textcolor.color
-    // [858] call textcolor
-    // [417] phi from display_info_led to textcolor [phi:display_info_led->textcolor]
-    // [417] phi textcolor::color#20 = textcolor::color#13 [phi:display_info_led->textcolor#0] -- register_copy 
-    jsr textcolor
-    // [859] phi from display_info_led to display_info_led::@1 [phi:display_info_led->display_info_led::@1]
-    // display_info_led::@1
-    // bgcolor(bc)
-    // [860] call bgcolor
-    // [422] phi from display_info_led::@1 to bgcolor [phi:display_info_led::@1->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_info_led::@1->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // display_info_led::@2
-    // cputcxy(x, y, VERA_CHR_UR)
-    // [861] cputcxy::x#11 = display_info_led::x#4 -- vbum1=vbuz2 
-    lda.z x
-    sta cputcxy.x
-    // [862] cputcxy::y#11 = display_info_led::y#4 -- vbum1=vbuz2 
-    lda.z y
-    sta cputcxy.y
-    // [863] call cputcxy
-    // [1111] phi from display_info_led::@2 to cputcxy [phi:display_info_led::@2->cputcxy]
-    // [1111] phi cputcxy::c#13 = $7c [phi:display_info_led::@2->cputcxy#0] -- vbum1=vbuc1 
-    lda #$7c
-    sta cputcxy.c
-    // [1111] phi cputcxy::y#13 = cputcxy::y#11 [phi:display_info_led::@2->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#11 [phi:display_info_led::@2->cputcxy#2] -- register_copy 
-    jsr cputcxy
-    // [864] phi from display_info_led::@2 to display_info_led::@3 [phi:display_info_led::@2->display_info_led::@3]
-    // display_info_led::@3
-    // textcolor(WHITE)
-    // [865] call textcolor
-    // [417] phi from display_info_led::@3 to textcolor [phi:display_info_led::@3->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_info_led::@3->textcolor#0] -- vbum1=vbuc1 
-    lda #WHITE
-    sta textcolor.color
-    jsr textcolor
-    // display_info_led::@return
-    // }
-    // [866] return 
-    rts
-}
+.segment Code
   // strcpy
 // Copies the C string pointed by source into the array pointed by destination, including the terminating null character (and stopping at that point).
-// char * strcpy(__zp($4b) char *destination, char *source)
+// char * strcpy(__zp($5e) char *destination, char *source)
 strcpy: {
-    .label src = $46
-    .label dst = $4b
-    .label destination = $4b
-    // [868] phi from strcpy strcpy::@2 to strcpy::@1 [phi:strcpy/strcpy::@2->strcpy::@1]
-    // [868] phi strcpy::dst#2 = strcpy::dst#0 [phi:strcpy/strcpy::@2->strcpy::@1#0] -- register_copy 
-    // [868] phi strcpy::src#2 = strcpy::src#0 [phi:strcpy/strcpy::@2->strcpy::@1#1] -- register_copy 
+    .label src = $5c
+    .label dst = $5e
+    .label destination = $5e
+    // [1130] phi from strcpy strcpy::@2 to strcpy::@1 [phi:strcpy/strcpy::@2->strcpy::@1]
+    // [1130] phi strcpy::dst#2 = strcpy::dst#0 [phi:strcpy/strcpy::@2->strcpy::@1#0] -- register_copy 
+    // [1130] phi strcpy::src#2 = strcpy::src#0 [phi:strcpy/strcpy::@2->strcpy::@1#1] -- register_copy 
     // strcpy::@1
   __b1:
     // while(*src)
-    // [869] if(0!=*strcpy::src#2) goto strcpy::@2 -- 0_neq__deref_pbuz1_then_la1 
+    // [1131] if(0!=*strcpy::src#2) goto strcpy::@2 -- 0_neq__deref_pbuz1_then_la1 
     ldy #0
     lda (src),y
     cmp #0
     bne __b2
     // strcpy::@3
     // *dst = 0
-    // [870] *strcpy::dst#2 = 0 -- _deref_pbuz1=vbuc1 
+    // [1132] *strcpy::dst#2 = 0 -- _deref_pbuz1=vbuc1 
     tya
     tay
     sta (dst),y
     // strcpy::@return
     // }
-    // [871] return 
+    // [1133] return 
     rts
     // strcpy::@2
   __b2:
     // *dst++ = *src++
-    // [872] *strcpy::dst#2 = *strcpy::src#2 -- _deref_pbuz1=_deref_pbuz2 
+    // [1134] *strcpy::dst#2 = *strcpy::src#2 -- _deref_pbuz1=_deref_pbuz2 
     ldy #0
     lda (src),y
     sta (dst),y
     // *dst++ = *src++;
-    // [873] strcpy::dst#1 = ++ strcpy::dst#2 -- pbuz1=_inc_pbuz1 
+    // [1135] strcpy::dst#1 = ++ strcpy::dst#2 -- pbuz1=_inc_pbuz1 
     inc.z dst
     bne !+
     inc.z dst+1
   !:
-    // [874] strcpy::src#1 = ++ strcpy::src#2 -- pbuz1=_inc_pbuz1 
+    // [1136] strcpy::src#1 = ++ strcpy::src#2 -- pbuz1=_inc_pbuz1 
     inc.z src
     bne !+
     inc.z src+1
@@ -5451,69 +7163,69 @@ strcpy: {
 // --- layer management in VERA ---
 // void screenlayer(char layer, __mem() char mapbase, __mem() char config)
 screenlayer: {
-    .label screenlayer__0 = $4a
-    .label screenlayer__1 = $45
-    .label screenlayer__2 = $75
-    .label screenlayer__5 = $6e
-    .label screenlayer__6 = $6e
-    .label screenlayer__7 = $6c
-    .label screenlayer__8 = $6c
-    .label screenlayer__9 = $66
-    .label screenlayer__10 = $66
-    .label screenlayer__11 = $66
-    .label screenlayer__12 = $67
-    .label screenlayer__13 = $67
-    .label screenlayer__14 = $67
-    .label screenlayer__16 = $6c
-    .label screenlayer__17 = $59
-    .label screenlayer__18 = $66
-    .label screenlayer__19 = $67
-    .label y = $55
+    .label screenlayer__0 = $53
+    .label screenlayer__1 = $4d
+    .label screenlayer__2 = $7b
+    .label screenlayer__5 = $75
+    .label screenlayer__6 = $75
+    .label screenlayer__7 = $74
+    .label screenlayer__8 = $74
+    .label screenlayer__9 = $72
+    .label screenlayer__10 = $72
+    .label screenlayer__11 = $72
+    .label screenlayer__12 = $73
+    .label screenlayer__13 = $73
+    .label screenlayer__14 = $73
+    .label screenlayer__16 = $74
+    .label screenlayer__17 = $67
+    .label screenlayer__18 = $72
+    .label screenlayer__19 = $73
+    .label y = $62
     // __mem char vera_dc_hscale_temp = *VERA_DC_HSCALE
-    // [875] screenlayer::vera_dc_hscale_temp#0 = *VERA_DC_HSCALE -- vbum1=_deref_pbuc1 
+    // [1137] screenlayer::vera_dc_hscale_temp#0 = *VERA_DC_HSCALE -- vbum1=_deref_pbuc1 
     lda VERA_DC_HSCALE
     sta vera_dc_hscale_temp
     // __mem char vera_dc_vscale_temp = *VERA_DC_VSCALE
-    // [876] screenlayer::vera_dc_vscale_temp#0 = *VERA_DC_VSCALE -- vbum1=_deref_pbuc1 
+    // [1138] screenlayer::vera_dc_vscale_temp#0 = *VERA_DC_VSCALE -- vbum1=_deref_pbuc1 
     lda VERA_DC_VSCALE
     sta vera_dc_vscale_temp
     // __conio.layer = 0
-    // [877] *((char *)&__conio+2) = 0 -- _deref_pbuc1=vbuc2 
+    // [1139] *((char *)&__conio+2) = 0 -- _deref_pbuc1=vbuc2 
     lda #0
     sta __conio+2
     // mapbase >> 7
-    // [878] screenlayer::$0 = screenlayer::mapbase#0 >> 7 -- vbuz1=vbum2_ror_7 
+    // [1140] screenlayer::$0 = screenlayer::mapbase#0 >> 7 -- vbuz1=vbum2_ror_7 
     lda mapbase
     rol
     rol
     and #1
     sta.z screenlayer__0
     // __conio.mapbase_bank = mapbase >> 7
-    // [879] *((char *)&__conio+5) = screenlayer::$0 -- _deref_pbuc1=vbuz1 
+    // [1141] *((char *)&__conio+5) = screenlayer::$0 -- _deref_pbuc1=vbuz1 
     sta __conio+5
     // (mapbase)<<1
-    // [880] screenlayer::$1 = screenlayer::mapbase#0 << 1 -- vbuz1=vbum2_rol_1 
+    // [1142] screenlayer::$1 = screenlayer::mapbase#0 << 1 -- vbuz1=vbum2_rol_1 
     lda mapbase
     asl
     sta.z screenlayer__1
     // MAKEWORD((mapbase)<<1,0)
-    // [881] screenlayer::$2 = screenlayer::$1 w= 0 -- vwuz1=vbuz2_word_vbuc1 
+    // [1143] screenlayer::$2 = screenlayer::$1 w= 0 -- vwuz1=vbuz2_word_vbuc1 
     lda #0
     ldy.z screenlayer__1
     sty.z screenlayer__2+1
     sta.z screenlayer__2
     // __conio.mapbase_offset = MAKEWORD((mapbase)<<1,0)
-    // [882] *((unsigned int *)&__conio+3) = screenlayer::$2 -- _deref_pwuc1=vwuz1 
+    // [1144] *((unsigned int *)&__conio+3) = screenlayer::$2 -- _deref_pwuc1=vwuz1 
     sta __conio+3
     tya
     sta __conio+3+1
     // config & VERA_LAYER_WIDTH_MASK
-    // [883] screenlayer::$7 = screenlayer::config#0 & VERA_LAYER_WIDTH_MASK -- vbuz1=vbum2_band_vbuc1 
+    // [1145] screenlayer::$7 = screenlayer::config#0 & VERA_LAYER_WIDTH_MASK -- vbuz1=vbum2_band_vbuc1 
     lda #VERA_LAYER_WIDTH_MASK
     and config
     sta.z screenlayer__7
     // (config & VERA_LAYER_WIDTH_MASK) >> 4
-    // [884] screenlayer::$8 = screenlayer::$7 >> 4 -- vbuz1=vbuz1_ror_4 
+    // [1146] screenlayer::$8 = screenlayer::$7 >> 4 -- vbuz1=vbuz1_ror_4 
     lda.z screenlayer__8
     lsr
     lsr
@@ -5521,17 +7233,17 @@ screenlayer: {
     lsr
     sta.z screenlayer__8
     // __conio.mapwidth = VERA_LAYER_DIM[ (config & VERA_LAYER_WIDTH_MASK) >> 4]
-    // [885] *((char *)&__conio+8) = screenlayer::VERA_LAYER_DIM[screenlayer::$8] -- _deref_pbuc1=pbuc2_derefidx_vbuz1 
+    // [1147] *((char *)&__conio+8) = screenlayer::VERA_LAYER_DIM[screenlayer::$8] -- _deref_pbuc1=pbuc2_derefidx_vbuz1 
     tay
     lda VERA_LAYER_DIM,y
     sta __conio+8
     // config & VERA_LAYER_HEIGHT_MASK
-    // [886] screenlayer::$5 = screenlayer::config#0 & VERA_LAYER_HEIGHT_MASK -- vbuz1=vbum2_band_vbuc1 
+    // [1148] screenlayer::$5 = screenlayer::config#0 & VERA_LAYER_HEIGHT_MASK -- vbuz1=vbum2_band_vbuc1 
     lda #VERA_LAYER_HEIGHT_MASK
     and config
     sta.z screenlayer__5
     // (config & VERA_LAYER_HEIGHT_MASK) >> 6
-    // [887] screenlayer::$6 = screenlayer::$5 >> 6 -- vbuz1=vbuz1_ror_6 
+    // [1149] screenlayer::$6 = screenlayer::$5 >> 6 -- vbuz1=vbuz1_ror_6 
     lda.z screenlayer__6
     rol
     rol
@@ -5539,14 +7251,14 @@ screenlayer: {
     and #3
     sta.z screenlayer__6
     // __conio.mapheight = VERA_LAYER_DIM[ (config & VERA_LAYER_HEIGHT_MASK) >> 6]
-    // [888] *((char *)&__conio+9) = screenlayer::VERA_LAYER_DIM[screenlayer::$6] -- _deref_pbuc1=pbuc2_derefidx_vbuz1 
+    // [1150] *((char *)&__conio+9) = screenlayer::VERA_LAYER_DIM[screenlayer::$6] -- _deref_pbuc1=pbuc2_derefidx_vbuz1 
     tay
     lda VERA_LAYER_DIM,y
     sta __conio+9
     // __conio.rowskip = VERA_LAYER_SKIP[(config & VERA_LAYER_WIDTH_MASK)>>4]
-    // [889] screenlayer::$16 = screenlayer::$8 << 1 -- vbuz1=vbuz1_rol_1 
+    // [1151] screenlayer::$16 = screenlayer::$8 << 1 -- vbuz1=vbuz1_rol_1 
     asl.z screenlayer__16
-    // [890] *((unsigned int *)&__conio+$a) = screenlayer::VERA_LAYER_SKIP[screenlayer::$16] -- _deref_pwuc1=pwuc2_derefidx_vbuz1 
+    // [1152] *((unsigned int *)&__conio+$a) = screenlayer::VERA_LAYER_SKIP[screenlayer::$16] -- _deref_pwuc1=pwuc2_derefidx_vbuz1 
     // __conio.rowshift = ((config & VERA_LAYER_WIDTH_MASK)>>4)+6;
     ldy.z screenlayer__16
     lda VERA_LAYER_SKIP,y
@@ -5554,7 +7266,7 @@ screenlayer: {
     lda VERA_LAYER_SKIP+1,y
     sta __conio+$a+1
     // vera_dc_hscale_temp == 0x80
-    // [891] screenlayer::$9 = screenlayer::vera_dc_hscale_temp#0 == $80 -- vboz1=vbum2_eq_vbuc1 
+    // [1153] screenlayer::$9 = screenlayer::vera_dc_hscale_temp#0 == $80 -- vboz1=vbum2_eq_vbuc1 
     lda vera_dc_hscale_temp
     eor #$80
     beq !+
@@ -5563,8 +7275,8 @@ screenlayer: {
     eor #1
     sta.z screenlayer__9
     // 40 << (char)(vera_dc_hscale_temp == 0x80)
-    // [892] screenlayer::$18 = (char)screenlayer::$9
-    // [893] screenlayer::$10 = $28 << screenlayer::$18 -- vbuz1=vbuc1_rol_vbuz1 
+    // [1154] screenlayer::$18 = (char)screenlayer::$9
+    // [1155] screenlayer::$10 = $28 << screenlayer::$18 -- vbuz1=vbuc1_rol_vbuz1 
     lda #$28
     ldy.z screenlayer__10
     cpy #0
@@ -5576,14 +7288,14 @@ screenlayer: {
   !e:
     sta.z screenlayer__10
     // (40 << (char)(vera_dc_hscale_temp == 0x80))-1
-    // [894] screenlayer::$11 = screenlayer::$10 - 1 -- vbuz1=vbuz1_minus_1 
+    // [1156] screenlayer::$11 = screenlayer::$10 - 1 -- vbuz1=vbuz1_minus_1 
     dec.z screenlayer__11
     // __conio.width = (40 << (char)(vera_dc_hscale_temp == 0x80))-1
-    // [895] *((char *)&__conio+6) = screenlayer::$11 -- _deref_pbuc1=vbuz1 
+    // [1157] *((char *)&__conio+6) = screenlayer::$11 -- _deref_pbuc1=vbuz1 
     lda.z screenlayer__11
     sta __conio+6
     // vera_dc_vscale_temp == 0x80
-    // [896] screenlayer::$12 = screenlayer::vera_dc_vscale_temp#0 == $80 -- vboz1=vbum2_eq_vbuc1 
+    // [1158] screenlayer::$12 = screenlayer::vera_dc_vscale_temp#0 == $80 -- vboz1=vbum2_eq_vbuc1 
     lda vera_dc_vscale_temp
     eor #$80
     beq !+
@@ -5592,8 +7304,8 @@ screenlayer: {
     eor #1
     sta.z screenlayer__12
     // 30 << (char)(vera_dc_vscale_temp == 0x80)
-    // [897] screenlayer::$19 = (char)screenlayer::$12
-    // [898] screenlayer::$13 = $1e << screenlayer::$19 -- vbuz1=vbuc1_rol_vbuz1 
+    // [1159] screenlayer::$19 = (char)screenlayer::$12
+    // [1160] screenlayer::$13 = $1e << screenlayer::$19 -- vbuz1=vbuc1_rol_vbuz1 
     lda #$1e
     ldy.z screenlayer__13
     cpy #0
@@ -5605,49 +7317,49 @@ screenlayer: {
   !e:
     sta.z screenlayer__13
     // (30 << (char)(vera_dc_vscale_temp == 0x80))-1
-    // [899] screenlayer::$14 = screenlayer::$13 - 1 -- vbuz1=vbuz1_minus_1 
+    // [1161] screenlayer::$14 = screenlayer::$13 - 1 -- vbuz1=vbuz1_minus_1 
     dec.z screenlayer__14
     // __conio.height = (30 << (char)(vera_dc_vscale_temp == 0x80))-1
-    // [900] *((char *)&__conio+7) = screenlayer::$14 -- _deref_pbuc1=vbuz1 
+    // [1162] *((char *)&__conio+7) = screenlayer::$14 -- _deref_pbuc1=vbuz1 
     lda.z screenlayer__14
     sta __conio+7
     // unsigned int mapbase_offset = __conio.mapbase_offset
-    // [901] screenlayer::mapbase_offset#0 = *((unsigned int *)&__conio+3) -- vwum1=_deref_pwuc1 
+    // [1163] screenlayer::mapbase_offset#0 = *((unsigned int *)&__conio+3) -- vwum1=_deref_pwuc1 
     lda __conio+3
     sta mapbase_offset
     lda __conio+3+1
     sta mapbase_offset+1
-    // [902] phi from screenlayer to screenlayer::@1 [phi:screenlayer->screenlayer::@1]
-    // [902] phi screenlayer::mapbase_offset#2 = screenlayer::mapbase_offset#0 [phi:screenlayer->screenlayer::@1#0] -- register_copy 
-    // [902] phi screenlayer::y#2 = 0 [phi:screenlayer->screenlayer::@1#1] -- vbuz1=vbuc1 
+    // [1164] phi from screenlayer to screenlayer::@1 [phi:screenlayer->screenlayer::@1]
+    // [1164] phi screenlayer::mapbase_offset#2 = screenlayer::mapbase_offset#0 [phi:screenlayer->screenlayer::@1#0] -- register_copy 
+    // [1164] phi screenlayer::y#2 = 0 [phi:screenlayer->screenlayer::@1#1] -- vbuz1=vbuc1 
     lda #0
     sta.z y
     // screenlayer::@1
   __b1:
     // for(register char y=0; y<=__conio.height; y++)
-    // [903] if(screenlayer::y#2<=*((char *)&__conio+7)) goto screenlayer::@2 -- vbuz1_le__deref_pbuc1_then_la1 
+    // [1165] if(screenlayer::y#2<=*((char *)&__conio+7)) goto screenlayer::@2 -- vbuz1_le__deref_pbuc1_then_la1 
     lda __conio+7
     cmp.z y
     bcs __b2
     // screenlayer::@return
     // }
-    // [904] return 
+    // [1166] return 
     rts
     // screenlayer::@2
   __b2:
     // __conio.offsets[y] = mapbase_offset
-    // [905] screenlayer::$17 = screenlayer::y#2 << 1 -- vbuz1=vbuz2_rol_1 
+    // [1167] screenlayer::$17 = screenlayer::y#2 << 1 -- vbuz1=vbuz2_rol_1 
     lda.z y
     asl
     sta.z screenlayer__17
-    // [906] ((unsigned int *)&__conio+$15)[screenlayer::$17] = screenlayer::mapbase_offset#2 -- pwuc1_derefidx_vbuz1=vwum2 
+    // [1168] ((unsigned int *)&__conio+$15)[screenlayer::$17] = screenlayer::mapbase_offset#2 -- pwuc1_derefidx_vbuz1=vwum2 
     tay
     lda mapbase_offset
     sta __conio+$15,y
     lda mapbase_offset+1
     sta __conio+$15+1,y
     // mapbase_offset += __conio.rowskip
-    // [907] screenlayer::mapbase_offset#1 = screenlayer::mapbase_offset#2 + *((unsigned int *)&__conio+$a) -- vwum1=vwum1_plus__deref_pwuc1 
+    // [1169] screenlayer::mapbase_offset#1 = screenlayer::mapbase_offset#2 + *((unsigned int *)&__conio+$a) -- vwum1=vwum1_plus__deref_pwuc1 
     clc
     lda mapbase_offset
     adc __conio+$a
@@ -5656,11 +7368,11 @@ screenlayer: {
     adc __conio+$a+1
     sta mapbase_offset+1
     // for(register char y=0; y<=__conio.height; y++)
-    // [908] screenlayer::y#1 = ++ screenlayer::y#2 -- vbuz1=_inc_vbuz1 
+    // [1170] screenlayer::y#1 = ++ screenlayer::y#2 -- vbuz1=_inc_vbuz1 
     inc.z y
-    // [902] phi from screenlayer::@2 to screenlayer::@1 [phi:screenlayer::@2->screenlayer::@1]
-    // [902] phi screenlayer::mapbase_offset#2 = screenlayer::mapbase_offset#1 [phi:screenlayer::@2->screenlayer::@1#0] -- register_copy 
-    // [902] phi screenlayer::y#2 = screenlayer::y#1 [phi:screenlayer::@2->screenlayer::@1#1] -- register_copy 
+    // [1164] phi from screenlayer::@2 to screenlayer::@1 [phi:screenlayer::@2->screenlayer::@1]
+    // [1164] phi screenlayer::mapbase_offset#2 = screenlayer::mapbase_offset#1 [phi:screenlayer::@2->screenlayer::@1#0] -- register_copy 
+    // [1164] phi screenlayer::y#2 = screenlayer::y#1 [phi:screenlayer::@2->screenlayer::@1#1] -- register_copy 
     jmp __b1
   .segment Data
     VERA_LAYER_DIM: .byte $1f, $3f, $7f, $ff
@@ -5676,61 +7388,61 @@ screenlayer: {
 // Scroll the entire screen if the cursor is beyond the last line
 cscroll: {
     // if(__conio.cursor_y>__conio.height)
-    // [909] if(*((char *)&__conio+1)<=*((char *)&__conio+7)) goto cscroll::@return -- _deref_pbuc1_le__deref_pbuc2_then_la1 
+    // [1171] if(*((char *)&__conio+1)<=*((char *)&__conio+7)) goto cscroll::@return -- _deref_pbuc1_le__deref_pbuc2_then_la1 
     lda __conio+7
     cmp __conio+1
     bcs __breturn
     // cscroll::@1
     // if(__conio.scroll[__conio.layer])
-    // [910] if(0!=((char *)&__conio+$f)[*((char *)&__conio+2)]) goto cscroll::@4 -- 0_neq_pbuc1_derefidx_(_deref_pbuc2)_then_la1 
+    // [1172] if(0!=((char *)&__conio+$f)[*((char *)&__conio+2)]) goto cscroll::@4 -- 0_neq_pbuc1_derefidx_(_deref_pbuc2)_then_la1 
     ldy __conio+2
     lda __conio+$f,y
     cmp #0
     bne __b4
     // cscroll::@2
     // if(__conio.cursor_y>__conio.height)
-    // [911] if(*((char *)&__conio+1)<=*((char *)&__conio+7)) goto cscroll::@return -- _deref_pbuc1_le__deref_pbuc2_then_la1 
+    // [1173] if(*((char *)&__conio+1)<=*((char *)&__conio+7)) goto cscroll::@return -- _deref_pbuc1_le__deref_pbuc2_then_la1 
     lda __conio+7
     cmp __conio+1
     bcs __breturn
-    // [912] phi from cscroll::@2 to cscroll::@3 [phi:cscroll::@2->cscroll::@3]
+    // [1174] phi from cscroll::@2 to cscroll::@3 [phi:cscroll::@2->cscroll::@3]
     // cscroll::@3
     // gotoxy(0,0)
-    // [913] call gotoxy
-    // [435] phi from cscroll::@3 to gotoxy [phi:cscroll::@3->gotoxy]
-    // [435] phi gotoxy::y#19 = 0 [phi:cscroll::@3->gotoxy#0] -- vbum1=vbuc1 
+    // [1175] call gotoxy
+    // [454] phi from cscroll::@3 to gotoxy [phi:cscroll::@3->gotoxy]
+    // [454] phi gotoxy::y#27 = 0 [phi:cscroll::@3->gotoxy#0] -- vbum1=vbuc1 
     lda #0
     sta gotoxy.y
-    // [435] phi gotoxy::x#19 = 0 [phi:cscroll::@3->gotoxy#1] -- vbum1=vbuc1 
+    // [454] phi gotoxy::x#27 = 0 [phi:cscroll::@3->gotoxy#1] -- vbum1=vbuc1 
     sta gotoxy.x
     jsr gotoxy
     // cscroll::@return
   __breturn:
     // }
-    // [914] return 
+    // [1176] return 
     rts
-    // [915] phi from cscroll::@1 to cscroll::@4 [phi:cscroll::@1->cscroll::@4]
+    // [1177] phi from cscroll::@1 to cscroll::@4 [phi:cscroll::@1->cscroll::@4]
     // cscroll::@4
   __b4:
     // insertup(1)
-    // [916] call insertup
+    // [1178] call insertup
     jsr insertup
     // cscroll::@5
     // gotoxy( 0, __conio.height)
-    // [917] gotoxy::y#3 = *((char *)&__conio+7) -- vbum1=_deref_pbuc1 
+    // [1179] gotoxy::y#3 = *((char *)&__conio+7) -- vbum1=_deref_pbuc1 
     lda __conio+7
     sta gotoxy.y
-    // [918] call gotoxy
-    // [435] phi from cscroll::@5 to gotoxy [phi:cscroll::@5->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#3 [phi:cscroll::@5->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = 0 [phi:cscroll::@5->gotoxy#1] -- vbum1=vbuc1 
+    // [1180] call gotoxy
+    // [454] phi from cscroll::@5 to gotoxy [phi:cscroll::@5->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#3 [phi:cscroll::@5->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = 0 [phi:cscroll::@5->gotoxy#1] -- vbum1=vbuc1 
     lda #0
     sta gotoxy.x
     jsr gotoxy
-    // [919] phi from cscroll::@5 to cscroll::@6 [phi:cscroll::@5->cscroll::@6]
+    // [1181] phi from cscroll::@5 to cscroll::@6 [phi:cscroll::@5->cscroll::@6]
     // cscroll::@6
     // clearline()
-    // [920] call clearline
+    // [1182] call clearline
     jsr clearline
     rts
 }
@@ -5743,7 +7455,7 @@ cscroll: {
 // char cx16_k_screen_set_mode(__mem() volatile char mode)
 cx16_k_screen_set_mode: {
     // cx16_k_screen_mode_error_t error = 0
-    // [921] cx16_k_screen_set_mode::error = 0 -- vbum1=vbuc1 
+    // [1183] cx16_k_screen_set_mode::error = 0 -- vbum1=vbuc1 
     lda #0
     sta error
     // asm
@@ -5754,126 +7466,11 @@ cx16_k_screen_set_mode: {
     rol error
     // cx16_k_screen_set_mode::@return
     // }
-    // [923] return 
+    // [1185] return 
     rts
   .segment Data
     mode: .byte 0
     error: .byte 0
-}
-.segment Code
-  // clrscr
-// clears the screen and moves the cursor to the upper left-hand corner of the screen.
-clrscr: {
-    .label clrscr__0 = $a9
-    .label clrscr__1 = $71
-    .label clrscr__2 = $74
-    // unsigned int line_text = __conio.mapbase_offset
-    // [924] clrscr::line_text#0 = *((unsigned int *)&__conio+3) -- vwum1=_deref_pwuc1 
-    lda __conio+3
-    sta line_text
-    lda __conio+3+1
-    sta line_text+1
-    // *VERA_CTRL &= ~VERA_ADDRSEL
-    // [925] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
-    lda #VERA_ADDRSEL^$ff
-    and VERA_CTRL
-    sta VERA_CTRL
-    // __conio.mapbase_bank | VERA_INC_1
-    // [926] clrscr::$0 = *((char *)&__conio+5) | VERA_INC_1 -- vbuz1=_deref_pbuc1_bor_vbuc2 
-    lda #VERA_INC_1
-    ora __conio+5
-    sta.z clrscr__0
-    // *VERA_ADDRX_H = __conio.mapbase_bank | VERA_INC_1
-    // [927] *VERA_ADDRX_H = clrscr::$0 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_H
-    // unsigned char l = __conio.mapheight
-    // [928] clrscr::l#0 = *((char *)&__conio+9) -- vbum1=_deref_pbuc1 
-    lda __conio+9
-    sta l
-    // [929] phi from clrscr clrscr::@3 to clrscr::@1 [phi:clrscr/clrscr::@3->clrscr::@1]
-    // [929] phi clrscr::l#4 = clrscr::l#0 [phi:clrscr/clrscr::@3->clrscr::@1#0] -- register_copy 
-    // [929] phi clrscr::ch#0 = clrscr::line_text#0 [phi:clrscr/clrscr::@3->clrscr::@1#1] -- register_copy 
-    // clrscr::@1
-  __b1:
-    // BYTE0(ch)
-    // [930] clrscr::$1 = byte0  clrscr::ch#0 -- vbuz1=_byte0_vwum2 
-    lda ch
-    sta.z clrscr__1
-    // *VERA_ADDRX_L = BYTE0(ch)
-    // [931] *VERA_ADDRX_L = clrscr::$1 -- _deref_pbuc1=vbuz1 
-    // Set address
-    sta VERA_ADDRX_L
-    // BYTE1(ch)
-    // [932] clrscr::$2 = byte1  clrscr::ch#0 -- vbuz1=_byte1_vwum2 
-    lda ch+1
-    sta.z clrscr__2
-    // *VERA_ADDRX_M = BYTE1(ch)
-    // [933] *VERA_ADDRX_M = clrscr::$2 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_M
-    // unsigned char c = __conio.mapwidth+1
-    // [934] clrscr::c#0 = *((char *)&__conio+8) + 1 -- vbum1=_deref_pbuc1_plus_1 
-    lda __conio+8
-    inc
-    sta c
-    // [935] phi from clrscr::@1 clrscr::@2 to clrscr::@2 [phi:clrscr::@1/clrscr::@2->clrscr::@2]
-    // [935] phi clrscr::c#2 = clrscr::c#0 [phi:clrscr::@1/clrscr::@2->clrscr::@2#0] -- register_copy 
-    // clrscr::@2
-  __b2:
-    // *VERA_DATA0 = ' '
-    // [936] *VERA_DATA0 = ' ' -- _deref_pbuc1=vbuc2 
-    lda #' '
-    sta VERA_DATA0
-    // *VERA_DATA0 = __conio.color
-    // [937] *VERA_DATA0 = *((char *)&__conio+$d) -- _deref_pbuc1=_deref_pbuc2 
-    lda __conio+$d
-    sta VERA_DATA0
-    // c--;
-    // [938] clrscr::c#1 = -- clrscr::c#2 -- vbum1=_dec_vbum1 
-    dec c
-    // while(c)
-    // [939] if(0!=clrscr::c#1) goto clrscr::@2 -- 0_neq_vbum1_then_la1 
-    lda c
-    bne __b2
-    // clrscr::@3
-    // line_text += __conio.rowskip
-    // [940] clrscr::line_text#1 = clrscr::ch#0 + *((unsigned int *)&__conio+$a) -- vwum1=vwum1_plus__deref_pwuc1 
-    clc
-    lda line_text
-    adc __conio+$a
-    sta line_text
-    lda line_text+1
-    adc __conio+$a+1
-    sta line_text+1
-    // l--;
-    // [941] clrscr::l#1 = -- clrscr::l#4 -- vbum1=_dec_vbum1 
-    dec l
-    // while(l)
-    // [942] if(0!=clrscr::l#1) goto clrscr::@1 -- 0_neq_vbum1_then_la1 
-    lda l
-    bne __b1
-    // clrscr::@4
-    // __conio.cursor_x = 0
-    // [943] *((char *)&__conio) = 0 -- _deref_pbuc1=vbuc2 
-    lda #0
-    sta __conio
-    // __conio.cursor_y = 0
-    // [944] *((char *)&__conio+1) = 0 -- _deref_pbuc1=vbuc2 
-    sta __conio+1
-    // __conio.offset = __conio.mapbase_offset
-    // [945] *((unsigned int *)&__conio+$13) = *((unsigned int *)&__conio+3) -- _deref_pwuc1=_deref_pwuc2 
-    lda __conio+3
-    sta __conio+$13
-    lda __conio+3+1
-    sta __conio+$13+1
-    // clrscr::@return
-    // }
-    // [946] return 
-    rts
-  .segment Data
-    .label line_text = ch
-    l: .byte 0
-    ch: .word 0
-    c: .byte 0
 }
 .segment Code
   // display_frame
@@ -5889,665 +7486,692 @@ clrscr: {
  * @param x1 Right down X position, counting from 0.
  * @param y1 Right down Y position, counting from 0.
  */
-// void display_frame(char x0, char y0, __zp($6f) char x1, __zp($70) char y1)
+// void display_frame(char x0, char y0, __mem() char x1, __mem() char y1)
 display_frame: {
-    .label w = $b5
-    .label h = $40
-    .label x = $6a
-    .label y = $5b
-    .label mask = $51
-    .label c = $60
-    .label x_1 = $6d
-    .label y_1 = $65
-    .label x1 = $6f
-    .label y1 = $70
     // unsigned char w = x1 - x0
-    // [948] display_frame::w#0 = display_frame::x1#16 - display_frame::x#0 -- vbuz1=vbuz2_minus_vbuz3 
-    lda.z x1
+    // [1187] display_frame::w#0 = display_frame::x1#16 - display_frame::x#0 -- vbum1=vbum2_minus_vbum3 
+    lda x1
     sec
-    sbc.z x
-    sta.z w
+    sbc x
+    sta w
     // unsigned char h = y1 - y0
-    // [949] display_frame::h#0 = display_frame::y1#16 - display_frame::y#0 -- vbuz1=vbuz2_minus_vbuz3 
-    lda.z y1
+    // [1188] display_frame::h#0 = display_frame::y1#16 - display_frame::y#0 -- vbum1=vbum2_minus_vbum3 
+    lda y1
     sec
-    sbc.z y
-    sta.z h
+    sbc y
+    sta h
     // unsigned char mask = display_frame_maskxy(x, y)
-    // [950] display_frame_maskxy::x#0 = display_frame::x#0
-    // [951] display_frame_maskxy::y#0 = display_frame::y#0
-    // [952] call display_frame_maskxy
-    // [1327] phi from display_frame to display_frame_maskxy [phi:display_frame->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#0 [phi:display_frame->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#0 [phi:display_frame->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1189] display_frame_maskxy::x#0 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
+    sta display_frame_maskxy.x
+    // [1190] display_frame_maskxy::y#0 = display_frame::y#0 -- vbum1=vbum2 
+    lda y
+    sta display_frame_maskxy.y
+    // [1191] call display_frame_maskxy
+    // [1879] phi from display_frame to display_frame_maskxy [phi:display_frame->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#0 [phi:display_frame->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#0 [phi:display_frame->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // unsigned char mask = display_frame_maskxy(x, y)
-    // [953] display_frame_maskxy::return#13 = display_frame_maskxy::return#12
+    // [1192] display_frame_maskxy::return#13 = display_frame_maskxy::return#12
     // display_frame::@13
-    // [954] display_frame::mask#0 = display_frame_maskxy::return#13
+    // [1193] display_frame::mask#0 = display_frame_maskxy::return#13
     // mask |= 0b0110
-    // [955] display_frame::mask#1 = display_frame::mask#0 | 6 -- vbuz1=vbuz1_bor_vbuc1 
+    // [1194] display_frame::mask#1 = display_frame::mask#0 | 6 -- vbum1=vbum1_bor_vbuc1 
     lda #6
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // unsigned char c = display_frame_char(mask)
-    // [956] display_frame_char::mask#0 = display_frame::mask#1
-    // [957] call display_frame_char
+    // [1195] display_frame_char::mask#0 = display_frame::mask#1
+    // [1196] call display_frame_char
   // Add a corner.
-    // [1353] phi from display_frame::@13 to display_frame_char [phi:display_frame::@13->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#0 [phi:display_frame::@13->display_frame_char#0] -- register_copy 
+    // [1905] phi from display_frame::@13 to display_frame_char [phi:display_frame::@13->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#0 [phi:display_frame::@13->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // unsigned char c = display_frame_char(mask)
-    // [958] display_frame_char::return#13 = display_frame_char::return#12
+    // [1197] display_frame_char::return#13 = display_frame_char::return#12
     // display_frame::@14
-    // [959] display_frame::c#0 = display_frame_char::return#13
+    // [1198] display_frame::c#0 = display_frame_char::return#13
     // cputcxy(x, y, c)
-    // [960] cputcxy::x#0 = display_frame::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [1199] cputcxy::x#3 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
     sta cputcxy.x
-    // [961] cputcxy::y#0 = display_frame::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [1200] cputcxy::y#3 = display_frame::y#0 -- vbum1=vbum2 
+    lda y
     sta cputcxy.y
-    // [962] cputcxy::c#0 = display_frame::c#0 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [963] call cputcxy
-    // [1111] phi from display_frame::@14 to cputcxy [phi:display_frame::@14->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#0 [phi:display_frame::@14->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#0 [phi:display_frame::@14->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#0 [phi:display_frame::@14->cputcxy#2] -- register_copy 
+    // [1201] cputcxy::c#3 = display_frame::c#0
+    // [1202] call cputcxy
+    // [1358] phi from display_frame::@14 to cputcxy [phi:display_frame::@14->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#3 [phi:display_frame::@14->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#3 [phi:display_frame::@14->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#3 [phi:display_frame::@14->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@15
     // if(w>=2)
-    // [964] if(display_frame::w#0<2) goto display_frame::@36 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z w
+    // [1203] if(display_frame::w#0<2) goto display_frame::@36 -- vbum1_lt_vbuc1_then_la1 
+    lda w
     cmp #2
     bcs !__b36+
     jmp __b36
   !__b36:
     // display_frame::@2
     // x++;
-    // [965] display_frame::x#1 = ++ display_frame::x#0 -- vbuz1=_inc_vbuz2 
-    lda.z x
+    // [1204] display_frame::x#1 = ++ display_frame::x#0 -- vbum1=_inc_vbum2 
+    lda x
     inc
-    sta.z x_1
-    // [966] phi from display_frame::@2 display_frame::@21 to display_frame::@4 [phi:display_frame::@2/display_frame::@21->display_frame::@4]
-    // [966] phi display_frame::x#10 = display_frame::x#1 [phi:display_frame::@2/display_frame::@21->display_frame::@4#0] -- register_copy 
+    sta x_1
+    // [1205] phi from display_frame::@2 display_frame::@21 to display_frame::@4 [phi:display_frame::@2/display_frame::@21->display_frame::@4]
+    // [1205] phi display_frame::x#10 = display_frame::x#1 [phi:display_frame::@2/display_frame::@21->display_frame::@4#0] -- register_copy 
     // display_frame::@4
   __b4:
     // while(x < x1)
-    // [967] if(display_frame::x#10<display_frame::x1#16) goto display_frame::@5 -- vbuz1_lt_vbuz2_then_la1 
-    lda.z x_1
-    cmp.z x1
+    // [1206] if(display_frame::x#10<display_frame::x1#16) goto display_frame::@5 -- vbum1_lt_vbum2_then_la1 
+    lda x_1
+    cmp x1
     bcs !__b5+
     jmp __b5
   !__b5:
-    // [968] phi from display_frame::@36 display_frame::@4 to display_frame::@1 [phi:display_frame::@36/display_frame::@4->display_frame::@1]
-    // [968] phi display_frame::x#24 = display_frame::x#30 [phi:display_frame::@36/display_frame::@4->display_frame::@1#0] -- register_copy 
+    // [1207] phi from display_frame::@36 display_frame::@4 to display_frame::@1 [phi:display_frame::@36/display_frame::@4->display_frame::@1]
+    // [1207] phi display_frame::x#24 = display_frame::x#30 [phi:display_frame::@36/display_frame::@4->display_frame::@1#0] -- register_copy 
     // display_frame::@1
   __b1:
     // display_frame_maskxy(x, y)
-    // [969] display_frame_maskxy::x#1 = display_frame::x#24
-    // [970] display_frame_maskxy::y#1 = display_frame::y#0
-    // [971] call display_frame_maskxy
-    // [1327] phi from display_frame::@1 to display_frame_maskxy [phi:display_frame::@1->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#1 [phi:display_frame::@1->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#1 [phi:display_frame::@1->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x_1
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1208] display_frame_maskxy::x#1 = display_frame::x#24 -- vbum1=vbum2 
+    lda x_1
+    sta display_frame_maskxy.x
+    // [1209] display_frame_maskxy::y#1 = display_frame::y#0 -- vbum1=vbum2 
+    lda y
+    sta display_frame_maskxy.y
+    // [1210] call display_frame_maskxy
+    // [1879] phi from display_frame::@1 to display_frame_maskxy [phi:display_frame::@1->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#1 [phi:display_frame::@1->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#1 [phi:display_frame::@1->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x, y)
-    // [972] display_frame_maskxy::return#14 = display_frame_maskxy::return#12
+    // [1211] display_frame_maskxy::return#14 = display_frame_maskxy::return#12
     // display_frame::@16
     // mask = display_frame_maskxy(x, y)
-    // [973] display_frame::mask#2 = display_frame_maskxy::return#14
+    // [1212] display_frame::mask#2 = display_frame_maskxy::return#14
     // mask |= 0b0011
-    // [974] display_frame::mask#3 = display_frame::mask#2 | 3 -- vbuz1=vbuz1_bor_vbuc1 
+    // [1213] display_frame::mask#3 = display_frame::mask#2 | 3 -- vbum1=vbum1_bor_vbuc1 
     lda #3
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [975] display_frame_char::mask#1 = display_frame::mask#3
-    // [976] call display_frame_char
-    // [1353] phi from display_frame::@16 to display_frame_char [phi:display_frame::@16->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#1 [phi:display_frame::@16->display_frame_char#0] -- register_copy 
+    // [1214] display_frame_char::mask#1 = display_frame::mask#3
+    // [1215] call display_frame_char
+    // [1905] phi from display_frame::@16 to display_frame_char [phi:display_frame::@16->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#1 [phi:display_frame::@16->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [977] display_frame_char::return#14 = display_frame_char::return#12
+    // [1216] display_frame_char::return#14 = display_frame_char::return#12
     // display_frame::@17
     // c = display_frame_char(mask)
-    // [978] display_frame::c#1 = display_frame_char::return#14
+    // [1217] display_frame::c#1 = display_frame_char::return#14
     // cputcxy(x, y, c)
-    // [979] cputcxy::x#1 = display_frame::x#24 -- vbum1=vbuz2 
-    lda.z x_1
+    // [1218] cputcxy::x#4 = display_frame::x#24 -- vbum1=vbum2 
+    lda x_1
     sta cputcxy.x
-    // [980] cputcxy::y#1 = display_frame::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [1219] cputcxy::y#4 = display_frame::y#0 -- vbum1=vbum2 
+    lda y
     sta cputcxy.y
-    // [981] cputcxy::c#1 = display_frame::c#1 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [982] call cputcxy
-    // [1111] phi from display_frame::@17 to cputcxy [phi:display_frame::@17->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#1 [phi:display_frame::@17->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#1 [phi:display_frame::@17->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#1 [phi:display_frame::@17->cputcxy#2] -- register_copy 
+    // [1220] cputcxy::c#4 = display_frame::c#1
+    // [1221] call cputcxy
+    // [1358] phi from display_frame::@17 to cputcxy [phi:display_frame::@17->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#4 [phi:display_frame::@17->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#4 [phi:display_frame::@17->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#4 [phi:display_frame::@17->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@18
     // if(h>=2)
-    // [983] if(display_frame::h#0<2) goto display_frame::@return -- vbuz1_lt_vbuc1_then_la1 
-    lda.z h
+    // [1222] if(display_frame::h#0<2) goto display_frame::@return -- vbum1_lt_vbuc1_then_la1 
+    lda h
     cmp #2
     bcc __breturn
     // display_frame::@3
     // y++;
-    // [984] display_frame::y#1 = ++ display_frame::y#0 -- vbuz1=_inc_vbuz2 
-    lda.z y
+    // [1223] display_frame::y#1 = ++ display_frame::y#0 -- vbum1=_inc_vbum2 
+    lda y
     inc
-    sta.z y_1
-    // [985] phi from display_frame::@27 display_frame::@3 to display_frame::@6 [phi:display_frame::@27/display_frame::@3->display_frame::@6]
-    // [985] phi display_frame::y#10 = display_frame::y#2 [phi:display_frame::@27/display_frame::@3->display_frame::@6#0] -- register_copy 
+    sta y_1
+    // [1224] phi from display_frame::@27 display_frame::@3 to display_frame::@6 [phi:display_frame::@27/display_frame::@3->display_frame::@6]
+    // [1224] phi display_frame::y#10 = display_frame::y#2 [phi:display_frame::@27/display_frame::@3->display_frame::@6#0] -- register_copy 
     // display_frame::@6
   __b6:
     // while(y < y1)
-    // [986] if(display_frame::y#10<display_frame::y1#16) goto display_frame::@7 -- vbuz1_lt_vbuz2_then_la1 
-    lda.z y_1
-    cmp.z y1
+    // [1225] if(display_frame::y#10<display_frame::y1#16) goto display_frame::@7 -- vbum1_lt_vbum2_then_la1 
+    lda y_1
+    cmp y1
     bcs !__b7+
     jmp __b7
   !__b7:
     // display_frame::@8
     // display_frame_maskxy(x, y)
-    // [987] display_frame_maskxy::x#5 = display_frame::x#0
-    // [988] display_frame_maskxy::y#5 = display_frame::y#10
-    // [989] call display_frame_maskxy
-    // [1327] phi from display_frame::@8 to display_frame_maskxy [phi:display_frame::@8->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#5 [phi:display_frame::@8->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y_1
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#5 [phi:display_frame::@8->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1226] display_frame_maskxy::x#5 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
+    sta display_frame_maskxy.x
+    // [1227] display_frame_maskxy::y#5 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
+    sta display_frame_maskxy.y
+    // [1228] call display_frame_maskxy
+    // [1879] phi from display_frame::@8 to display_frame_maskxy [phi:display_frame::@8->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#5 [phi:display_frame::@8->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#5 [phi:display_frame::@8->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x, y)
-    // [990] display_frame_maskxy::return#18 = display_frame_maskxy::return#12
+    // [1229] display_frame_maskxy::return#18 = display_frame_maskxy::return#12
     // display_frame::@28
     // mask = display_frame_maskxy(x, y)
-    // [991] display_frame::mask#10 = display_frame_maskxy::return#18
+    // [1230] display_frame::mask#10 = display_frame_maskxy::return#18
     // mask |= 0b1100
-    // [992] display_frame::mask#11 = display_frame::mask#10 | $c -- vbuz1=vbuz1_bor_vbuc1 
+    // [1231] display_frame::mask#11 = display_frame::mask#10 | $c -- vbum1=vbum1_bor_vbuc1 
     lda #$c
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [993] display_frame_char::mask#5 = display_frame::mask#11
-    // [994] call display_frame_char
-    // [1353] phi from display_frame::@28 to display_frame_char [phi:display_frame::@28->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#5 [phi:display_frame::@28->display_frame_char#0] -- register_copy 
+    // [1232] display_frame_char::mask#5 = display_frame::mask#11
+    // [1233] call display_frame_char
+    // [1905] phi from display_frame::@28 to display_frame_char [phi:display_frame::@28->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#5 [phi:display_frame::@28->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [995] display_frame_char::return#18 = display_frame_char::return#12
+    // [1234] display_frame_char::return#18 = display_frame_char::return#12
     // display_frame::@29
     // c = display_frame_char(mask)
-    // [996] display_frame::c#5 = display_frame_char::return#18
+    // [1235] display_frame::c#5 = display_frame_char::return#18
     // cputcxy(x, y, c)
-    // [997] cputcxy::x#5 = display_frame::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [1236] cputcxy::x#8 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
     sta cputcxy.x
-    // [998] cputcxy::y#5 = display_frame::y#10 -- vbum1=vbuz2 
-    lda.z y_1
+    // [1237] cputcxy::y#8 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
     sta cputcxy.y
-    // [999] cputcxy::c#5 = display_frame::c#5 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1000] call cputcxy
-    // [1111] phi from display_frame::@29 to cputcxy [phi:display_frame::@29->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#5 [phi:display_frame::@29->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#5 [phi:display_frame::@29->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#5 [phi:display_frame::@29->cputcxy#2] -- register_copy 
+    // [1238] cputcxy::c#8 = display_frame::c#5
+    // [1239] call cputcxy
+    // [1358] phi from display_frame::@29 to cputcxy [phi:display_frame::@29->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#8 [phi:display_frame::@29->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#8 [phi:display_frame::@29->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#8 [phi:display_frame::@29->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@30
     // if(w>=2)
-    // [1001] if(display_frame::w#0<2) goto display_frame::@10 -- vbuz1_lt_vbuc1_then_la1 
-    lda.z w
+    // [1240] if(display_frame::w#0<2) goto display_frame::@10 -- vbum1_lt_vbuc1_then_la1 
+    lda w
     cmp #2
     bcc __b10
     // display_frame::@9
     // x++;
-    // [1002] display_frame::x#4 = ++ display_frame::x#0 -- vbuz1=_inc_vbuz1 
-    inc.z x
-    // [1003] phi from display_frame::@35 display_frame::@9 to display_frame::@11 [phi:display_frame::@35/display_frame::@9->display_frame::@11]
-    // [1003] phi display_frame::x#18 = display_frame::x#5 [phi:display_frame::@35/display_frame::@9->display_frame::@11#0] -- register_copy 
+    // [1241] display_frame::x#4 = ++ display_frame::x#0 -- vbum1=_inc_vbum1 
+    inc x
+    // [1242] phi from display_frame::@35 display_frame::@9 to display_frame::@11 [phi:display_frame::@35/display_frame::@9->display_frame::@11]
+    // [1242] phi display_frame::x#18 = display_frame::x#5 [phi:display_frame::@35/display_frame::@9->display_frame::@11#0] -- register_copy 
     // display_frame::@11
   __b11:
     // while(x < x1)
-    // [1004] if(display_frame::x#18<display_frame::x1#16) goto display_frame::@12 -- vbuz1_lt_vbuz2_then_la1 
-    lda.z x
-    cmp.z x1
+    // [1243] if(display_frame::x#18<display_frame::x1#16) goto display_frame::@12 -- vbum1_lt_vbum2_then_la1 
+    lda x
+    cmp x1
     bcc __b12
-    // [1005] phi from display_frame::@11 display_frame::@30 to display_frame::@10 [phi:display_frame::@11/display_frame::@30->display_frame::@10]
-    // [1005] phi display_frame::x#15 = display_frame::x#18 [phi:display_frame::@11/display_frame::@30->display_frame::@10#0] -- register_copy 
+    // [1244] phi from display_frame::@11 display_frame::@30 to display_frame::@10 [phi:display_frame::@11/display_frame::@30->display_frame::@10]
+    // [1244] phi display_frame::x#15 = display_frame::x#18 [phi:display_frame::@11/display_frame::@30->display_frame::@10#0] -- register_copy 
     // display_frame::@10
   __b10:
     // display_frame_maskxy(x, y)
-    // [1006] display_frame_maskxy::x#6 = display_frame::x#15
-    // [1007] display_frame_maskxy::y#6 = display_frame::y#10
-    // [1008] call display_frame_maskxy
-    // [1327] phi from display_frame::@10 to display_frame_maskxy [phi:display_frame::@10->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#6 [phi:display_frame::@10->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y_1
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#6 [phi:display_frame::@10->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1245] display_frame_maskxy::x#6 = display_frame::x#15 -- vbum1=vbum2 
+    lda x
+    sta display_frame_maskxy.x
+    // [1246] display_frame_maskxy::y#6 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
+    sta display_frame_maskxy.y
+    // [1247] call display_frame_maskxy
+    // [1879] phi from display_frame::@10 to display_frame_maskxy [phi:display_frame::@10->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#6 [phi:display_frame::@10->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#6 [phi:display_frame::@10->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x, y)
-    // [1009] display_frame_maskxy::return#19 = display_frame_maskxy::return#12
+    // [1248] display_frame_maskxy::return#19 = display_frame_maskxy::return#12
     // display_frame::@31
     // mask = display_frame_maskxy(x, y)
-    // [1010] display_frame::mask#12 = display_frame_maskxy::return#19
+    // [1249] display_frame::mask#12 = display_frame_maskxy::return#19
     // mask |= 0b1001
-    // [1011] display_frame::mask#13 = display_frame::mask#12 | 9 -- vbuz1=vbuz1_bor_vbuc1 
+    // [1250] display_frame::mask#13 = display_frame::mask#12 | 9 -- vbum1=vbum1_bor_vbuc1 
     lda #9
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [1012] display_frame_char::mask#6 = display_frame::mask#13
-    // [1013] call display_frame_char
-    // [1353] phi from display_frame::@31 to display_frame_char [phi:display_frame::@31->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#6 [phi:display_frame::@31->display_frame_char#0] -- register_copy 
+    // [1251] display_frame_char::mask#6 = display_frame::mask#13
+    // [1252] call display_frame_char
+    // [1905] phi from display_frame::@31 to display_frame_char [phi:display_frame::@31->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#6 [phi:display_frame::@31->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [1014] display_frame_char::return#19 = display_frame_char::return#12
+    // [1253] display_frame_char::return#19 = display_frame_char::return#12
     // display_frame::@32
     // c = display_frame_char(mask)
-    // [1015] display_frame::c#6 = display_frame_char::return#19
+    // [1254] display_frame::c#6 = display_frame_char::return#19
     // cputcxy(x, y, c)
-    // [1016] cputcxy::x#6 = display_frame::x#15 -- vbum1=vbuz2 
-    lda.z x
+    // [1255] cputcxy::x#9 = display_frame::x#15 -- vbum1=vbum2 
+    lda x
     sta cputcxy.x
-    // [1017] cputcxy::y#6 = display_frame::y#10 -- vbum1=vbuz2 
-    lda.z y_1
+    // [1256] cputcxy::y#9 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
     sta cputcxy.y
-    // [1018] cputcxy::c#6 = display_frame::c#6 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1019] call cputcxy
-    // [1111] phi from display_frame::@32 to cputcxy [phi:display_frame::@32->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#6 [phi:display_frame::@32->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#6 [phi:display_frame::@32->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#6 [phi:display_frame::@32->cputcxy#2] -- register_copy 
+    // [1257] cputcxy::c#9 = display_frame::c#6
+    // [1258] call cputcxy
+    // [1358] phi from display_frame::@32 to cputcxy [phi:display_frame::@32->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#9 [phi:display_frame::@32->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#9 [phi:display_frame::@32->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#9 [phi:display_frame::@32->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@return
   __breturn:
     // }
-    // [1020] return 
+    // [1259] return 
     rts
     // display_frame::@12
   __b12:
     // display_frame_maskxy(x, y)
-    // [1021] display_frame_maskxy::x#7 = display_frame::x#18
-    // [1022] display_frame_maskxy::y#7 = display_frame::y#10
-    // [1023] call display_frame_maskxy
-    // [1327] phi from display_frame::@12 to display_frame_maskxy [phi:display_frame::@12->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#7 [phi:display_frame::@12->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y_1
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#7 [phi:display_frame::@12->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1260] display_frame_maskxy::x#7 = display_frame::x#18 -- vbum1=vbum2 
+    lda x
+    sta display_frame_maskxy.x
+    // [1261] display_frame_maskxy::y#7 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
+    sta display_frame_maskxy.y
+    // [1262] call display_frame_maskxy
+    // [1879] phi from display_frame::@12 to display_frame_maskxy [phi:display_frame::@12->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#7 [phi:display_frame::@12->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#7 [phi:display_frame::@12->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x, y)
-    // [1024] display_frame_maskxy::return#20 = display_frame_maskxy::return#12
+    // [1263] display_frame_maskxy::return#20 = display_frame_maskxy::return#12
     // display_frame::@33
     // mask = display_frame_maskxy(x, y)
-    // [1025] display_frame::mask#14 = display_frame_maskxy::return#20
+    // [1264] display_frame::mask#14 = display_frame_maskxy::return#20
     // mask |= 0b0101
-    // [1026] display_frame::mask#15 = display_frame::mask#14 | 5 -- vbuz1=vbuz1_bor_vbuc1 
+    // [1265] display_frame::mask#15 = display_frame::mask#14 | 5 -- vbum1=vbum1_bor_vbuc1 
     lda #5
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [1027] display_frame_char::mask#7 = display_frame::mask#15
-    // [1028] call display_frame_char
-    // [1353] phi from display_frame::@33 to display_frame_char [phi:display_frame::@33->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#7 [phi:display_frame::@33->display_frame_char#0] -- register_copy 
+    // [1266] display_frame_char::mask#7 = display_frame::mask#15
+    // [1267] call display_frame_char
+    // [1905] phi from display_frame::@33 to display_frame_char [phi:display_frame::@33->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#7 [phi:display_frame::@33->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [1029] display_frame_char::return#20 = display_frame_char::return#12
+    // [1268] display_frame_char::return#20 = display_frame_char::return#12
     // display_frame::@34
     // c = display_frame_char(mask)
-    // [1030] display_frame::c#7 = display_frame_char::return#20
+    // [1269] display_frame::c#7 = display_frame_char::return#20
     // cputcxy(x, y, c)
-    // [1031] cputcxy::x#7 = display_frame::x#18 -- vbum1=vbuz2 
-    lda.z x
+    // [1270] cputcxy::x#10 = display_frame::x#18 -- vbum1=vbum2 
+    lda x
     sta cputcxy.x
-    // [1032] cputcxy::y#7 = display_frame::y#10 -- vbum1=vbuz2 
-    lda.z y_1
+    // [1271] cputcxy::y#10 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
     sta cputcxy.y
-    // [1033] cputcxy::c#7 = display_frame::c#7 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1034] call cputcxy
-    // [1111] phi from display_frame::@34 to cputcxy [phi:display_frame::@34->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#7 [phi:display_frame::@34->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#7 [phi:display_frame::@34->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#7 [phi:display_frame::@34->cputcxy#2] -- register_copy 
+    // [1272] cputcxy::c#10 = display_frame::c#7
+    // [1273] call cputcxy
+    // [1358] phi from display_frame::@34 to cputcxy [phi:display_frame::@34->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#10 [phi:display_frame::@34->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#10 [phi:display_frame::@34->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#10 [phi:display_frame::@34->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@35
     // x++;
-    // [1035] display_frame::x#5 = ++ display_frame::x#18 -- vbuz1=_inc_vbuz1 
-    inc.z x
+    // [1274] display_frame::x#5 = ++ display_frame::x#18 -- vbum1=_inc_vbum1 
+    inc x
     jmp __b11
     // display_frame::@7
   __b7:
     // display_frame_maskxy(x0, y)
-    // [1036] display_frame_maskxy::x#3 = display_frame::x#0
-    // [1037] display_frame_maskxy::y#3 = display_frame::y#10
-    // [1038] call display_frame_maskxy
-    // [1327] phi from display_frame::@7 to display_frame_maskxy [phi:display_frame::@7->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#3 [phi:display_frame::@7->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y_1
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#3 [phi:display_frame::@7->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1275] display_frame_maskxy::x#3 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
+    sta display_frame_maskxy.x
+    // [1276] display_frame_maskxy::y#3 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
+    sta display_frame_maskxy.y
+    // [1277] call display_frame_maskxy
+    // [1879] phi from display_frame::@7 to display_frame_maskxy [phi:display_frame::@7->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#3 [phi:display_frame::@7->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#3 [phi:display_frame::@7->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x0, y)
-    // [1039] display_frame_maskxy::return#16 = display_frame_maskxy::return#12
+    // [1278] display_frame_maskxy::return#16 = display_frame_maskxy::return#12
     // display_frame::@22
     // mask = display_frame_maskxy(x0, y)
-    // [1040] display_frame::mask#6 = display_frame_maskxy::return#16
+    // [1279] display_frame::mask#6 = display_frame_maskxy::return#16
     // mask |= 0b1010
-    // [1041] display_frame::mask#7 = display_frame::mask#6 | $a -- vbuz1=vbuz1_bor_vbuc1 
+    // [1280] display_frame::mask#7 = display_frame::mask#6 | $a -- vbum1=vbum1_bor_vbuc1 
     lda #$a
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [1042] display_frame_char::mask#3 = display_frame::mask#7
-    // [1043] call display_frame_char
-    // [1353] phi from display_frame::@22 to display_frame_char [phi:display_frame::@22->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#3 [phi:display_frame::@22->display_frame_char#0] -- register_copy 
+    // [1281] display_frame_char::mask#3 = display_frame::mask#7
+    // [1282] call display_frame_char
+    // [1905] phi from display_frame::@22 to display_frame_char [phi:display_frame::@22->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#3 [phi:display_frame::@22->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [1044] display_frame_char::return#16 = display_frame_char::return#12
+    // [1283] display_frame_char::return#16 = display_frame_char::return#12
     // display_frame::@23
     // c = display_frame_char(mask)
-    // [1045] display_frame::c#3 = display_frame_char::return#16
+    // [1284] display_frame::c#3 = display_frame_char::return#16
     // cputcxy(x0, y, c)
-    // [1046] cputcxy::x#3 = display_frame::x#0 -- vbum1=vbuz2 
-    lda.z x
+    // [1285] cputcxy::x#6 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
     sta cputcxy.x
-    // [1047] cputcxy::y#3 = display_frame::y#10 -- vbum1=vbuz2 
-    lda.z y_1
+    // [1286] cputcxy::y#6 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
     sta cputcxy.y
-    // [1048] cputcxy::c#3 = display_frame::c#3 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1049] call cputcxy
-    // [1111] phi from display_frame::@23 to cputcxy [phi:display_frame::@23->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#3 [phi:display_frame::@23->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#3 [phi:display_frame::@23->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#3 [phi:display_frame::@23->cputcxy#2] -- register_copy 
+    // [1287] cputcxy::c#6 = display_frame::c#3
+    // [1288] call cputcxy
+    // [1358] phi from display_frame::@23 to cputcxy [phi:display_frame::@23->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#6 [phi:display_frame::@23->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#6 [phi:display_frame::@23->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#6 [phi:display_frame::@23->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@24
     // display_frame_maskxy(x1, y)
-    // [1050] display_frame_maskxy::x#4 = display_frame::x1#16
-    // [1051] display_frame_maskxy::y#4 = display_frame::y#10
-    // [1052] call display_frame_maskxy
-    // [1327] phi from display_frame::@24 to display_frame_maskxy [phi:display_frame::@24->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#4 [phi:display_frame::@24->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y_1
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#4 [phi:display_frame::@24->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x_2
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1289] display_frame_maskxy::x#4 = display_frame::x1#16 -- vbum1=vbum2 
+    lda x1
+    sta display_frame_maskxy.x
+    // [1290] display_frame_maskxy::y#4 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
+    sta display_frame_maskxy.y
+    // [1291] call display_frame_maskxy
+    // [1879] phi from display_frame::@24 to display_frame_maskxy [phi:display_frame::@24->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#4 [phi:display_frame::@24->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#4 [phi:display_frame::@24->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x1, y)
-    // [1053] display_frame_maskxy::return#17 = display_frame_maskxy::return#12
+    // [1292] display_frame_maskxy::return#17 = display_frame_maskxy::return#12
     // display_frame::@25
     // mask = display_frame_maskxy(x1, y)
-    // [1054] display_frame::mask#8 = display_frame_maskxy::return#17
+    // [1293] display_frame::mask#8 = display_frame_maskxy::return#17
     // mask |= 0b1010
-    // [1055] display_frame::mask#9 = display_frame::mask#8 | $a -- vbuz1=vbuz1_bor_vbuc1 
+    // [1294] display_frame::mask#9 = display_frame::mask#8 | $a -- vbum1=vbum1_bor_vbuc1 
     lda #$a
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [1056] display_frame_char::mask#4 = display_frame::mask#9
-    // [1057] call display_frame_char
-    // [1353] phi from display_frame::@25 to display_frame_char [phi:display_frame::@25->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#4 [phi:display_frame::@25->display_frame_char#0] -- register_copy 
+    // [1295] display_frame_char::mask#4 = display_frame::mask#9
+    // [1296] call display_frame_char
+    // [1905] phi from display_frame::@25 to display_frame_char [phi:display_frame::@25->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#4 [phi:display_frame::@25->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [1058] display_frame_char::return#17 = display_frame_char::return#12
+    // [1297] display_frame_char::return#17 = display_frame_char::return#12
     // display_frame::@26
     // c = display_frame_char(mask)
-    // [1059] display_frame::c#4 = display_frame_char::return#17
+    // [1298] display_frame::c#4 = display_frame_char::return#17
     // cputcxy(x1, y, c)
-    // [1060] cputcxy::x#4 = display_frame::x1#16 -- vbum1=vbuz2 
-    lda.z x1
+    // [1299] cputcxy::x#7 = display_frame::x1#16 -- vbum1=vbum2 
+    lda x1
     sta cputcxy.x
-    // [1061] cputcxy::y#4 = display_frame::y#10 -- vbum1=vbuz2 
-    lda.z y_1
+    // [1300] cputcxy::y#7 = display_frame::y#10 -- vbum1=vbum2 
+    lda y_1
     sta cputcxy.y
-    // [1062] cputcxy::c#4 = display_frame::c#4 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1063] call cputcxy
-    // [1111] phi from display_frame::@26 to cputcxy [phi:display_frame::@26->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#4 [phi:display_frame::@26->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#4 [phi:display_frame::@26->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#4 [phi:display_frame::@26->cputcxy#2] -- register_copy 
+    // [1301] cputcxy::c#7 = display_frame::c#4
+    // [1302] call cputcxy
+    // [1358] phi from display_frame::@26 to cputcxy [phi:display_frame::@26->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#7 [phi:display_frame::@26->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#7 [phi:display_frame::@26->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#7 [phi:display_frame::@26->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@27
     // y++;
-    // [1064] display_frame::y#2 = ++ display_frame::y#10 -- vbuz1=_inc_vbuz1 
-    inc.z y_1
+    // [1303] display_frame::y#2 = ++ display_frame::y#10 -- vbum1=_inc_vbum1 
+    inc y_1
     jmp __b6
     // display_frame::@5
   __b5:
     // display_frame_maskxy(x, y)
-    // [1065] display_frame_maskxy::x#2 = display_frame::x#10
-    // [1066] display_frame_maskxy::y#2 = display_frame::y#0
-    // [1067] call display_frame_maskxy
-    // [1327] phi from display_frame::@5 to display_frame_maskxy [phi:display_frame::@5->display_frame_maskxy]
-    // [1327] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#2 [phi:display_frame::@5->display_frame_maskxy#0] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.y
-    sta display_frame_maskxy.cpeekcxy1_y
-    // [1327] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#2 [phi:display_frame::@5->display_frame_maskxy#1] -- vbum1=vbuz2 
-    lda.z display_frame_maskxy.x_1
-    sta display_frame_maskxy.cpeekcxy1_x
+    // [1304] display_frame_maskxy::x#2 = display_frame::x#10 -- vbum1=vbum2 
+    lda x_1
+    sta display_frame_maskxy.x
+    // [1305] display_frame_maskxy::y#2 = display_frame::y#0 -- vbum1=vbum2 
+    lda y
+    sta display_frame_maskxy.y
+    // [1306] call display_frame_maskxy
+    // [1879] phi from display_frame::@5 to display_frame_maskxy [phi:display_frame::@5->display_frame_maskxy]
+    // [1879] phi display_frame_maskxy::cpeekcxy1_y#0 = display_frame_maskxy::y#2 [phi:display_frame::@5->display_frame_maskxy#0] -- register_copy 
+    // [1879] phi display_frame_maskxy::cpeekcxy1_x#0 = display_frame_maskxy::x#2 [phi:display_frame::@5->display_frame_maskxy#1] -- register_copy 
     jsr display_frame_maskxy
     // display_frame_maskxy(x, y)
-    // [1068] display_frame_maskxy::return#15 = display_frame_maskxy::return#12
+    // [1307] display_frame_maskxy::return#15 = display_frame_maskxy::return#12
     // display_frame::@19
     // mask = display_frame_maskxy(x, y)
-    // [1069] display_frame::mask#4 = display_frame_maskxy::return#15
+    // [1308] display_frame::mask#4 = display_frame_maskxy::return#15
     // mask |= 0b0101
-    // [1070] display_frame::mask#5 = display_frame::mask#4 | 5 -- vbuz1=vbuz1_bor_vbuc1 
+    // [1309] display_frame::mask#5 = display_frame::mask#4 | 5 -- vbum1=vbum1_bor_vbuc1 
     lda #5
-    ora.z mask
-    sta.z mask
+    ora mask
+    sta mask
     // display_frame_char(mask)
-    // [1071] display_frame_char::mask#2 = display_frame::mask#5
-    // [1072] call display_frame_char
-    // [1353] phi from display_frame::@19 to display_frame_char [phi:display_frame::@19->display_frame_char]
-    // [1353] phi display_frame_char::mask#10 = display_frame_char::mask#2 [phi:display_frame::@19->display_frame_char#0] -- register_copy 
+    // [1310] display_frame_char::mask#2 = display_frame::mask#5
+    // [1311] call display_frame_char
+    // [1905] phi from display_frame::@19 to display_frame_char [phi:display_frame::@19->display_frame_char]
+    // [1905] phi display_frame_char::mask#10 = display_frame_char::mask#2 [phi:display_frame::@19->display_frame_char#0] -- register_copy 
     jsr display_frame_char
     // display_frame_char(mask)
-    // [1073] display_frame_char::return#15 = display_frame_char::return#12
+    // [1312] display_frame_char::return#15 = display_frame_char::return#12
     // display_frame::@20
     // c = display_frame_char(mask)
-    // [1074] display_frame::c#2 = display_frame_char::return#15
+    // [1313] display_frame::c#2 = display_frame_char::return#15
     // cputcxy(x, y, c)
-    // [1075] cputcxy::x#2 = display_frame::x#10 -- vbum1=vbuz2 
-    lda.z x_1
+    // [1314] cputcxy::x#5 = display_frame::x#10 -- vbum1=vbum2 
+    lda x_1
     sta cputcxy.x
-    // [1076] cputcxy::y#2 = display_frame::y#0 -- vbum1=vbuz2 
-    lda.z y
+    // [1315] cputcxy::y#5 = display_frame::y#0 -- vbum1=vbum2 
+    lda y
     sta cputcxy.y
-    // [1077] cputcxy::c#2 = display_frame::c#2 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1078] call cputcxy
-    // [1111] phi from display_frame::@20 to cputcxy [phi:display_frame::@20->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#2 [phi:display_frame::@20->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#2 [phi:display_frame::@20->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#2 [phi:display_frame::@20->cputcxy#2] -- register_copy 
+    // [1316] cputcxy::c#5 = display_frame::c#2
+    // [1317] call cputcxy
+    // [1358] phi from display_frame::@20 to cputcxy [phi:display_frame::@20->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#5 [phi:display_frame::@20->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#5 [phi:display_frame::@20->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#5 [phi:display_frame::@20->cputcxy#2] -- register_copy 
     jsr cputcxy
     // display_frame::@21
     // x++;
-    // [1079] display_frame::x#2 = ++ display_frame::x#10 -- vbuz1=_inc_vbuz1 
-    inc.z x_1
+    // [1318] display_frame::x#2 = ++ display_frame::x#10 -- vbum1=_inc_vbum1 
+    inc x_1
     jmp __b4
     // display_frame::@36
   __b36:
-    // [1080] display_frame::x#30 = display_frame::x#0 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z x_1
+    // [1319] display_frame::x#30 = display_frame::x#0 -- vbum1=vbum2 
+    lda x
+    sta x_1
     jmp __b1
+  .segment Data
+    w: .byte 0
+    h: .byte 0
+    x: .byte 0
+    y: .byte 0
+    .label mask = display_frame_maskxy.return
+    .label c = cputcxy.c
+    x_1: .byte 0
+    y_1: .byte 0
+    x1: .byte 0
+    y1: .byte 0
 }
+.segment Code
   // printf_string
 // Print a string value using a specific format
 // Handles justification and min length 
-// void printf_string(void (*putc)(char), __zp($37) char *str, __mem() char format_min_length, char format_justify_left)
+// void printf_string(__zp($3d) void (*putc)(char), __zp($3f) char *str, __mem() char format_min_length, __mem() char format_justify_left)
 printf_string: {
-    .label printf_string__9 = $61
-    .label str = $37
-    .label str_1 = $7b
+    .label printf_string__9 = $54
+    .label str = $3f
+    .label str_1 = $3b
+    .label putc = $3d
     // if(format.min_length)
-    // [1082] if(0==printf_string::format_min_length#12) goto printf_string::@1 -- 0_eq_vbum1_then_la1 
+    // [1321] if(0==printf_string::format_min_length#15) goto printf_string::@1 -- 0_eq_vbum1_then_la1 
     lda format_min_length
-    beq __b1
+    beq __b3
     // printf_string::@3
     // strlen(str)
-    // [1083] strlen::str#3 = printf_string::str#12 -- pbuz1=pbuz2 
+    // [1322] strlen::str#3 = printf_string::str#15 -- pbuz1=pbuz2 
     lda.z str
     sta.z strlen.str
     lda.z str+1
     sta.z strlen.str+1
-    // [1084] call strlen
-    // [1368] phi from printf_string::@3 to strlen [phi:printf_string::@3->strlen]
-    // [1368] phi strlen::str#6 = strlen::str#3 [phi:printf_string::@3->strlen#0] -- register_copy 
+    // [1323] call strlen
+    // [1920] phi from printf_string::@3 to strlen [phi:printf_string::@3->strlen]
+    // [1920] phi strlen::str#8 = strlen::str#3 [phi:printf_string::@3->strlen#0] -- register_copy 
     jsr strlen
     // strlen(str)
-    // [1085] strlen::return#4 = strlen::len#2
-    // printf_string::@5
-    // [1086] printf_string::$9 = strlen::return#4 -- vwuz1=vwum2 
+    // [1324] strlen::return#10 = strlen::len#2
+    // printf_string::@6
+    // [1325] printf_string::$9 = strlen::return#10 -- vwuz1=vwum2 
     lda strlen.return
     sta.z printf_string__9
     lda strlen.return+1
     sta.z printf_string__9+1
     // signed char len = (signed char)strlen(str)
-    // [1087] printf_string::len#0 = (signed char)printf_string::$9 -- vbsm1=_sbyte_vwuz2 
+    // [1326] printf_string::len#0 = (signed char)printf_string::$9 -- vbsm1=_sbyte_vwuz2 
     lda.z printf_string__9
     sta len
     // padding = (signed char)format.min_length  - len
-    // [1088] printf_string::padding#1 = (signed char)printf_string::format_min_length#12 - printf_string::len#0 -- vbsm1=vbsm1_minus_vbsm2 
+    // [1327] printf_string::padding#1 = (signed char)printf_string::format_min_length#15 - printf_string::len#0 -- vbsm1=vbsm1_minus_vbsm2 
     lda padding
     sec
     sbc len
     sta padding
     // if(padding<0)
-    // [1089] if(printf_string::padding#1>=0) goto printf_string::@7 -- vbsm1_ge_0_then_la1 
+    // [1328] if(printf_string::padding#1>=0) goto printf_string::@10 -- vbsm1_ge_0_then_la1 
     cmp #0
-    bpl __b2
-    // [1091] phi from printf_string printf_string::@5 to printf_string::@1 [phi:printf_string/printf_string::@5->printf_string::@1]
-  __b1:
-    // [1091] phi printf_string::padding#3 = 0 [phi:printf_string/printf_string::@5->printf_string::@1#0] -- vbsm1=vbsc1 
+    bpl __b1
+    // [1330] phi from printf_string printf_string::@6 to printf_string::@1 [phi:printf_string/printf_string::@6->printf_string::@1]
+  __b3:
+    // [1330] phi printf_string::padding#3 = 0 [phi:printf_string/printf_string::@6->printf_string::@1#0] -- vbsm1=vbsc1 
     lda #0
     sta padding
-    // [1090] phi from printf_string::@5 to printf_string::@7 [phi:printf_string::@5->printf_string::@7]
-    // printf_string::@7
-    // [1091] phi from printf_string::@7 to printf_string::@1 [phi:printf_string::@7->printf_string::@1]
-    // [1091] phi printf_string::padding#3 = printf_string::padding#1 [phi:printf_string::@7->printf_string::@1#0] -- register_copy 
+    // [1329] phi from printf_string::@6 to printf_string::@10 [phi:printf_string::@6->printf_string::@10]
+    // printf_string::@10
+    // [1330] phi from printf_string::@10 to printf_string::@1 [phi:printf_string::@10->printf_string::@1]
+    // [1330] phi printf_string::padding#3 = printf_string::padding#1 [phi:printf_string::@10->printf_string::@1#0] -- register_copy 
     // printf_string::@1
-    // printf_string::@2
-  __b2:
-    // printf_str(putc, str)
-    // [1092] printf_str::s#2 = printf_string::str#12
-    // [1093] call printf_str
-    // [723] phi from printf_string::@2 to printf_str [phi:printf_string::@2->printf_str]
-    // [723] phi printf_str::putc#21 = &cputc [phi:printf_string::@2->printf_str#0] -- pprz1=pprc1 
-    lda #<cputc
-    sta.z printf_str.putc
-    lda #>cputc
-    sta.z printf_str.putc+1
-    // [723] phi printf_str::s#21 = printf_str::s#2 [phi:printf_string::@2->printf_str#1] -- register_copy 
-    jsr printf_str
-    // printf_string::@6
-    // if(format.justify_left && padding)
-    // [1094] if(0!=printf_string::padding#3) goto printf_string::@4 -- 0_neq_vbsm1_then_la1 
+  __b1:
+    // if(!format.justify_left && padding)
+    // [1331] if(0!=printf_string::format_justify_left#15) goto printf_string::@2 -- 0_neq_vbum1_then_la1 
+    lda format_justify_left
+    bne __b2
+    // printf_string::@8
+    // [1332] if(0!=printf_string::padding#3) goto printf_string::@4 -- 0_neq_vbsm1_then_la1 
     lda padding
     cmp #0
     bne __b4
-    rts
+    jmp __b2
     // printf_string::@4
   __b4:
     // printf_padding(putc, ' ',(char)padding)
-    // [1095] printf_padding::length#4 = (char)printf_string::padding#3
-    // [1096] call printf_padding
-    // [1374] phi from printf_string::@4 to printf_padding [phi:printf_string::@4->printf_padding]
-    // [1374] phi printf_padding::putc#7 = &cputc [phi:printf_string::@4->printf_padding#0] -- pprz1=pprc1 
-    lda #<cputc
+    // [1333] printf_padding::putc#3 = printf_string::putc#15 -- pprz1=pprz2 
+    lda.z putc
     sta.z printf_padding.putc
-    lda #>cputc
+    lda.z putc+1
     sta.z printf_padding.putc+1
-    // [1374] phi printf_padding::pad#7 = ' ' [phi:printf_string::@4->printf_padding#1] -- vbum1=vbuc1 
+    // [1334] printf_padding::length#3 = (char)printf_string::padding#3 -- vbum1=vbum2 
+    lda padding
+    sta printf_padding.length
+    // [1335] call printf_padding
+    // [1926] phi from printf_string::@4 to printf_padding [phi:printf_string::@4->printf_padding]
+    // [1926] phi printf_padding::putc#7 = printf_padding::putc#3 [phi:printf_string::@4->printf_padding#0] -- register_copy 
+    // [1926] phi printf_padding::pad#7 = ' ' [phi:printf_string::@4->printf_padding#1] -- vbum1=vbuc1 
     lda #' '
     sta printf_padding.pad
-    // [1374] phi printf_padding::length#6 = printf_padding::length#4 [phi:printf_string::@4->printf_padding#2] -- register_copy 
+    // [1926] phi printf_padding::length#6 = printf_padding::length#3 [phi:printf_string::@4->printf_padding#2] -- register_copy 
+    jsr printf_padding
+    // printf_string::@2
+  __b2:
+    // printf_str(putc, str)
+    // [1336] printf_str::putc#1 = printf_string::putc#15 -- pprz1=pprz2 
+    lda.z putc
+    sta.z printf_str.putc
+    lda.z putc+1
+    sta.z printf_str.putc+1
+    // [1337] printf_str::s#2 = printf_string::str#15
+    // [1338] call printf_str
+    // [785] phi from printf_string::@2 to printf_str [phi:printf_string::@2->printf_str]
+    // [785] phi printf_str::putc#54 = printf_str::putc#1 [phi:printf_string::@2->printf_str#0] -- register_copy 
+    // [785] phi printf_str::s#54 = printf_str::s#2 [phi:printf_string::@2->printf_str#1] -- register_copy 
+    jsr printf_str
+    // printf_string::@7
+    // if(format.justify_left && padding)
+    // [1339] if(0==printf_string::format_justify_left#15) goto printf_string::@return -- 0_eq_vbum1_then_la1 
+    lda format_justify_left
+    beq __breturn
+    // printf_string::@9
+    // [1340] if(0!=printf_string::padding#3) goto printf_string::@5 -- 0_neq_vbsm1_then_la1 
+    lda padding
+    cmp #0
+    bne __b5
+    rts
+    // printf_string::@5
+  __b5:
+    // printf_padding(putc, ' ',(char)padding)
+    // [1341] printf_padding::putc#4 = printf_string::putc#15 -- pprz1=pprz2 
+    lda.z putc
+    sta.z printf_padding.putc
+    lda.z putc+1
+    sta.z printf_padding.putc+1
+    // [1342] printf_padding::length#4 = (char)printf_string::padding#3 -- vbum1=vbum2 
+    lda padding
+    sta printf_padding.length
+    // [1343] call printf_padding
+    // [1926] phi from printf_string::@5 to printf_padding [phi:printf_string::@5->printf_padding]
+    // [1926] phi printf_padding::putc#7 = printf_padding::putc#4 [phi:printf_string::@5->printf_padding#0] -- register_copy 
+    // [1926] phi printf_padding::pad#7 = ' ' [phi:printf_string::@5->printf_padding#1] -- vbum1=vbuc1 
+    lda #' '
+    sta printf_padding.pad
+    // [1926] phi printf_padding::length#6 = printf_padding::length#4 [phi:printf_string::@5->printf_padding#2] -- register_copy 
     jsr printf_padding
     // printf_string::@return
+  __breturn:
     // }
-    // [1097] return 
+    // [1344] return 
     rts
   .segment Data
     len: .byte 0
     .label padding = format_min_length
     format_min_length: .byte 0
+    format_justify_left: .byte 0
 }
 .segment Code
   // cputs
 // Output a NUL-terminated string at the current cursor position
-// void cputs(__zp($3c) const char *s)
+// void cputs(__zp($32) const char *s)
 cputs: {
-    .label s = $3c
-    // [1099] phi from cputs cputs::@2 to cputs::@1 [phi:cputs/cputs::@2->cputs::@1]
-    // [1099] phi cputs::s#2 = cputs::s#1 [phi:cputs/cputs::@2->cputs::@1#0] -- register_copy 
+    .label s = $32
+    // [1346] phi from cputs cputs::@2 to cputs::@1 [phi:cputs/cputs::@2->cputs::@1]
+    // [1346] phi cputs::s#2 = cputs::s#1 [phi:cputs/cputs::@2->cputs::@1#0] -- register_copy 
     // cputs::@1
   __b1:
     // while(c=*s++)
-    // [1100] cputs::c#1 = *cputs::s#2 -- vbum1=_deref_pbuz2 
+    // [1347] cputs::c#1 = *cputs::s#2 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (s),y
     sta c
-    // [1101] cputs::s#0 = ++ cputs::s#2 -- pbuz1=_inc_pbuz1 
+    // [1348] cputs::s#0 = ++ cputs::s#2 -- pbuz1=_inc_pbuz1 
     inc.z s
     bne !+
     inc.z s+1
   !:
-    // [1102] if(0!=cputs::c#1) goto cputs::@2 -- 0_neq_vbum1_then_la1 
+    // [1349] if(0!=cputs::c#1) goto cputs::@2 -- 0_neq_vbum1_then_la1 
     lda c
     bne __b2
     // cputs::@return
     // }
-    // [1103] return 
+    // [1350] return 
     rts
     // cputs::@2
   __b2:
     // cputc(c)
-    // [1104] stackpush(char) = cputs::c#1 -- _stackpushbyte_=vbum1 
+    // [1351] stackpush(char) = cputs::c#1 -- _stackpushbyte_=vbum1 
     lda c
     pha
-    // [1105] callexecute cputc  -- call_vprc1 
+    // [1352] callexecute cputc  -- call_vprc1 
     jsr cputc
     // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
     pla
@@ -6560,30 +8184,38 @@ cputs: {
 // Return the x position of the cursor
 wherex: {
     // return __conio.cursor_x;
-    // [1107] wherex::return#0 = *((char *)&__conio) -- vbum1=_deref_pbuc1 
+    // [1354] wherex::return#0 = *((char *)&__conio) -- vbum1=_deref_pbuc1 
     lda __conio
     sta return
     // wherex::@return
     // }
-    // [1108] return 
+    // [1355] return 
     rts
   .segment Data
     return: .byte 0
+    return_1: .byte 0
+    return_2: .byte 0
+    return_3: .byte 0
+    return_4: .byte 0
 }
 .segment Code
   // wherey
 // Return the y position of the cursor
 wherey: {
     // return __conio.cursor_y;
-    // [1109] wherey::return#0 = *((char *)&__conio+1) -- vbum1=_deref_pbuc1 
+    // [1356] wherey::return#0 = *((char *)&__conio+1) -- vbum1=_deref_pbuc1 
     lda __conio+1
     sta return
     // wherey::@return
     // }
-    // [1110] return 
+    // [1357] return 
     rts
   .segment Data
     return: .byte 0
+    return_1: .byte 0
+    return_2: .byte 0
+    return_3: .byte 0
+    return_4: .byte 0
 }
 .segment Code
   // cputcxy
@@ -6592,29 +8224,29 @@ wherey: {
 // void cputcxy(__mem() char x, __mem() char y, __mem() char c)
 cputcxy: {
     // gotoxy(x, y)
-    // [1112] gotoxy::x#0 = cputcxy::x#13 -- vbum1=vbum2 
+    // [1359] gotoxy::x#0 = cputcxy::x#16 -- vbum1=vbum2 
     lda x
     sta gotoxy.x
-    // [1113] gotoxy::y#0 = cputcxy::y#13 -- vbum1=vbum2 
+    // [1360] gotoxy::y#0 = cputcxy::y#16 -- vbum1=vbum2 
     lda y
     sta gotoxy.y
-    // [1114] call gotoxy
-    // [435] phi from cputcxy to gotoxy [phi:cputcxy->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#0 [phi:cputcxy->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#0 [phi:cputcxy->gotoxy#1] -- register_copy 
+    // [1361] call gotoxy
+    // [454] phi from cputcxy to gotoxy [phi:cputcxy->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#0 [phi:cputcxy->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#0 [phi:cputcxy->gotoxy#1] -- register_copy 
     jsr gotoxy
     // cputcxy::@1
     // cputc(c)
-    // [1115] stackpush(char) = cputcxy::c#13 -- _stackpushbyte_=vbum1 
+    // [1362] stackpush(char) = cputcxy::c#16 -- _stackpushbyte_=vbum1 
     lda c
     pha
-    // [1116] callexecute cputc  -- call_vprc1 
+    // [1363] callexecute cputc  -- call_vprc1 
     jsr cputc
     // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
     pla
     // cputcxy::@return
     // }
-    // [1118] return 
+    // [1365] return 
     rts
   .segment Data
     x: .byte 0
@@ -6628,41 +8260,43 @@ cputcxy: {
  * 
  * @param c Led color
  */
-// void display_smc_led(__zp($5f) char c)
+// void display_smc_led(__mem() char c)
 display_smc_led: {
-    .label c = $5f
     // display_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c, BLUE)
-    // [1120] display_chip_led::tc#0 = display_smc_led::c#2 -- vbuz1=vbuz2 
-    lda.z c
-    sta.z display_chip_led.tc
-    // [1121] call display_chip_led
-    // [1382] phi from display_smc_led to display_chip_led [phi:display_smc_led->display_chip_led]
-    // [1382] phi display_chip_led::w#7 = 5 [phi:display_smc_led->display_chip_led#0] -- vbuz1=vbuc1 
+    // [1367] display_chip_led::tc#0 = display_smc_led::c#2 -- vbum1=vbum2 
+    lda c
+    sta display_chip_led.tc
+    // [1368] call display_chip_led
+    // [1934] phi from display_smc_led to display_chip_led [phi:display_smc_led->display_chip_led]
+    // [1934] phi display_chip_led::w#7 = 5 [phi:display_smc_led->display_chip_led#0] -- vbum1=vbuc1 
     lda #5
-    sta.z display_chip_led.w
-    // [1382] phi display_chip_led::x#7 = 1+1 [phi:display_smc_led->display_chip_led#1] -- vbuz1=vbuc1 
+    sta display_chip_led.w
+    // [1934] phi display_chip_led::x#7 = 1+1 [phi:display_smc_led->display_chip_led#1] -- vbum1=vbuc1 
     lda #1+1
-    sta.z display_chip_led.x
-    // [1382] phi display_chip_led::tc#3 = display_chip_led::tc#0 [phi:display_smc_led->display_chip_led#2] -- register_copy 
+    sta display_chip_led.x
+    // [1934] phi display_chip_led::tc#3 = display_chip_led::tc#0 [phi:display_smc_led->display_chip_led#2] -- register_copy 
     jsr display_chip_led
     // display_smc_led::@1
     // display_info_led(INFO_X-2, INFO_Y, c, BLUE)
-    // [1122] display_info_led::tc#0 = display_smc_led::c#2
-    // [1123] call display_info_led
-    // [856] phi from display_smc_led::@1 to display_info_led [phi:display_smc_led::@1->display_info_led]
-    // [856] phi display_info_led::y#4 = $11 [phi:display_smc_led::@1->display_info_led#0] -- vbuz1=vbuc1 
+    // [1369] display_info_led::tc#0 = display_smc_led::c#2
+    // [1370] call display_info_led
+    // [1456] phi from display_smc_led::@1 to display_info_led [phi:display_smc_led::@1->display_info_led]
+    // [1456] phi display_info_led::y#4 = $11 [phi:display_smc_led::@1->display_info_led#0] -- vbum1=vbuc1 
     lda #$11
-    sta.z display_info_led.y
-    // [856] phi display_info_led::x#4 = 4-2 [phi:display_smc_led::@1->display_info_led#1] -- vbuz1=vbuc1 
+    sta display_info_led.y
+    // [1456] phi display_info_led::x#4 = 4-2 [phi:display_smc_led::@1->display_info_led#1] -- vbum1=vbuc1 
     lda #4-2
-    sta.z display_info_led.x
-    // [856] phi display_info_led::tc#4 = display_info_led::tc#0 [phi:display_smc_led::@1->display_info_led#2] -- register_copy 
+    sta display_info_led.x
+    // [1456] phi display_info_led::tc#4 = display_info_led::tc#0 [phi:display_smc_led::@1->display_info_led#2] -- register_copy 
     jsr display_info_led
     // display_smc_led::@return
     // }
-    // [1124] return 
+    // [1371] return 
     rts
+  .segment Data
+    c: .byte 0
 }
+.segment Code
   // display_print_chip
 /**
  * @brief Print a full chip.
@@ -6672,41 +8306,39 @@ display_smc_led: {
  * @param w Width
  * @param text Vertical text to be displayed in the chip, starting from the top.
  */
-// void display_print_chip(__zp($69) char x, char y, __zp($ae) char w, __zp($77) char *text)
+// void display_print_chip(__mem() char x, char y, __mem() char w, __zp($54) char *text)
 display_print_chip: {
     .label y = 3+2+1+1+1+1+1+1+1+1
-    .label text = $77
-    .label text_1 = $7b
-    .label x = $69
-    .label text_2 = $4e
-    .label text_3 = $61
-    .label text_4 = $43
-    .label text_5 = $63
-    .label text_6 = $5d
-    .label w = $ae
+    .label text = $54
+    .label text_1 = $44
+    .label text_2 = $34
+    .label text_3 = $56
+    .label text_4 = $3b
+    .label text_5 = $65
+    .label text_6 = $78
     // display_chip_line(x, y++, w, *text++)
-    // [1126] display_chip_line::x#0 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1127] display_chip_line::w#0 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1128] display_chip_line::c#0 = *display_print_chip::text#11 -- vbuz1=_deref_pbuz2 
+    // [1373] display_chip_line::x#0 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1374] display_chip_line::w#0 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1375] display_chip_line::c#0 = *display_print_chip::text#11 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_2),y
-    sta.z display_chip_line.c
-    // [1129] call display_chip_line
-    // [1400] phi from display_print_chip to display_chip_line [phi:display_print_chip->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#0 [phi:display_print_chip->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#0 [phi:display_print_chip->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = 3+2 [phi:display_print_chip->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1376] call display_chip_line
+    // [1952] phi from display_print_chip to display_chip_line [phi:display_print_chip->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#0 [phi:display_print_chip->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#0 [phi:display_print_chip->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = 3+2 [phi:display_print_chip->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#0 [phi:display_print_chip->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#0 [phi:display_print_chip->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@1
     // display_chip_line(x, y++, w, *text++);
-    // [1130] display_print_chip::text#0 = ++ display_print_chip::text#11 -- pbuz1=_inc_pbuz2 
+    // [1377] display_print_chip::text#0 = ++ display_print_chip::text#11 -- pbuz1=_inc_pbuz2 
     clc
     lda.z text_2
     adc #1
@@ -6715,28 +8347,28 @@ display_print_chip: {
     adc #0
     sta.z text+1
     // display_chip_line(x, y++, w, *text++)
-    // [1131] display_chip_line::x#1 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1132] display_chip_line::w#1 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1133] display_chip_line::c#1 = *display_print_chip::text#0 -- vbuz1=_deref_pbuz2 
+    // [1378] display_chip_line::x#1 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1379] display_chip_line::w#1 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1380] display_chip_line::c#1 = *display_print_chip::text#0 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text),y
-    sta.z display_chip_line.c
-    // [1134] call display_chip_line
-    // [1400] phi from display_print_chip::@1 to display_chip_line [phi:display_print_chip::@1->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#1 [phi:display_print_chip::@1->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#1 [phi:display_print_chip::@1->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++3+2 [phi:display_print_chip::@1->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1381] call display_chip_line
+    // [1952] phi from display_print_chip::@1 to display_chip_line [phi:display_print_chip::@1->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#1 [phi:display_print_chip::@1->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#1 [phi:display_print_chip::@1->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++3+2 [phi:display_print_chip::@1->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#1 [phi:display_print_chip::@1->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#1 [phi:display_print_chip::@1->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@2
     // display_chip_line(x, y++, w, *text++);
-    // [1135] display_print_chip::text#1 = ++ display_print_chip::text#0 -- pbuz1=_inc_pbuz2 
+    // [1382] display_print_chip::text#1 = ++ display_print_chip::text#0 -- pbuz1=_inc_pbuz2 
     clc
     lda.z text
     adc #1
@@ -6745,28 +8377,28 @@ display_print_chip: {
     adc #0
     sta.z text_1+1
     // display_chip_line(x, y++, w, *text++)
-    // [1136] display_chip_line::x#2 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1137] display_chip_line::w#2 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1138] display_chip_line::c#2 = *display_print_chip::text#1 -- vbuz1=_deref_pbuz2 
+    // [1383] display_chip_line::x#2 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1384] display_chip_line::w#2 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1385] display_chip_line::c#2 = *display_print_chip::text#1 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_1),y
-    sta.z display_chip_line.c
-    // [1139] call display_chip_line
-    // [1400] phi from display_print_chip::@2 to display_chip_line [phi:display_print_chip::@2->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#2 [phi:display_print_chip::@2->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#2 [phi:display_print_chip::@2->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++++3+2 [phi:display_print_chip::@2->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1386] call display_chip_line
+    // [1952] phi from display_print_chip::@2 to display_chip_line [phi:display_print_chip::@2->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#2 [phi:display_print_chip::@2->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#2 [phi:display_print_chip::@2->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++++3+2 [phi:display_print_chip::@2->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#2 [phi:display_print_chip::@2->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#2 [phi:display_print_chip::@2->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@3
     // display_chip_line(x, y++, w, *text++);
-    // [1140] display_print_chip::text#15 = ++ display_print_chip::text#1 -- pbuz1=_inc_pbuz2 
+    // [1387] display_print_chip::text#15 = ++ display_print_chip::text#1 -- pbuz1=_inc_pbuz2 
     clc
     lda.z text_1
     adc #1
@@ -6775,28 +8407,28 @@ display_print_chip: {
     adc #0
     sta.z text_3+1
     // display_chip_line(x, y++, w, *text++)
-    // [1141] display_chip_line::x#3 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1142] display_chip_line::w#3 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1143] display_chip_line::c#3 = *display_print_chip::text#15 -- vbuz1=_deref_pbuz2 
+    // [1388] display_chip_line::x#3 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1389] display_chip_line::w#3 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1390] display_chip_line::c#3 = *display_print_chip::text#15 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_3),y
-    sta.z display_chip_line.c
-    // [1144] call display_chip_line
-    // [1400] phi from display_print_chip::@3 to display_chip_line [phi:display_print_chip::@3->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#3 [phi:display_print_chip::@3->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#3 [phi:display_print_chip::@3->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++++++3+2 [phi:display_print_chip::@3->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1391] call display_chip_line
+    // [1952] phi from display_print_chip::@3 to display_chip_line [phi:display_print_chip::@3->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#3 [phi:display_print_chip::@3->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#3 [phi:display_print_chip::@3->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++++++3+2 [phi:display_print_chip::@3->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1+1+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#3 [phi:display_print_chip::@3->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#3 [phi:display_print_chip::@3->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@4
     // display_chip_line(x, y++, w, *text++);
-    // [1145] display_print_chip::text#16 = ++ display_print_chip::text#15 -- pbuz1=_inc_pbuz2 
+    // [1392] display_print_chip::text#16 = ++ display_print_chip::text#15 -- pbuz1=_inc_pbuz2 
     clc
     lda.z text_3
     adc #1
@@ -6805,28 +8437,28 @@ display_print_chip: {
     adc #0
     sta.z text_4+1
     // display_chip_line(x, y++, w, *text++)
-    // [1146] display_chip_line::x#4 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1147] display_chip_line::w#4 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1148] display_chip_line::c#4 = *display_print_chip::text#16 -- vbuz1=_deref_pbuz2 
+    // [1393] display_chip_line::x#4 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1394] display_chip_line::w#4 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1395] display_chip_line::c#4 = *display_print_chip::text#16 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_4),y
-    sta.z display_chip_line.c
-    // [1149] call display_chip_line
-    // [1400] phi from display_print_chip::@4 to display_chip_line [phi:display_print_chip::@4->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#4 [phi:display_print_chip::@4->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#4 [phi:display_print_chip::@4->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++++++++3+2 [phi:display_print_chip::@4->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1396] call display_chip_line
+    // [1952] phi from display_print_chip::@4 to display_chip_line [phi:display_print_chip::@4->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#4 [phi:display_print_chip::@4->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#4 [phi:display_print_chip::@4->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++++++++3+2 [phi:display_print_chip::@4->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1+1+1+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#4 [phi:display_print_chip::@4->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#4 [phi:display_print_chip::@4->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@5
     // display_chip_line(x, y++, w, *text++);
-    // [1150] display_print_chip::text#17 = ++ display_print_chip::text#16 -- pbuz1=_inc_pbuz2 
+    // [1397] display_print_chip::text#17 = ++ display_print_chip::text#16 -- pbuz1=_inc_pbuz2 
     clc
     lda.z text_4
     adc #1
@@ -6835,28 +8467,28 @@ display_print_chip: {
     adc #0
     sta.z text_5+1
     // display_chip_line(x, y++, w, *text++)
-    // [1151] display_chip_line::x#5 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1152] display_chip_line::w#5 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1153] display_chip_line::c#5 = *display_print_chip::text#17 -- vbuz1=_deref_pbuz2 
+    // [1398] display_chip_line::x#5 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1399] display_chip_line::w#5 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1400] display_chip_line::c#5 = *display_print_chip::text#17 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_5),y
-    sta.z display_chip_line.c
-    // [1154] call display_chip_line
-    // [1400] phi from display_print_chip::@5 to display_chip_line [phi:display_print_chip::@5->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#5 [phi:display_print_chip::@5->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#5 [phi:display_print_chip::@5->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++++++++++3+2 [phi:display_print_chip::@5->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1401] call display_chip_line
+    // [1952] phi from display_print_chip::@5 to display_chip_line [phi:display_print_chip::@5->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#5 [phi:display_print_chip::@5->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#5 [phi:display_print_chip::@5->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++++++++++3+2 [phi:display_print_chip::@5->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1+1+1+1+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#5 [phi:display_print_chip::@5->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#5 [phi:display_print_chip::@5->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@6
     // display_chip_line(x, y++, w, *text++);
-    // [1155] display_print_chip::text#18 = ++ display_print_chip::text#17 -- pbuz1=_inc_pbuz2 
+    // [1402] display_print_chip::text#18 = ++ display_print_chip::text#17 -- pbuz1=_inc_pbuz2 
     clc
     lda.z text_5
     adc #1
@@ -6865,135 +8497,141 @@ display_print_chip: {
     adc #0
     sta.z text_6+1
     // display_chip_line(x, y++, w, *text++)
-    // [1156] display_chip_line::x#6 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1157] display_chip_line::w#6 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1158] display_chip_line::c#6 = *display_print_chip::text#18 -- vbuz1=_deref_pbuz2 
+    // [1403] display_chip_line::x#6 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1404] display_chip_line::w#6 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1405] display_chip_line::c#6 = *display_print_chip::text#18 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_6),y
-    sta.z display_chip_line.c
-    // [1159] call display_chip_line
-    // [1400] phi from display_print_chip::@6 to display_chip_line [phi:display_print_chip::@6->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#6 [phi:display_print_chip::@6->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#6 [phi:display_print_chip::@6->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++++++++++++3+2 [phi:display_print_chip::@6->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1406] call display_chip_line
+    // [1952] phi from display_print_chip::@6 to display_chip_line [phi:display_print_chip::@6->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#6 [phi:display_print_chip::@6->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#6 [phi:display_print_chip::@6->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++++++++++++3+2 [phi:display_print_chip::@6->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1+1+1+1+1+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#6 [phi:display_print_chip::@6->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#6 [phi:display_print_chip::@6->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@7
     // display_chip_line(x, y++, w, *text++);
-    // [1160] display_print_chip::text#19 = ++ display_print_chip::text#18 -- pbuz1=_inc_pbuz1 
+    // [1407] display_print_chip::text#19 = ++ display_print_chip::text#18 -- pbuz1=_inc_pbuz1 
     inc.z text_6
     bne !+
     inc.z text_6+1
   !:
     // display_chip_line(x, y++, w, *text++)
-    // [1161] display_chip_line::x#7 = display_print_chip::x#10 -- vbuz1=vbuz2 
-    lda.z x
-    sta.z display_chip_line.x
-    // [1162] display_chip_line::w#7 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_line.w
-    // [1163] display_chip_line::c#7 = *display_print_chip::text#19 -- vbuz1=_deref_pbuz2 
+    // [1408] display_chip_line::x#7 = display_print_chip::x#10 -- vbum1=vbum2 
+    lda x
+    sta display_chip_line.x
+    // [1409] display_chip_line::w#7 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_line.w
+    // [1410] display_chip_line::c#7 = *display_print_chip::text#19 -- vbum1=_deref_pbuz2 
     ldy #0
     lda (text_6),y
-    sta.z display_chip_line.c
-    // [1164] call display_chip_line
-    // [1400] phi from display_print_chip::@7 to display_chip_line [phi:display_print_chip::@7->display_chip_line]
-    // [1400] phi display_chip_line::c#15 = display_chip_line::c#7 [phi:display_print_chip::@7->display_chip_line#0] -- register_copy 
-    // [1400] phi display_chip_line::w#10 = display_chip_line::w#7 [phi:display_print_chip::@7->display_chip_line#1] -- register_copy 
-    // [1400] phi display_chip_line::y#16 = ++++++++++++++3+2 [phi:display_print_chip::@7->display_chip_line#2] -- vbuz1=vbuc1 
+    sta display_chip_line.c
+    // [1411] call display_chip_line
+    // [1952] phi from display_print_chip::@7 to display_chip_line [phi:display_print_chip::@7->display_chip_line]
+    // [1952] phi display_chip_line::c#15 = display_chip_line::c#7 [phi:display_print_chip::@7->display_chip_line#0] -- register_copy 
+    // [1952] phi display_chip_line::w#10 = display_chip_line::w#7 [phi:display_print_chip::@7->display_chip_line#1] -- register_copy 
+    // [1952] phi display_chip_line::y#16 = ++++++++++++++3+2 [phi:display_print_chip::@7->display_chip_line#2] -- vbum1=vbuc1 
     lda #3+2+1+1+1+1+1+1+1
-    sta.z display_chip_line.y
-    // [1400] phi display_chip_line::x#16 = display_chip_line::x#7 [phi:display_print_chip::@7->display_chip_line#3] -- register_copy 
+    sta display_chip_line.y
+    // [1952] phi display_chip_line::x#16 = display_chip_line::x#7 [phi:display_print_chip::@7->display_chip_line#3] -- register_copy 
     jsr display_chip_line
     // display_print_chip::@8
     // display_chip_end(x, y++, w)
-    // [1165] display_chip_end::x#0 = display_print_chip::x#10
-    // [1166] display_chip_end::w#0 = display_print_chip::w#10 -- vbuz1=vbuz2 
-    lda.z w
-    sta.z display_chip_end.w
-    // [1167] call display_chip_end
+    // [1412] display_chip_end::x#0 = display_print_chip::x#10
+    // [1413] display_chip_end::w#0 = display_print_chip::w#10 -- vbum1=vbum2 
+    lda w
+    sta display_chip_end.w
+    // [1414] call display_chip_end
     jsr display_chip_end
     // display_print_chip::@return
     // }
-    // [1168] return 
+    // [1415] return 
     rts
+  .segment Data
+    x: .byte 0
+    w: .byte 0
 }
+.segment Code
   // display_vera_led
 /**
  * @brief Print VERA led above the VERA chip.
  * 
  * @param c Led color
  */
-// void display_vera_led(__zp($af) char c)
+// void display_vera_led(__mem() char c)
 display_vera_led: {
-    .label c = $af
     // display_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c, BLUE)
-    // [1170] display_chip_led::tc#1 = display_vera_led::c#2 -- vbuz1=vbuz2 
-    lda.z c
-    sta.z display_chip_led.tc
-    // [1171] call display_chip_led
-    // [1382] phi from display_vera_led to display_chip_led [phi:display_vera_led->display_chip_led]
-    // [1382] phi display_chip_led::w#7 = 8 [phi:display_vera_led->display_chip_led#0] -- vbuz1=vbuc1 
+    // [1417] display_chip_led::tc#1 = display_vera_led::c#2 -- vbum1=vbum2 
+    lda c
+    sta display_chip_led.tc
+    // [1418] call display_chip_led
+    // [1934] phi from display_vera_led to display_chip_led [phi:display_vera_led->display_chip_led]
+    // [1934] phi display_chip_led::w#7 = 8 [phi:display_vera_led->display_chip_led#0] -- vbum1=vbuc1 
     lda #8
-    sta.z display_chip_led.w
-    // [1382] phi display_chip_led::x#7 = 9+1 [phi:display_vera_led->display_chip_led#1] -- vbuz1=vbuc1 
+    sta display_chip_led.w
+    // [1934] phi display_chip_led::x#7 = 9+1 [phi:display_vera_led->display_chip_led#1] -- vbum1=vbuc1 
     lda #9+1
-    sta.z display_chip_led.x
-    // [1382] phi display_chip_led::tc#3 = display_chip_led::tc#1 [phi:display_vera_led->display_chip_led#2] -- register_copy 
+    sta display_chip_led.x
+    // [1934] phi display_chip_led::tc#3 = display_chip_led::tc#1 [phi:display_vera_led->display_chip_led#2] -- register_copy 
     jsr display_chip_led
     // display_vera_led::@1
     // display_info_led(INFO_X-2, INFO_Y+1, c, BLUE)
-    // [1172] display_info_led::tc#1 = display_vera_led::c#2 -- vbuz1=vbuz2 
-    lda.z c
-    sta.z display_info_led.tc
-    // [1173] call display_info_led
-    // [856] phi from display_vera_led::@1 to display_info_led [phi:display_vera_led::@1->display_info_led]
-    // [856] phi display_info_led::y#4 = $11+1 [phi:display_vera_led::@1->display_info_led#0] -- vbuz1=vbuc1 
+    // [1419] display_info_led::tc#1 = display_vera_led::c#2 -- vbum1=vbum2 
+    lda c
+    sta display_info_led.tc
+    // [1420] call display_info_led
+    // [1456] phi from display_vera_led::@1 to display_info_led [phi:display_vera_led::@1->display_info_led]
+    // [1456] phi display_info_led::y#4 = $11+1 [phi:display_vera_led::@1->display_info_led#0] -- vbum1=vbuc1 
     lda #$11+1
-    sta.z display_info_led.y
-    // [856] phi display_info_led::x#4 = 4-2 [phi:display_vera_led::@1->display_info_led#1] -- vbuz1=vbuc1 
+    sta display_info_led.y
+    // [1456] phi display_info_led::x#4 = 4-2 [phi:display_vera_led::@1->display_info_led#1] -- vbum1=vbuc1 
     lda #4-2
-    sta.z display_info_led.x
-    // [856] phi display_info_led::tc#4 = display_info_led::tc#1 [phi:display_vera_led::@1->display_info_led#2] -- register_copy 
+    sta display_info_led.x
+    // [1456] phi display_info_led::tc#4 = display_info_led::tc#1 [phi:display_vera_led::@1->display_info_led#2] -- register_copy 
     jsr display_info_led
     // display_vera_led::@return
     // }
-    // [1174] return 
+    // [1421] return 
     rts
+  .segment Data
+    c: .byte 0
 }
+.segment Code
   // strcat
 // Concatenates the C string pointed by source into the array pointed by destination, including the terminating null character (and stopping at that point).
-// char * strcat(char *destination, __zp($3c) char *source)
+// char * strcat(char *destination, __zp($5a) char *source)
 strcat: {
     .label strcat__0 = $48
     .label dst = $48
-    .label src = $3c
-    .label source = $3c
+    .label src = $5a
+    .label source = $5a
     // strlen(destination)
-    // [1176] call strlen
-    // [1368] phi from strcat to strlen [phi:strcat->strlen]
-    // [1368] phi strlen::str#6 = display_chip_rom::rom [phi:strcat->strlen#0] -- pbuz1=pbuc1 
+    // [1423] call strlen
+    // [1920] phi from strcat to strlen [phi:strcat->strlen]
+    // [1920] phi strlen::str#8 = display_chip_rom::rom [phi:strcat->strlen#0] -- pbuz1=pbuc1 
     lda #<display_chip_rom.rom
     sta.z strlen.str
     lda #>display_chip_rom.rom
     sta.z strlen.str+1
     jsr strlen
     // strlen(destination)
-    // [1177] strlen::return#0 = strlen::len#2
+    // [1424] strlen::return#0 = strlen::len#2
     // strcat::@4
-    // [1178] strcat::$0 = strlen::return#0 -- vwuz1=vwum2 
+    // [1425] strcat::$0 = strlen::return#0 -- vwuz1=vwum2 
     lda strlen.return
     sta.z strcat__0
     lda strlen.return+1
     sta.z strcat__0+1
     // char* dst = destination + strlen(destination)
-    // [1179] strcat::dst#0 = display_chip_rom::rom + strcat::$0 -- pbuz1=pbuc1_plus_vwuz1 
+    // [1426] strcat::dst#0 = display_chip_rom::rom + strcat::$0 -- pbuz1=pbuc1_plus_vwuz1 
     lda.z dst
     clc
     adc #<display_chip_rom.rom
@@ -7001,41 +8639,41 @@ strcat: {
     lda.z dst+1
     adc #>display_chip_rom.rom
     sta.z dst+1
-    // [1180] phi from strcat::@2 strcat::@4 to strcat::@1 [phi:strcat::@2/strcat::@4->strcat::@1]
-    // [1180] phi strcat::dst#2 = strcat::dst#1 [phi:strcat::@2/strcat::@4->strcat::@1#0] -- register_copy 
-    // [1180] phi strcat::src#2 = strcat::src#1 [phi:strcat::@2/strcat::@4->strcat::@1#1] -- register_copy 
+    // [1427] phi from strcat::@2 strcat::@4 to strcat::@1 [phi:strcat::@2/strcat::@4->strcat::@1]
+    // [1427] phi strcat::dst#2 = strcat::dst#1 [phi:strcat::@2/strcat::@4->strcat::@1#0] -- register_copy 
+    // [1427] phi strcat::src#2 = strcat::src#1 [phi:strcat::@2/strcat::@4->strcat::@1#1] -- register_copy 
     // strcat::@1
   __b1:
     // while(*src)
-    // [1181] if(0!=*strcat::src#2) goto strcat::@2 -- 0_neq__deref_pbuz1_then_la1 
+    // [1428] if(0!=*strcat::src#2) goto strcat::@2 -- 0_neq__deref_pbuz1_then_la1 
     ldy #0
     lda (src),y
     cmp #0
     bne __b2
     // strcat::@3
     // *dst = 0
-    // [1182] *strcat::dst#2 = 0 -- _deref_pbuz1=vbuc1 
+    // [1429] *strcat::dst#2 = 0 -- _deref_pbuz1=vbuc1 
     tya
     tay
     sta (dst),y
     // strcat::@return
     // }
-    // [1183] return 
+    // [1430] return 
     rts
     // strcat::@2
   __b2:
     // *dst++ = *src++
-    // [1184] *strcat::dst#2 = *strcat::src#2 -- _deref_pbuz1=_deref_pbuz2 
+    // [1431] *strcat::dst#2 = *strcat::src#2 -- _deref_pbuz1=_deref_pbuz2 
     ldy #0
     lda (src),y
     sta (dst),y
     // *dst++ = *src++;
-    // [1185] strcat::dst#1 = ++ strcat::dst#2 -- pbuz1=_inc_pbuz1 
+    // [1432] strcat::dst#1 = ++ strcat::dst#2 -- pbuz1=_inc_pbuz1 
     inc.z dst
     bne !+
     inc.z dst+1
   !:
-    // [1186] strcat::src#1 = ++ strcat::src#2 -- pbuz1=_inc_pbuz1 
+    // [1433] strcat::src#1 = ++ strcat::src#2 -- pbuz1=_inc_pbuz1 
     inc.z src
     bne !+
     inc.z src+1
@@ -7049,122 +8687,4354 @@ strcat: {
  * @param chip ROM chip number (0 is main rom chip of CX16)
  * @param c Led color
  */
-// void display_rom_led(__zp($79) char chip, __zp($aa) char c)
+// void display_rom_led(__mem() char chip, __mem() char c)
 display_rom_led: {
-    .label display_rom_led__0 = $42
-    .label chip = $79
-    .label c = $aa
-    .label display_rom_led__7 = $42
-    .label display_rom_led__8 = $42
+    .label display_rom_led__0 = $41
+    .label display_rom_led__7 = $41
+    .label display_rom_led__8 = $41
     // chip*6
-    // [1188] display_rom_led::$7 = display_rom_led::chip#2 << 1 -- vbuz1=vbuz2_rol_1 
-    lda.z chip
+    // [1435] display_rom_led::$7 = display_rom_led::chip#2 << 1 -- vbuz1=vbum2_rol_1 
+    lda chip
     asl
     sta.z display_rom_led__7
-    // [1189] display_rom_led::$8 = display_rom_led::$7 + display_rom_led::chip#2 -- vbuz1=vbuz1_plus_vbuz2 
-    lda.z display_rom_led__8
+    // [1436] display_rom_led::$8 = display_rom_led::$7 + display_rom_led::chip#2 -- vbuz1=vbuz1_plus_vbum2 
+    lda chip
     clc
-    adc.z chip
+    adc.z display_rom_led__8
     sta.z display_rom_led__8
     // CHIP_ROM_X+chip*6
-    // [1190] display_rom_led::$0 = display_rom_led::$8 << 1 -- vbuz1=vbuz1_rol_1 
+    // [1437] display_rom_led::$0 = display_rom_led::$8 << 1 -- vbuz1=vbuz1_rol_1 
     asl.z display_rom_led__0
     // display_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c, BLUE)
-    // [1191] display_chip_led::x#3 = display_rom_led::$0 + $14+1 -- vbuz1=vbuz1_plus_vbuc1 
+    // [1438] display_chip_led::x#3 = display_rom_led::$0 + $14+1 -- vbum1=vbuz2_plus_vbuc1 
     lda #$14+1
     clc
-    adc.z display_chip_led.x
-    sta.z display_chip_led.x
-    // [1192] display_chip_led::tc#2 = display_rom_led::c#2 -- vbuz1=vbuz2 
-    lda.z c
-    sta.z display_chip_led.tc
-    // [1193] call display_chip_led
-    // [1382] phi from display_rom_led to display_chip_led [phi:display_rom_led->display_chip_led]
-    // [1382] phi display_chip_led::w#7 = 3 [phi:display_rom_led->display_chip_led#0] -- vbuz1=vbuc1 
+    adc.z display_rom_led__0
+    sta display_chip_led.x
+    // [1439] display_chip_led::tc#2 = display_rom_led::c#2 -- vbum1=vbum2 
+    lda c
+    sta display_chip_led.tc
+    // [1440] call display_chip_led
+    // [1934] phi from display_rom_led to display_chip_led [phi:display_rom_led->display_chip_led]
+    // [1934] phi display_chip_led::w#7 = 3 [phi:display_rom_led->display_chip_led#0] -- vbum1=vbuc1 
     lda #3
-    sta.z display_chip_led.w
-    // [1382] phi display_chip_led::x#7 = display_chip_led::x#3 [phi:display_rom_led->display_chip_led#1] -- register_copy 
-    // [1382] phi display_chip_led::tc#3 = display_chip_led::tc#2 [phi:display_rom_led->display_chip_led#2] -- register_copy 
+    sta display_chip_led.w
+    // [1934] phi display_chip_led::x#7 = display_chip_led::x#3 [phi:display_rom_led->display_chip_led#1] -- register_copy 
+    // [1934] phi display_chip_led::tc#3 = display_chip_led::tc#2 [phi:display_rom_led->display_chip_led#2] -- register_copy 
     jsr display_chip_led
     // display_rom_led::@1
     // display_info_led(INFO_X-2, INFO_Y+chip+2, c, BLUE)
-    // [1194] display_info_led::y#2 = display_rom_led::chip#2 + $11+2 -- vbuz1=vbuz2_plus_vbuc1 
+    // [1441] display_info_led::y#2 = display_rom_led::chip#2 + $11+2 -- vbum1=vbum2_plus_vbuc1 
     lda #$11+2
     clc
-    adc.z chip
-    sta.z display_info_led.y
-    // [1195] display_info_led::tc#2 = display_rom_led::c#2 -- vbuz1=vbuz2 
-    lda.z c
-    sta.z display_info_led.tc
-    // [1196] call display_info_led
-    // [856] phi from display_rom_led::@1 to display_info_led [phi:display_rom_led::@1->display_info_led]
-    // [856] phi display_info_led::y#4 = display_info_led::y#2 [phi:display_rom_led::@1->display_info_led#0] -- register_copy 
-    // [856] phi display_info_led::x#4 = 4-2 [phi:display_rom_led::@1->display_info_led#1] -- vbuz1=vbuc1 
+    adc chip
+    sta display_info_led.y
+    // [1442] display_info_led::tc#2 = display_rom_led::c#2 -- vbum1=vbum2 
+    lda c
+    sta display_info_led.tc
+    // [1443] call display_info_led
+    // [1456] phi from display_rom_led::@1 to display_info_led [phi:display_rom_led::@1->display_info_led]
+    // [1456] phi display_info_led::y#4 = display_info_led::y#2 [phi:display_rom_led::@1->display_info_led#0] -- register_copy 
+    // [1456] phi display_info_led::x#4 = 4-2 [phi:display_rom_led::@1->display_info_led#1] -- vbum1=vbuc1 
     lda #4-2
-    sta.z display_info_led.x
-    // [856] phi display_info_led::tc#4 = display_info_led::tc#2 [phi:display_rom_led::@1->display_info_led#2] -- register_copy 
+    sta display_info_led.x
+    // [1456] phi display_info_led::tc#4 = display_info_led::tc#2 [phi:display_rom_led::@1->display_info_led#2] -- register_copy 
     jsr display_info_led
     // display_rom_led::@return
     // }
-    // [1197] return 
+    // [1444] return 
     rts
+  .segment Data
+    chip: .byte 0
+    c: .byte 0
 }
+.segment Code
   // printf_uint
 // Print an unsigned int using a specific format
-// void printf_uint(void (*putc)(char), unsigned int uvalue, char format_min_length, char format_justify_left, char format_sign_always, char format_zero_padding, char format_upper_case, char format_radix)
+// void printf_uint(__zp($37) void (*putc)(char), __mem() unsigned int uvalue, __mem() char format_min_length, char format_justify_left, char format_sign_always, __mem() char format_zero_padding, char format_upper_case, __mem() char format_radix)
 printf_uint: {
-    .const format_min_length = 0
-    .const format_justify_left = 0
-    .const format_zero_padding = 0
-    .const format_upper_case = 0
-    .label putc = cputc
+    .label putc = $37
     // printf_uint::@1
     // printf_buffer.sign = format.sign_always?'+':0
-    // [1199] *((char *)&printf_buffer) = 0 -- _deref_pbuc1=vbuc2 
+    // [1446] *((char *)&printf_buffer) = 0 -- _deref_pbuc1=vbuc2 
     // Handle any sign
     lda #0
     sta printf_buffer
     // utoa(uvalue, printf_buffer.digits, format.radix)
-    // [1200] call utoa
-  // Format number into buffer
-    // [1461] phi from printf_uint::@1 to utoa [phi:printf_uint::@1->utoa]
+    // [1447] utoa::value#1 = printf_uint::uvalue#6
+    // [1448] utoa::radix#0 = printf_uint::format_radix#10
+    // [1449] call utoa
+    // Format number into buffer
     jsr utoa
     // printf_uint::@2
     // printf_number_buffer(putc, printf_buffer, format)
-    // [1201] printf_number_buffer::buffer_sign#0 = *((char *)&printf_buffer) -- vbum1=_deref_pbuc1 
+    // [1450] printf_number_buffer::putc#1 = printf_uint::putc#10
+    // [1451] printf_number_buffer::buffer_sign#1 = *((char *)&printf_buffer) -- vbum1=_deref_pbuc1 
     lda printf_buffer
     sta printf_number_buffer.buffer_sign
-    // [1202] call printf_number_buffer
+    // [1452] printf_number_buffer::format_min_length#1 = printf_uint::format_min_length#10
+    // [1453] printf_number_buffer::format_zero_padding#1 = printf_uint::format_zero_padding#10
+    // [1454] call printf_number_buffer
   // Print using format
-    // [1248] phi from printf_uint::@2 to printf_number_buffer [phi:printf_uint::@2->printf_number_buffer]
-    // [1248] phi printf_number_buffer::format_upper_case#10 = printf_uint::format_upper_case#0 [phi:printf_uint::@2->printf_number_buffer#0] -- vbum1=vbuc1 
-    lda #format_upper_case
-    sta printf_number_buffer.format_upper_case
-    // [1248] phi printf_number_buffer::putc#10 = printf_uint::putc#0 [phi:printf_uint::@2->printf_number_buffer#1] -- pprz1=pprc1 
-    lda #<putc
-    sta.z printf_number_buffer.putc
-    lda #>putc
-    sta.z printf_number_buffer.putc+1
-    // [1248] phi printf_number_buffer::buffer_sign#10 = printf_number_buffer::buffer_sign#0 [phi:printf_uint::@2->printf_number_buffer#2] -- register_copy 
-    // [1248] phi printf_number_buffer::format_zero_padding#10 = printf_uint::format_zero_padding#0 [phi:printf_uint::@2->printf_number_buffer#3] -- vbum1=vbuc1 
-    lda #format_zero_padding
-    sta printf_number_buffer.format_zero_padding
-    // [1248] phi printf_number_buffer::format_justify_left#10 = printf_uint::format_justify_left#0 [phi:printf_uint::@2->printf_number_buffer#4] -- vbum1=vbuc1 
-    lda #format_justify_left
-    sta printf_number_buffer.format_justify_left
-    // [1248] phi printf_number_buffer::format_min_length#2 = printf_uint::format_min_length#0 [phi:printf_uint::@2->printf_number_buffer#5] -- vbum1=vbuc1 
-    lda #format_min_length
-    sta printf_number_buffer.format_min_length
+    // [1628] phi from printf_uint::@2 to printf_number_buffer [phi:printf_uint::@2->printf_number_buffer]
+    // [1628] phi printf_number_buffer::putc#10 = printf_number_buffer::putc#1 [phi:printf_uint::@2->printf_number_buffer#0] -- register_copy 
+    // [1628] phi printf_number_buffer::buffer_sign#10 = printf_number_buffer::buffer_sign#1 [phi:printf_uint::@2->printf_number_buffer#1] -- register_copy 
+    // [1628] phi printf_number_buffer::format_zero_padding#10 = printf_number_buffer::format_zero_padding#1 [phi:printf_uint::@2->printf_number_buffer#2] -- register_copy 
+    // [1628] phi printf_number_buffer::format_min_length#3 = printf_number_buffer::format_min_length#1 [phi:printf_uint::@2->printf_number_buffer#3] -- register_copy 
     jsr printf_number_buffer
     // printf_uint::@return
     // }
-    // [1203] return 
+    // [1455] return 
+    rts
+  .segment Data
+    uvalue: .word 0
+    format_radix: .byte 0
+    .label format_min_length = printf_uchar.format_min_length
+    .label format_zero_padding = printf_uchar.format_zero_padding
+}
+.segment Code
+  // display_info_led
+/**
+ * @brief Print the colored led of an info line in the info frame.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param tc Fore color
+ * @param bc Back color
+ */
+// void display_info_led(__mem() char x, __mem() char y, __mem() char tc, char bc)
+display_info_led: {
+    // textcolor(tc)
+    // [1457] textcolor::color#13 = display_info_led::tc#4 -- vbum1=vbum2 
+    lda tc
+    sta textcolor.color
+    // [1458] call textcolor
+    // [436] phi from display_info_led to textcolor [phi:display_info_led->textcolor]
+    // [436] phi textcolor::color#21 = textcolor::color#13 [phi:display_info_led->textcolor#0] -- register_copy 
+    jsr textcolor
+    // [1459] phi from display_info_led to display_info_led::@1 [phi:display_info_led->display_info_led::@1]
+    // display_info_led::@1
+    // bgcolor(bc)
+    // [1460] call bgcolor
+    // [441] phi from display_info_led::@1 to bgcolor [phi:display_info_led::@1->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_info_led::@1->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // display_info_led::@2
+    // cputcxy(x, y, VERA_CHR_UR)
+    // [1461] cputcxy::x#14 = display_info_led::x#4
+    // [1462] cputcxy::y#14 = display_info_led::y#4
+    // [1463] call cputcxy
+    // [1358] phi from display_info_led::@2 to cputcxy [phi:display_info_led::@2->cputcxy]
+    // [1358] phi cputcxy::c#16 = $7c [phi:display_info_led::@2->cputcxy#0] -- vbum1=vbuc1 
+    lda #$7c
+    sta cputcxy.c
+    // [1358] phi cputcxy::y#16 = cputcxy::y#14 [phi:display_info_led::@2->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#14 [phi:display_info_led::@2->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // [1464] phi from display_info_led::@2 to display_info_led::@3 [phi:display_info_led::@2->display_info_led::@3]
+    // display_info_led::@3
+    // textcolor(WHITE)
+    // [1465] call textcolor
+    // [436] phi from display_info_led::@3 to textcolor [phi:display_info_led::@3->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_info_led::@3->textcolor#0] -- vbum1=vbuc1 
+    lda #WHITE
+    sta textcolor.color
+    jsr textcolor
+    // display_info_led::@return
+    // }
+    // [1466] return 
+    rts
+  .segment Data
+    .label tc = display_smc_led.c
+    .label y = cputcxy.y
+    .label x = cputcxy.x
+}
+.segment Code
+  // vera_detect
+vera_detect: {
+    // spi_get_jedec()
+    // [1468] call spi_get_jedec
+  // This conditional compilation ensures that only the detection interpretation happens if it is switched on.
+    // [2043] phi from vera_detect to spi_get_jedec [phi:vera_detect->spi_get_jedec]
+    jsr spi_get_jedec
+    // vera_detect::@return
+    // }
+    // [1469] return 
     rts
 }
+  // vera_read
+// __mem() unsigned long vera_read(__mem() char info_status)
+vera_read: {
+    .const bank_set_brom1_bank = 0
+    .label fp = $70
+    .label ram_address = $6c
+    .label vera_action_text = $58
+    // vera_read::bank_set_bram1
+    // BRAM = bank
+    // [1471] BRAM = 0 -- vbuz1=vbuc1 
+    lda #0
+    sta.z BRAM
+    // vera_read::bank_set_brom1
+    // BROM = bank
+    // [1472] BROM = vera_read::bank_set_brom1_bank#0 -- vbuz1=vbuc1 
+    lda #bank_set_brom1_bank
+    sta.z BROM
+    // vera_read::@15
+    // if(info_status == STATUS_READING)
+    // [1473] if(vera_read::info_status#10==STATUS_READING) goto vera_read::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #STATUS_READING
+    cmp info_status
+    beq __b1
+    // [1475] phi from vera_read::@15 to vera_read::@2 [phi:vera_read::@15->vera_read::@2]
+    // [1475] phi vera_read::vera_action_text#12 = vera_read::vera_action_text#2 [phi:vera_read::@15->vera_read::@2#0] -- pbuz1=pbuc1 
+    lda #<vera_action_text_2
+    sta.z vera_action_text
+    lda #>vera_action_text_2
+    sta.z vera_action_text+1
+    jmp __b2
+    // [1474] phi from vera_read::@15 to vera_read::@1 [phi:vera_read::@15->vera_read::@1]
+    // vera_read::@1
+  __b1:
+    // [1475] phi from vera_read::@1 to vera_read::@2 [phi:vera_read::@1->vera_read::@2]
+    // [1475] phi vera_read::vera_action_text#12 = vera_read::vera_action_text#1 [phi:vera_read::@1->vera_read::@2#0] -- pbuz1=pbuc1 
+    lda #<vera_action_text_1
+    sta.z vera_action_text
+    lda #>vera_action_text_1
+    sta.z vera_action_text+1
+    // vera_read::@2
+  __b2:
+    // display_action_text("Opening VERA.BIN from SD card ...")
+    // [1476] call display_action_text
+    // [846] phi from vera_read::@2 to display_action_text [phi:vera_read::@2->display_action_text]
+    // [846] phi display_action_text::info_text#19 = vera_read::info_text [phi:vera_read::@2->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_action_text.info_text
+    lda #>info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [1477] phi from vera_read::@2 to vera_read::@17 [phi:vera_read::@2->vera_read::@17]
+    // vera_read::@17
+    // FILE *fp = fopen("VERA.BIN", "r")
+    // [1478] call fopen
+    jsr fopen
+    // [1479] fopen::return#3 = fopen::return#2
+    // vera_read::@18
+    // [1480] vera_read::fp#0 = fopen::return#3 -- pssz1=pssz2 
+    lda.z fopen.return
+    sta.z fp
+    lda.z fopen.return+1
+    sta.z fp+1
+    // if (fp)
+    // [1481] if((struct $2 *)0==vera_read::fp#0) goto vera_read::@3 -- pssc1_eq_pssz1_then_la1 
+    lda.z fp
+    cmp #<0
+    bne !+
+    lda.z fp+1
+    cmp #>0
+    beq __b4
+  !:
+    // [1482] phi from vera_read::@18 to vera_read::@4 [phi:vera_read::@18->vera_read::@4]
+    // vera_read::@4
+    // gotoxy(x, y)
+    // [1483] call gotoxy
+    // [454] phi from vera_read::@4 to gotoxy [phi:vera_read::@4->gotoxy]
+    // [454] phi gotoxy::y#27 = PROGRESS_Y [phi:vera_read::@4->gotoxy#0] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = PROGRESS_X [phi:vera_read::@4->gotoxy#1] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta gotoxy.x
+    jsr gotoxy
+    // [1484] phi from vera_read::@4 to vera_read::@5 [phi:vera_read::@4->vera_read::@5]
+    // [1484] phi vera_read::y#12 = PROGRESS_Y [phi:vera_read::@4->vera_read::@5#0] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta y
+    // [1484] phi vera_read::progress_row_current#10 = 0 [phi:vera_read::@4->vera_read::@5#1] -- vwum1=vwuc1 
+    lda #<0
+    sta progress_row_current
+    sta progress_row_current+1
+    // [1484] phi vera_read::ram_address#10 = (char *)$7800 [phi:vera_read::@4->vera_read::@5#2] -- pbuz1=pbuc1 
+    lda #<$7800
+    sta.z ram_address
+    lda #>$7800
+    sta.z ram_address+1
+    // [1484] phi vera_read::bram_bank#10 = 0 [phi:vera_read::@4->vera_read::@5#3] -- vbum1=vbuc1 
+    lda #0
+    sta bram_bank
+    // [1484] phi vera_read::vera_file_size#11 = 0 [phi:vera_read::@4->vera_read::@5#4] -- vdum1=vduc1 
+    sta vera_file_size
+    sta vera_file_size+1
+    lda #<0>>$10
+    sta vera_file_size+2
+    lda #>0>>$10
+    sta vera_file_size+3
+    // vera_read::@5
+  __b5:
+    // while (vera_file_size < vera_size)
+    // [1485] if(vera_read::vera_file_size#11<vera_size) goto vera_read::@6 -- vdum1_lt_vduc1_then_la1 
+    lda vera_file_size+3
+    cmp #>vera_size>>$10
+    bcc __b6
+    bne !+
+    lda vera_file_size+2
+    cmp #<vera_size>>$10
+    bcc __b6
+    bne !+
+    lda vera_file_size+1
+    cmp #>vera_size
+    bcc __b6
+    bne !+
+    lda vera_file_size
+    cmp #<vera_size
+    bcc __b6
+  !:
+    // vera_read::@8
+  __b8:
+    // fclose(fp)
+    // [1486] fclose::stream#0 = vera_read::fp#0
+    // [1487] call fclose
+    jsr fclose
+    // [1488] phi from vera_read::@8 to vera_read::@3 [phi:vera_read::@8->vera_read::@3]
+    // [1488] phi __stdio_filecount#26 = __stdio_filecount#2 [phi:vera_read::@8->vera_read::@3#0] -- register_copy 
+    // [1488] phi vera_read::return#0 = vera_read::vera_file_size#11 [phi:vera_read::@8->vera_read::@3#1] -- register_copy 
+    rts
+    // [1488] phi from vera_read::@18 to vera_read::@3 [phi:vera_read::@18->vera_read::@3]
+  __b4:
+    // [1488] phi __stdio_filecount#26 = __stdio_filecount#1 [phi:vera_read::@18->vera_read::@3#0] -- register_copy 
+    // [1488] phi vera_read::return#0 = 0 [phi:vera_read::@18->vera_read::@3#1] -- vdum1=vduc1 
+    lda #<0
+    sta return
+    sta return+1
+    lda #<0>>$10
+    sta return+2
+    lda #>0>>$10
+    sta return+3
+    // vera_read::@3
+    // vera_read::@return
+    // }
+    // [1489] return 
+    rts
+    // [1490] phi from vera_read::@5 to vera_read::@6 [phi:vera_read::@5->vera_read::@6]
+    // vera_read::@6
+  __b6:
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1491] call snprintf_init
+    jsr snprintf_init
+    // vera_read::@19
+    // [1492] printf_string::str#0 = vera_read::vera_action_text#12 -- pbuz1=pbuz2 
+    lda.z vera_action_text
+    sta.z printf_string.str
+    lda.z vera_action_text+1
+    sta.z printf_string.str+1
+    // [1493] call printf_string
+    // [1320] phi from vera_read::@19 to printf_string [phi:vera_read::@19->printf_string]
+    // [1320] phi printf_string::putc#15 = &snputc [phi:vera_read::@19->printf_string#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_string.putc
+    lda #>snputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = printf_string::str#0 [phi:vera_read::@19->printf_string#1] -- register_copy 
+    // [1320] phi printf_string::format_justify_left#15 = 0 [phi:vera_read::@19->printf_string#2] -- vbum1=vbuc1 
+    lda #0
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 0 [phi:vera_read::@19->printf_string#3] -- vbum1=vbuc1 
+    sta printf_string.format_min_length
+    jsr printf_string
+    // [1494] phi from vera_read::@19 to vera_read::@20 [phi:vera_read::@19->vera_read::@20]
+    // vera_read::@20
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1495] call printf_str
+    // [785] phi from vera_read::@20 to printf_str [phi:vera_read::@20->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_read::@20->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s [phi:vera_read::@20->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [1496] phi from vera_read::@20 to vera_read::@21 [phi:vera_read::@20->vera_read::@21]
+    // vera_read::@21
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1497] call printf_string
+    // [1320] phi from vera_read::@21 to printf_string [phi:vera_read::@21->printf_string]
+    // [1320] phi printf_string::putc#15 = &snputc [phi:vera_read::@21->printf_string#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_string.putc
+    lda #>snputc
+    sta.z printf_string.putc+1
+    // [1320] phi printf_string::str#15 = file [phi:vera_read::@21->printf_string#1] -- pbuz1=pbuc1 
+    lda #<file
+    sta.z printf_string.str
+    lda #>file
+    sta.z printf_string.str+1
+    // [1320] phi printf_string::format_justify_left#15 = 0 [phi:vera_read::@21->printf_string#2] -- vbum1=vbuc1 
+    lda #0
+    sta printf_string.format_justify_left
+    // [1320] phi printf_string::format_min_length#15 = 0 [phi:vera_read::@21->printf_string#3] -- vbum1=vbuc1 
+    sta printf_string.format_min_length
+    jsr printf_string
+    // [1498] phi from vera_read::@21 to vera_read::@22 [phi:vera_read::@21->vera_read::@22]
+    // vera_read::@22
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1499] call printf_str
+    // [785] phi from vera_read::@22 to printf_str [phi:vera_read::@22->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_read::@22->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s1 [phi:vera_read::@22->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_read::@23
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1500] printf_ulong::uvalue#0 = vera_read::vera_file_size#11 -- vdum1=vdum2 
+    lda vera_file_size
+    sta printf_ulong.uvalue
+    lda vera_file_size+1
+    sta printf_ulong.uvalue+1
+    lda vera_file_size+2
+    sta printf_ulong.uvalue+2
+    lda vera_file_size+3
+    sta printf_ulong.uvalue+3
+    // [1501] call printf_ulong
+    // [1720] phi from vera_read::@23 to printf_ulong [phi:vera_read::@23->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:vera_read::@23->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:vera_read::@23->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#0 [phi:vera_read::@23->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // [1502] phi from vera_read::@23 to vera_read::@24 [phi:vera_read::@23->vera_read::@24]
+    // vera_read::@24
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1503] call printf_str
+    // [785] phi from vera_read::@24 to printf_str [phi:vera_read::@24->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_read::@24->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s4 [phi:vera_read::@24->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s4
+    sta.z printf_str.s
+    lda #>s4
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [1504] phi from vera_read::@24 to vera_read::@25 [phi:vera_read::@24->vera_read::@25]
+    // vera_read::@25
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1505] call printf_ulong
+    // [1720] phi from vera_read::@25 to printf_ulong [phi:vera_read::@25->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:vera_read::@25->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:vera_read::@25->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = vera_size [phi:vera_read::@25->printf_ulong#2] -- vdum1=vduc1 
+    lda #<vera_size
+    sta printf_ulong.uvalue
+    lda #>vera_size
+    sta printf_ulong.uvalue+1
+    lda #<vera_size>>$10
+    sta printf_ulong.uvalue+2
+    lda #>vera_size>>$10
+    sta printf_ulong.uvalue+3
+    jsr printf_ulong
+    // [1506] phi from vera_read::@25 to vera_read::@26 [phi:vera_read::@25->vera_read::@26]
+    // vera_read::@26
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1507] call printf_str
+    // [785] phi from vera_read::@26 to printf_str [phi:vera_read::@26->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_read::@26->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_read::s3 [phi:vera_read::@26->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s3
+    sta.z printf_str.s
+    lda #>s3
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_read::@27
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1508] printf_uchar::uvalue#3 = vera_read::bram_bank#10 -- vbum1=vbum2 
+    lda bram_bank
+    sta printf_uchar.uvalue
+    // [1509] call printf_uchar
+    // [835] phi from vera_read::@27 to printf_uchar [phi:vera_read::@27->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:vera_read::@27->printf_uchar#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 2 [phi:vera_read::@27->printf_uchar#1] -- vbum1=vbuc1 
+    lda #2
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:vera_read::@27->printf_uchar#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uchar.putc
+    lda #>snputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:vera_read::@27->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#3 [phi:vera_read::@27->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // [1510] phi from vera_read::@27 to vera_read::@28 [phi:vera_read::@27->vera_read::@28]
+    // vera_read::@28
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1511] call printf_str
+    // [785] phi from vera_read::@28 to printf_str [phi:vera_read::@28->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_read::@28->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s1 [phi:vera_read::@28->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_read::@29
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1512] printf_uint::uvalue#2 = (unsigned int)vera_read::ram_address#10 -- vwum1=vwuz2 
+    lda.z ram_address
+    sta printf_uint.uvalue
+    lda.z ram_address+1
+    sta printf_uint.uvalue+1
+    // [1513] call printf_uint
+    // [1445] phi from vera_read::@29 to printf_uint [phi:vera_read::@29->printf_uint]
+    // [1445] phi printf_uint::format_zero_padding#10 = 1 [phi:vera_read::@29->printf_uint#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uint.format_zero_padding
+    // [1445] phi printf_uint::format_min_length#10 = 4 [phi:vera_read::@29->printf_uint#1] -- vbum1=vbuc1 
+    lda #4
+    sta printf_uint.format_min_length
+    // [1445] phi printf_uint::putc#10 = &snputc [phi:vera_read::@29->printf_uint#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uint.putc
+    lda #>snputc
+    sta.z printf_uint.putc+1
+    // [1445] phi printf_uint::format_radix#10 = HEXADECIMAL [phi:vera_read::@29->printf_uint#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uint.format_radix
+    // [1445] phi printf_uint::uvalue#6 = printf_uint::uvalue#2 [phi:vera_read::@29->printf_uint#4] -- register_copy 
+    jsr printf_uint
+    // [1514] phi from vera_read::@29 to vera_read::@30 [phi:vera_read::@29->vera_read::@30]
+    // vera_read::@30
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1515] call printf_str
+    // [785] phi from vera_read::@30 to printf_str [phi:vera_read::@30->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_read::@30->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_read::s5 [phi:vera_read::@30->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s5
+    sta.z printf_str.s
+    lda #>s5
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_read::@31
+    // sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, bram_bank, ram_address)
+    // [1516] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [1517] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_text(info_text)
+    // [1519] call display_action_text
+    // [846] phi from vera_read::@31 to display_action_text [phi:vera_read::@31->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:vera_read::@31->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_action_text.info_text
+    lda #>@info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // vera_read::bank_set_bram2
+    // BRAM = bank
+    // [1520] BRAM = vera_read::bram_bank#10 -- vbuz1=vbum2 
+    lda bram_bank
+    sta.z BRAM
+    // vera_read::@16
+    // unsigned int vera_package_read = fgets(ram_address, VERA_PROGRESS_CELL, fp)
+    // [1521] fgets::ptr#2 = vera_read::ram_address#10 -- pbuz1=pbuz2 
+    lda.z ram_address
+    sta.z fgets.ptr
+    lda.z ram_address+1
+    sta.z fgets.ptr+1
+    // [1522] fgets::stream#0 = vera_read::fp#0
+    // [1523] call fgets
+    jsr fgets
+    // [1524] fgets::return#5 = fgets::return#1
+    // vera_read::@32
+    // [1525] vera_read::vera_package_read#0 = fgets::return#5
+    // if (!vera_package_read)
+    // [1526] if(0!=vera_read::vera_package_read#0) goto vera_read::@7 -- 0_neq_vwum1_then_la1 
+    lda vera_package_read
+    ora vera_package_read+1
+    bne __b7
+    jmp __b8
+    // vera_read::@7
+  __b7:
+    // if (progress_row_current == VERA_PROGRESS_ROW)
+    // [1527] if(vera_read::progress_row_current#10!=VERA_PROGRESS_ROW) goto vera_read::@9 -- vwum1_neq_vwuc1_then_la1 
+    lda progress_row_current+1
+    cmp #>VERA_PROGRESS_ROW
+    bne __b9
+    lda progress_row_current
+    cmp #<VERA_PROGRESS_ROW
+    bne __b9
+    // vera_read::@12
+    // gotoxy(x, ++y);
+    // [1528] vera_read::y#1 = ++ vera_read::y#12 -- vbum1=_inc_vbum1 
+    inc y
+    // gotoxy(x, ++y)
+    // [1529] gotoxy::y#7 = vera_read::y#1 -- vbum1=vbum2 
+    lda y
+    sta gotoxy.y
+    // [1530] call gotoxy
+    // [454] phi from vera_read::@12 to gotoxy [phi:vera_read::@12->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#7 [phi:vera_read::@12->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = PROGRESS_X [phi:vera_read::@12->gotoxy#1] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta gotoxy.x
+    jsr gotoxy
+    // [1531] phi from vera_read::@12 to vera_read::@9 [phi:vera_read::@12->vera_read::@9]
+    // [1531] phi vera_read::y#33 = vera_read::y#1 [phi:vera_read::@12->vera_read::@9#0] -- register_copy 
+    // [1531] phi vera_read::progress_row_current#4 = 0 [phi:vera_read::@12->vera_read::@9#1] -- vwum1=vbuc1 
+    lda #<0
+    sta progress_row_current
+    sta progress_row_current+1
+    // [1531] phi from vera_read::@7 to vera_read::@9 [phi:vera_read::@7->vera_read::@9]
+    // [1531] phi vera_read::y#33 = vera_read::y#12 [phi:vera_read::@7->vera_read::@9#0] -- register_copy 
+    // [1531] phi vera_read::progress_row_current#4 = vera_read::progress_row_current#10 [phi:vera_read::@7->vera_read::@9#1] -- register_copy 
+    // vera_read::@9
+  __b9:
+    // if(info_status == STATUS_READING)
+    // [1532] if(vera_read::info_status#10!=STATUS_READING) goto vera_read::@10 -- vbum1_neq_vbuc1_then_la1 
+    lda #STATUS_READING
+    cmp info_status
+    bne __b10
+    // vera_read::@13
+    // cputc('.')
+    // [1533] stackpush(char) = '.' -- _stackpushbyte_=vbuc1 
+    lda #'.'
+    pha
+    // [1534] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // vera_read::@10
+  __b10:
+    // ram_address += vera_package_read
+    // [1536] vera_read::ram_address#1 = vera_read::ram_address#10 + vera_read::vera_package_read#0 -- pbuz1=pbuz1_plus_vwum2 
+    clc
+    lda.z ram_address
+    adc vera_package_read
+    sta.z ram_address
+    lda.z ram_address+1
+    adc vera_package_read+1
+    sta.z ram_address+1
+    // vera_file_size += vera_package_read
+    // [1537] vera_read::vera_file_size#1 = vera_read::vera_file_size#11 + vera_read::vera_package_read#0 -- vdum1=vdum1_plus_vwum2 
+    lda vera_file_size
+    clc
+    adc vera_package_read
+    sta vera_file_size
+    lda vera_file_size+1
+    adc vera_package_read+1
+    sta vera_file_size+1
+    lda vera_file_size+2
+    adc #0
+    sta vera_file_size+2
+    lda vera_file_size+3
+    adc #0
+    sta vera_file_size+3
+    // progress_row_current += vera_package_read
+    // [1538] vera_read::progress_row_current#2 = vera_read::progress_row_current#4 + vera_read::vera_package_read#0 -- vwum1=vwum1_plus_vwum2 
+    clc
+    lda progress_row_current
+    adc vera_package_read
+    sta progress_row_current
+    lda progress_row_current+1
+    adc vera_package_read+1
+    sta progress_row_current+1
+    // if (ram_address == (ram_ptr_t)BRAM_HIGH)
+    // [1539] if(vera_read::ram_address#1!=(char *)$c000) goto vera_read::@11 -- pbuz1_neq_pbuc1_then_la1 
+    lda.z ram_address+1
+    cmp #>$c000
+    bne __b11
+    lda.z ram_address
+    cmp #<$c000
+    bne __b11
+    // vera_read::@14
+    // bram_bank++;
+    // [1540] vera_read::bram_bank#1 = ++ vera_read::bram_bank#10 -- vbum1=_inc_vbum1 
+    inc bram_bank
+    // [1541] phi from vera_read::@14 to vera_read::@11 [phi:vera_read::@14->vera_read::@11]
+    // [1541] phi vera_read::bram_bank#29 = vera_read::bram_bank#1 [phi:vera_read::@14->vera_read::@11#0] -- register_copy 
+    // [1541] phi vera_read::ram_address#7 = (char *)$a000 [phi:vera_read::@14->vera_read::@11#1] -- pbuz1=pbuc1 
+    lda #<$a000
+    sta.z ram_address
+    lda #>$a000
+    sta.z ram_address+1
+    // [1541] phi from vera_read::@10 to vera_read::@11 [phi:vera_read::@10->vera_read::@11]
+    // [1541] phi vera_read::bram_bank#29 = vera_read::bram_bank#10 [phi:vera_read::@10->vera_read::@11#0] -- register_copy 
+    // [1541] phi vera_read::ram_address#7 = vera_read::ram_address#1 [phi:vera_read::@10->vera_read::@11#1] -- register_copy 
+    // vera_read::@11
+  __b11:
+    // if (ram_address == (ram_ptr_t)RAM_HIGH)
+    // [1542] if(vera_read::ram_address#7!=(char *)$9800) goto vera_read::@33 -- pbuz1_neq_pbuc1_then_la1 
+    lda.z ram_address+1
+    cmp #>$9800
+    beq !__b5+
+    jmp __b5
+  !__b5:
+    lda.z ram_address
+    cmp #<$9800
+    beq !__b5+
+    jmp __b5
+  !__b5:
+    // [1484] phi from vera_read::@11 to vera_read::@5 [phi:vera_read::@11->vera_read::@5]
+    // [1484] phi vera_read::y#12 = vera_read::y#33 [phi:vera_read::@11->vera_read::@5#0] -- register_copy 
+    // [1484] phi vera_read::progress_row_current#10 = vera_read::progress_row_current#2 [phi:vera_read::@11->vera_read::@5#1] -- register_copy 
+    // [1484] phi vera_read::ram_address#10 = (char *)$a000 [phi:vera_read::@11->vera_read::@5#2] -- pbuz1=pbuc1 
+    lda #<$a000
+    sta.z ram_address
+    lda #>$a000
+    sta.z ram_address+1
+    // [1484] phi vera_read::bram_bank#10 = 1 [phi:vera_read::@11->vera_read::@5#3] -- vbum1=vbuc1 
+    lda #1
+    sta bram_bank
+    // [1484] phi vera_read::vera_file_size#11 = vera_read::vera_file_size#1 [phi:vera_read::@11->vera_read::@5#4] -- register_copy 
+    jmp __b5
+    // [1543] phi from vera_read::@11 to vera_read::@33 [phi:vera_read::@11->vera_read::@33]
+    // vera_read::@33
+    // [1484] phi from vera_read::@33 to vera_read::@5 [phi:vera_read::@33->vera_read::@5]
+    // [1484] phi vera_read::y#12 = vera_read::y#33 [phi:vera_read::@33->vera_read::@5#0] -- register_copy 
+    // [1484] phi vera_read::progress_row_current#10 = vera_read::progress_row_current#2 [phi:vera_read::@33->vera_read::@5#1] -- register_copy 
+    // [1484] phi vera_read::ram_address#10 = vera_read::ram_address#7 [phi:vera_read::@33->vera_read::@5#2] -- register_copy 
+    // [1484] phi vera_read::bram_bank#10 = vera_read::bram_bank#29 [phi:vera_read::@33->vera_read::@5#3] -- register_copy 
+    // [1484] phi vera_read::vera_file_size#11 = vera_read::vera_file_size#1 [phi:vera_read::@33->vera_read::@5#4] -- register_copy 
+  .segment Data
+    info_text: .text "Opening VERA.BIN from SD card ..."
+    .byte 0
+    path: .text "VERA.BIN"
+    .byte 0
+    s3: .text " -> RAM:"
+    .byte 0
+    s5: .text " ..."
+    .byte 0
+    vera_action_text_1: .text "Reading"
+    .byte 0
+    vera_action_text_2: .text "Checking"
+    .byte 0
+    return: .dword 0
+    .label vera_package_read = fgets.read
+    y: .byte 0
+    .label vera_file_size = return
+    progress_row_current: .word 0
+    bram_bank: .byte 0
+    info_status: .byte 0
+}
+.segment Code
+  // vera_preamable_SPI
+vera_preamable_SPI: {
+    // Display the header until the preamable has been found.
+    .label vera_file_preamable_byte = $6e
+    // unsigned long vera_boundary = vera_file_size
+    // [1544] vera_preamable_SPI::vera_boundary#0 = vera_file_size#1 -- vdum1=vdum2 
+    lda vera_file_size
+    sta vera_boundary
+    lda vera_file_size+1
+    sta vera_boundary+1
+    lda vera_file_size+2
+    sta vera_boundary+2
+    lda vera_file_size+3
+    sta vera_boundary+3
+    // gotoxy(x, y)
+    // [1545] call gotoxy
+    // [454] phi from vera_preamable_SPI to gotoxy [phi:vera_preamable_SPI->gotoxy]
+    // [454] phi gotoxy::y#27 = PROGRESS_Y [phi:vera_preamable_SPI->gotoxy#0] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = PROGRESS_X [phi:vera_preamable_SPI->gotoxy#1] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta gotoxy.x
+    jsr gotoxy
+    // vera_preamable_SPI::@13
+    // if(*vera_file_preamable_byte == 0xFF)
+    // [1546] if(*((char *)$7800)==$ff) goto vera_preamable_SPI::@1 -- _deref_pbuc1_eq_vbuc2_then_la1 
+    lda #$ff
+    cmp $7800
+    beq __b1
+    // vera_preamable_SPI::@return
+  __breturn:
+    // }
+    // [1547] return 
+    rts
+    // [1548] phi from vera_preamable_SPI::@13 to vera_preamable_SPI::@1 [phi:vera_preamable_SPI::@13->vera_preamable_SPI::@1]
+    // vera_preamable_SPI::@1
+  __b1:
+    // sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte)
+    // [1549] call snprintf_init
+    jsr snprintf_init
+    // [1550] phi from vera_preamable_SPI::@1 to vera_preamable_SPI::@14 [phi:vera_preamable_SPI::@1->vera_preamable_SPI::@14]
+    // vera_preamable_SPI::@14
+    // sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte)
+    // [1551] call printf_str
+    // [785] phi from vera_preamable_SPI::@14 to printf_str [phi:vera_preamable_SPI::@14->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_preamable_SPI::@14->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_preamable_SPI::s [phi:vera_preamable_SPI::@14->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // [1552] phi from vera_preamable_SPI::@14 to vera_preamable_SPI::@15 [phi:vera_preamable_SPI::@14->vera_preamable_SPI::@15]
+    // vera_preamable_SPI::@15
+    // sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte)
+    // [1553] call printf_uint
+    // [1445] phi from vera_preamable_SPI::@15 to printf_uint [phi:vera_preamable_SPI::@15->printf_uint]
+    // [1445] phi printf_uint::format_zero_padding#10 = 0 [phi:vera_preamable_SPI::@15->printf_uint#0] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uint.format_zero_padding
+    // [1445] phi printf_uint::format_min_length#10 = 0 [phi:vera_preamable_SPI::@15->printf_uint#1] -- vbum1=vbuc1 
+    sta printf_uint.format_min_length
+    // [1445] phi printf_uint::putc#10 = &snputc [phi:vera_preamable_SPI::@15->printf_uint#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uint.putc
+    lda #>snputc
+    sta.z printf_uint.putc+1
+    // [1445] phi printf_uint::format_radix#10 = DECIMAL [phi:vera_preamable_SPI::@15->printf_uint#3] -- vbum1=vbuc1 
+    lda #DECIMAL
+    sta printf_uint.format_radix
+    // [1445] phi printf_uint::uvalue#6 = 0 [phi:vera_preamable_SPI::@15->printf_uint#4] -- vwum1=vwuc1 
+    lda #<0
+    sta printf_uint.uvalue
+    sta printf_uint.uvalue+1
+    jsr printf_uint
+    // [1554] phi from vera_preamable_SPI::@15 to vera_preamable_SPI::@16 [phi:vera_preamable_SPI::@15->vera_preamable_SPI::@16]
+    // vera_preamable_SPI::@16
+    // sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte)
+    // [1555] call printf_str
+    // [785] phi from vera_preamable_SPI::@16 to printf_str [phi:vera_preamable_SPI::@16->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_preamable_SPI::@16->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_preamable_SPI::s1 [phi:vera_preamable_SPI::@16->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_preamable_SPI::@17
+    // sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte)
+    // [1556] printf_uchar::uvalue#0 = *((char *)$7800) -- vbum1=_deref_pbuc1 
+    lda $7800
+    sta printf_uchar.uvalue
+    // [1557] call printf_uchar
+    // [835] phi from vera_preamable_SPI::@17 to printf_uchar [phi:vera_preamable_SPI::@17->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 0 [phi:vera_preamable_SPI::@17->printf_uchar#0] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:vera_preamable_SPI::@17->printf_uchar#1] -- vbum1=vbuc1 
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:vera_preamable_SPI::@17->printf_uchar#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uchar.putc
+    lda #>snputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:vera_preamable_SPI::@17->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#0 [phi:vera_preamable_SPI::@17->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // vera_preamable_SPI::@18
+    // sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte)
+    // [1558] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [1559] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_text(info_text)
+    // [1561] call display_action_text
+    // [846] phi from vera_preamable_SPI::@18 to display_action_text [phi:vera_preamable_SPI::@18->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:vera_preamable_SPI::@18->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_action_text.info_text
+    lda #>info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [1562] phi from vera_preamable_SPI::@18 to vera_preamable_SPI::@2 [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2]
+    // [1562] phi vera_preamable_SPI::x#10 = PROGRESS_X [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2#0] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta x
+    // [1562] phi vera_preamable_SPI::y#10 = PROGRESS_Y [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2#1] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta y
+    // [1562] phi vera_preamable_SPI::vera_file_preamable_pos#10 = 0 [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2#2] -- vbum1=vbuc1 
+    lda #0
+    sta vera_file_preamable_pos
+    // [1562] phi vera_preamable_SPI::vera_file_pos#3 = 0 [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2#3] -- vwum1=vwuc1 
+    sta vera_file_pos
+    sta vera_file_pos+1
+    // [1562] phi vera_preamable_SPI::vera_file_preamable_byte#11 = (char *)$7800 [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2#4] -- pbuz1=pbuc1 
+    lda #<$7800
+    sta.z vera_file_preamable_byte
+    lda #>$7800
+    sta.z vera_file_preamable_byte+1
+    // [1562] phi vera_preamable_SPI::vera_address#2 = 0 [phi:vera_preamable_SPI::@18->vera_preamable_SPI::@2#5] -- vdum1=vduc1 
+    lda #<0
+    sta vera_address
+    sta vera_address+1
+    lda #<0>>$10
+    sta vera_address+2
+    lda #>0>>$10
+    sta vera_address+3
+    // vera_preamable_SPI::@2
+  __b2:
+    // while(vera_address <= vera_boundary)
+    // [1563] if(vera_preamable_SPI::vera_address#2<=vera_preamable_SPI::vera_boundary#0) goto vera_preamable_SPI::@3 -- vdum1_le_vdum2_then_la1 
+    lda vera_boundary+3
+    cmp vera_address+3
+    bcc !+
+    bne __b3
+    lda vera_boundary+2
+    cmp vera_address+2
+    bcc !+
+    bne __b3
+    lda vera_boundary+1
+    cmp vera_address+1
+    bcc !+
+    bne __b3
+    lda vera_boundary
+    cmp vera_address
+    bcs __b3
+  !:
+    rts
+    // vera_preamable_SPI::@3
+  __b3:
+    // vera_file_preamable_byte++;
+    // [1564] vera_preamable_SPI::vera_file_preamable_byte#1 = ++ vera_preamable_SPI::vera_file_preamable_byte#11 -- pbuz1=_inc_pbuz1 
+    inc.z vera_file_preamable_byte
+    bne !+
+    inc.z vera_file_preamable_byte+1
+  !:
+    // vera_file_pos++;
+    // [1565] vera_preamable_SPI::vera_file_pos#1 = ++ vera_preamable_SPI::vera_file_pos#3 -- vwum1=_inc_vwum1 
+    inc vera_file_pos
+    bne !+
+    inc vera_file_pos+1
+  !:
+    // vera_address++;
+    // [1566] vera_preamable_SPI::vera_address#1 = ++ vera_preamable_SPI::vera_address#2 -- vdum1=_inc_vdum1 
+    inc vera_address
+    bne !+
+    inc vera_address+1
+    bne !+
+    inc vera_address+2
+    bne !+
+    inc vera_address+3
+  !:
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1567] call snprintf_init
+    jsr snprintf_init
+    // [1568] phi from vera_preamable_SPI::@3 to vera_preamable_SPI::@19 [phi:vera_preamable_SPI::@3->vera_preamable_SPI::@19]
+    // vera_preamable_SPI::@19
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1569] call printf_str
+    // [785] phi from vera_preamable_SPI::@19 to printf_str [phi:vera_preamable_SPI::@19->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_preamable_SPI::@19->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_preamable_SPI::s [phi:vera_preamable_SPI::@19->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_preamable_SPI::@20
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1570] printf_uint::uvalue#1 = vera_preamable_SPI::vera_file_pos#1 -- vwum1=vwum2 
+    lda vera_file_pos
+    sta printf_uint.uvalue
+    lda vera_file_pos+1
+    sta printf_uint.uvalue+1
+    // [1571] call printf_uint
+    // [1445] phi from vera_preamable_SPI::@20 to printf_uint [phi:vera_preamable_SPI::@20->printf_uint]
+    // [1445] phi printf_uint::format_zero_padding#10 = 0 [phi:vera_preamable_SPI::@20->printf_uint#0] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uint.format_zero_padding
+    // [1445] phi printf_uint::format_min_length#10 = 0 [phi:vera_preamable_SPI::@20->printf_uint#1] -- vbum1=vbuc1 
+    sta printf_uint.format_min_length
+    // [1445] phi printf_uint::putc#10 = &snputc [phi:vera_preamable_SPI::@20->printf_uint#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uint.putc
+    lda #>snputc
+    sta.z printf_uint.putc+1
+    // [1445] phi printf_uint::format_radix#10 = DECIMAL [phi:vera_preamable_SPI::@20->printf_uint#3] -- vbum1=vbuc1 
+    lda #DECIMAL
+    sta printf_uint.format_radix
+    // [1445] phi printf_uint::uvalue#6 = printf_uint::uvalue#1 [phi:vera_preamable_SPI::@20->printf_uint#4] -- register_copy 
+    jsr printf_uint
+    // [1572] phi from vera_preamable_SPI::@20 to vera_preamable_SPI::@21 [phi:vera_preamable_SPI::@20->vera_preamable_SPI::@21]
+    // vera_preamable_SPI::@21
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1573] call printf_str
+    // [785] phi from vera_preamable_SPI::@21 to printf_str [phi:vera_preamable_SPI::@21->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_preamable_SPI::@21->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_preamable_SPI::s1 [phi:vera_preamable_SPI::@21->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_preamable_SPI::@22
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1574] printf_uchar::uvalue#1 = vera_preamable_SPI::vera_file_preamable_pos#10 -- vbum1=vbum2 
+    lda vera_file_preamable_pos
+    sta printf_uchar.uvalue
+    // [1575] call printf_uchar
+    // [835] phi from vera_preamable_SPI::@22 to printf_uchar [phi:vera_preamable_SPI::@22->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 0 [phi:vera_preamable_SPI::@22->printf_uchar#0] -- vbum1=vbuc1 
+    lda #0
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:vera_preamable_SPI::@22->printf_uchar#1] -- vbum1=vbuc1 
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:vera_preamable_SPI::@22->printf_uchar#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uchar.putc
+    lda #>snputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = DECIMAL [phi:vera_preamable_SPI::@22->printf_uchar#3] -- vbum1=vbuc1 
+    lda #DECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#1 [phi:vera_preamable_SPI::@22->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // [1576] phi from vera_preamable_SPI::@22 to vera_preamable_SPI::@23 [phi:vera_preamable_SPI::@22->vera_preamable_SPI::@23]
+    // vera_preamable_SPI::@23
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1577] call printf_str
+    // [785] phi from vera_preamable_SPI::@23 to printf_str [phi:vera_preamable_SPI::@23->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_preamable_SPI::@23->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s4 [phi:vera_preamable_SPI::@23->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s4
+    sta.z printf_str.s
+    lda #>s4
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_preamable_SPI::@24
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1578] printf_uchar::uvalue#2 = *vera_preamable_SPI::vera_file_preamable_byte#1 -- vbum1=_deref_pbuz2 
+    ldy #0
+    lda (vera_file_preamable_byte),y
+    sta printf_uchar.uvalue
+    // [1579] call printf_uchar
+    // [835] phi from vera_preamable_SPI::@24 to printf_uchar [phi:vera_preamable_SPI::@24->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 0 [phi:vera_preamable_SPI::@24->printf_uchar#0] -- vbum1=vbuc1 
+    tya
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 0 [phi:vera_preamable_SPI::@24->printf_uchar#1] -- vbum1=vbuc1 
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:vera_preamable_SPI::@24->printf_uchar#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uchar.putc
+    lda #>snputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:vera_preamable_SPI::@24->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#2 [phi:vera_preamable_SPI::@24->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // vera_preamable_SPI::@25
+    // sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte)
+    // [1580] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [1581] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_text(info_text)
+    // [1583] call display_action_text
+    // [846] phi from vera_preamable_SPI::@25 to display_action_text [phi:vera_preamable_SPI::@25->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:vera_preamable_SPI::@25->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_action_text.info_text
+    lda #>info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // vera_preamable_SPI::@26
+    // if(vera_file_preamable_pos < 4 && *vera_file_preamable_byte == vera_file_preamable[vera_file_preamable_pos])
+    // [1584] if(vera_preamable_SPI::vera_file_preamable_pos#10>=4) goto vera_preamable_SPI::@8 -- vbum1_ge_vbuc1_then_la1 
+    lda vera_file_preamable_pos
+    cmp #4
+    bcs __b8
+    // vera_preamable_SPI::@27
+    // [1585] if(*vera_preamable_SPI::vera_file_preamable_byte#1==vera_preamable_SPI::vera_file_preamable[vera_preamable_SPI::vera_file_preamable_pos#10]) goto vera_preamable_SPI::@4 -- _deref_pbuz1_eq_pbuc1_derefidx_vbum2_then_la1 
+    tay
+    lda vera_file_preamable,y
+    ldy #0
+    cmp (vera_file_preamable_byte),y
+    beq __b4
+    // vera_preamable_SPI::@8
+  __b8:
+    // if(*vera_file_preamable_byte == vera_file_preamable[vera_file_preamable_pos])
+    // [1586] if(*vera_preamable_SPI::vera_file_preamable_byte#1!=*vera_preamable_SPI::vera_file_preamable) goto vera_preamable_SPI::@5 -- _deref_pbuz1_neq__deref_pbuc1_then_la1 
+    ldy #0
+    lda (vera_file_preamable_byte),y
+    cmp vera_file_preamable
+    bne __b9
+    // [1587] phi from vera_preamable_SPI::@8 to vera_preamable_SPI::@9 [phi:vera_preamable_SPI::@8->vera_preamable_SPI::@9]
+    // vera_preamable_SPI::@9
+    // [1588] phi from vera_preamable_SPI::@9 to vera_preamable_SPI::@5 [phi:vera_preamable_SPI::@9->vera_preamable_SPI::@5]
+    // [1588] phi vera_preamable_SPI::vera_file_preamable_pos#17 = 1 [phi:vera_preamable_SPI::@9->vera_preamable_SPI::@5#0] -- vbum1=vbuc1 
+    lda #1
+    sta vera_file_preamable_pos
+    jmp __b5
+    // [1588] phi from vera_preamable_SPI::@8 to vera_preamable_SPI::@5 [phi:vera_preamable_SPI::@8->vera_preamable_SPI::@5]
+  __b9:
+    // [1588] phi vera_preamable_SPI::vera_file_preamable_pos#17 = 0 [phi:vera_preamable_SPI::@8->vera_preamable_SPI::@5#0] -- vbum1=vbuc1 
+    lda #0
+    sta vera_file_preamable_pos
+    // vera_preamable_SPI::@5
+  __b5:
+    // if(*vera_file_preamable_byte)
+    // [1589] if(0!=*vera_preamable_SPI::vera_file_preamable_byte#1) goto vera_preamable_SPI::@6 -- 0_neq__deref_pbuz1_then_la1 
+    ldy #0
+    lda (vera_file_preamable_byte),y
+    cmp #0
+    bne __b6
+    // vera_preamable_SPI::@11
+    // y++;
+    // [1590] vera_preamable_SPI::y#1 = ++ vera_preamable_SPI::y#10 -- vbum1=_inc_vbum1 
+    inc y
+    // [1562] phi from vera_preamable_SPI::@11 to vera_preamable_SPI::@2 [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2]
+    // [1562] phi vera_preamable_SPI::x#10 = PROGRESS_X [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2#0] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta x
+    // [1562] phi vera_preamable_SPI::y#10 = vera_preamable_SPI::y#1 [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2#1] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_file_preamable_pos#10 = vera_preamable_SPI::vera_file_preamable_pos#17 [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2#2] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_file_pos#3 = vera_preamable_SPI::vera_file_pos#1 [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2#3] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_file_preamable_byte#11 = vera_preamable_SPI::vera_file_preamable_byte#1 [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2#4] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_address#2 = vera_preamable_SPI::vera_address#1 [phi:vera_preamable_SPI::@11->vera_preamable_SPI::@2#5] -- register_copy 
+    jmp __b2
+    // vera_preamable_SPI::@6
+  __b6:
+    // if(*vera_file_preamable_byte >= 20 && *vera_file_preamable_byte <= 0x7F)
+    // [1591] if(*vera_preamable_SPI::vera_file_preamable_byte#1<$14) goto vera_preamable_SPI::@7 -- _deref_pbuz1_lt_vbuc1_then_la1 
+    ldy #0
+    lda (vera_file_preamable_byte),y
+    cmp #$14
+    bcc __b7
+    // vera_preamable_SPI::@28
+    // [1592] if(*vera_preamable_SPI::vera_file_preamable_byte#1<$7f+1) goto vera_preamable_SPI::@12 -- _deref_pbuz1_lt_vbuc1_then_la1 
+    lda (vera_file_preamable_byte),y
+    cmp #$7f+1
+    bcc __b12
+    jmp __b7
+    // vera_preamable_SPI::@12
+  __b12:
+    // cputcxy(x, y, *vera_file_preamable_byte)
+    // [1593] cputcxy::x#0 = vera_preamable_SPI::x#10 -- vbum1=vbum2 
+    lda x
+    sta cputcxy.x
+    // [1594] cputcxy::y#0 = vera_preamable_SPI::y#10 -- vbum1=vbum2 
+    lda y
+    sta cputcxy.y
+    // [1595] cputcxy::c#0 = *vera_preamable_SPI::vera_file_preamable_byte#1 -- vbum1=_deref_pbuz2 
+    ldy #0
+    lda (vera_file_preamable_byte),y
+    sta cputcxy.c
+    // [1596] call cputcxy
+    // [1358] phi from vera_preamable_SPI::@12 to cputcxy [phi:vera_preamable_SPI::@12->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#0 [phi:vera_preamable_SPI::@12->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#0 [phi:vera_preamable_SPI::@12->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#0 [phi:vera_preamable_SPI::@12->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // vera_preamable_SPI::@7
+  __b7:
+    // x++;
+    // [1597] vera_preamable_SPI::x#2 = ++ vera_preamable_SPI::x#10 -- vbum1=_inc_vbum1 
+    inc x
+    // [1562] phi from vera_preamable_SPI::@7 to vera_preamable_SPI::@2 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2]
+    // [1562] phi vera_preamable_SPI::x#10 = vera_preamable_SPI::x#2 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2#0] -- register_copy 
+    // [1562] phi vera_preamable_SPI::y#10 = vera_preamable_SPI::y#10 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2#1] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_file_preamable_pos#10 = vera_preamable_SPI::vera_file_preamable_pos#17 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2#2] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_file_pos#3 = vera_preamable_SPI::vera_file_pos#1 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2#3] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_file_preamable_byte#11 = vera_preamable_SPI::vera_file_preamable_byte#1 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2#4] -- register_copy 
+    // [1562] phi vera_preamable_SPI::vera_address#2 = vera_preamable_SPI::vera_address#1 [phi:vera_preamable_SPI::@7->vera_preamable_SPI::@2#5] -- register_copy 
+    jmp __b2
+    // vera_preamable_SPI::@4
+  __b4:
+    // if(vera_file_preamable_pos == 3)
+    // [1598] if(vera_preamable_SPI::vera_file_preamable_pos#10==3) goto vera_preamable_SPI::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #3
+    cmp vera_file_preamable_pos
+    bne !__breturn+
+    jmp __breturn
+  !__breturn:
+    // vera_preamable_SPI::@10
+    // vera_file_preamable_pos++;
+    // [1599] vera_preamable_SPI::vera_file_preamable_pos#3 = ++ vera_preamable_SPI::vera_file_preamable_pos#10 -- vbum1=_inc_vbum1 
+    inc vera_file_preamable_pos
+    // [1588] phi from vera_preamable_SPI::@10 to vera_preamable_SPI::@5 [phi:vera_preamable_SPI::@10->vera_preamable_SPI::@5]
+    // [1588] phi vera_preamable_SPI::vera_file_preamable_pos#17 = vera_preamable_SPI::vera_file_preamable_pos#3 [phi:vera_preamable_SPI::@10->vera_preamable_SPI::@5#0] -- register_copy 
+    jmp __b5
+  .segment Data
+    vera_file_preamable: .byte $7e, $aa, $99, $7e
+    s: .text "Premable byte "
+    .byte 0
+    s1: .text ": "
+    .byte 0
+    vera_boundary: .dword 0
+    vera_file_pos: .word 0
+    vera_address: .dword 0
+    vera_file_preamable_pos: .byte 0
+    y: .byte 0
+    x: .byte 0
+}
+.segment Code
+  // uctoa
+// Converts unsigned number value to a string representing it in RADIX format.
+// If the leading digits are zero they are not included in the string.
+// - value : The number to be converted to RADIX
+// - buffer : receives the string representing the number and zero-termination.
+// - radix : The radix to convert the number to (from the enum RADIX)
+// void uctoa(__mem() char value, __zp($34) char *buffer, __mem() char radix)
+uctoa: {
+    .label uctoa__4 = $41
+    .label buffer = $34
+    .label digit_values = $32
+    // if(radix==DECIMAL)
+    // [1600] if(uctoa::radix#0==DECIMAL) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #DECIMAL
+    cmp radix
+    beq __b2
+    // uctoa::@2
+    // if(radix==HEXADECIMAL)
+    // [1601] if(uctoa::radix#0==HEXADECIMAL) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #HEXADECIMAL
+    cmp radix
+    beq __b3
+    // uctoa::@3
+    // if(radix==OCTAL)
+    // [1602] if(uctoa::radix#0==OCTAL) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #OCTAL
+    cmp radix
+    beq __b4
+    // uctoa::@4
+    // if(radix==BINARY)
+    // [1603] if(uctoa::radix#0==BINARY) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #BINARY
+    cmp radix
+    beq __b5
+    // uctoa::@5
+    // *buffer++ = 'e'
+    // [1604] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS) = 'e' -- _deref_pbuc1=vbuc2 
+    // Unknown radix
+    lda #'e'
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    // *buffer++ = 'r'
+    // [1605] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+1) = 'r' -- _deref_pbuc1=vbuc2 
+    lda #'r'
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+1
+    // [1606] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+2) = 'r' -- _deref_pbuc1=vbuc2 
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+2
+    // *buffer = 0
+    // [1607] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+3) = 0 -- _deref_pbuc1=vbuc2 
+    lda #0
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+3
+    // uctoa::@return
+    // }
+    // [1608] return 
+    rts
+    // [1609] phi from uctoa to uctoa::@1 [phi:uctoa->uctoa::@1]
+  __b2:
+    // [1609] phi uctoa::digit_values#8 = RADIX_DECIMAL_VALUES_CHAR [phi:uctoa->uctoa::@1#0] -- pbuz1=pbuc1 
+    lda #<RADIX_DECIMAL_VALUES_CHAR
+    sta.z digit_values
+    lda #>RADIX_DECIMAL_VALUES_CHAR
+    sta.z digit_values+1
+    // [1609] phi uctoa::max_digits#7 = 3 [phi:uctoa->uctoa::@1#1] -- vbum1=vbuc1 
+    lda #3
+    sta max_digits
+    jmp __b1
+    // [1609] phi from uctoa::@2 to uctoa::@1 [phi:uctoa::@2->uctoa::@1]
+  __b3:
+    // [1609] phi uctoa::digit_values#8 = RADIX_HEXADECIMAL_VALUES_CHAR [phi:uctoa::@2->uctoa::@1#0] -- pbuz1=pbuc1 
+    lda #<RADIX_HEXADECIMAL_VALUES_CHAR
+    sta.z digit_values
+    lda #>RADIX_HEXADECIMAL_VALUES_CHAR
+    sta.z digit_values+1
+    // [1609] phi uctoa::max_digits#7 = 2 [phi:uctoa::@2->uctoa::@1#1] -- vbum1=vbuc1 
+    lda #2
+    sta max_digits
+    jmp __b1
+    // [1609] phi from uctoa::@3 to uctoa::@1 [phi:uctoa::@3->uctoa::@1]
+  __b4:
+    // [1609] phi uctoa::digit_values#8 = RADIX_OCTAL_VALUES_CHAR [phi:uctoa::@3->uctoa::@1#0] -- pbuz1=pbuc1 
+    lda #<RADIX_OCTAL_VALUES_CHAR
+    sta.z digit_values
+    lda #>RADIX_OCTAL_VALUES_CHAR
+    sta.z digit_values+1
+    // [1609] phi uctoa::max_digits#7 = 3 [phi:uctoa::@3->uctoa::@1#1] -- vbum1=vbuc1 
+    lda #3
+    sta max_digits
+    jmp __b1
+    // [1609] phi from uctoa::@4 to uctoa::@1 [phi:uctoa::@4->uctoa::@1]
+  __b5:
+    // [1609] phi uctoa::digit_values#8 = RADIX_BINARY_VALUES_CHAR [phi:uctoa::@4->uctoa::@1#0] -- pbuz1=pbuc1 
+    lda #<RADIX_BINARY_VALUES_CHAR
+    sta.z digit_values
+    lda #>RADIX_BINARY_VALUES_CHAR
+    sta.z digit_values+1
+    // [1609] phi uctoa::max_digits#7 = 8 [phi:uctoa::@4->uctoa::@1#1] -- vbum1=vbuc1 
+    lda #8
+    sta max_digits
+    // uctoa::@1
+  __b1:
+    // [1610] phi from uctoa::@1 to uctoa::@6 [phi:uctoa::@1->uctoa::@6]
+    // [1610] phi uctoa::buffer#11 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:uctoa::@1->uctoa::@6#0] -- pbuz1=pbuc1 
+    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z buffer
+    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z buffer+1
+    // [1610] phi uctoa::started#2 = 0 [phi:uctoa::@1->uctoa::@6#1] -- vbum1=vbuc1 
+    lda #0
+    sta started
+    // [1610] phi uctoa::value#2 = uctoa::value#1 [phi:uctoa::@1->uctoa::@6#2] -- register_copy 
+    // [1610] phi uctoa::digit#2 = 0 [phi:uctoa::@1->uctoa::@6#3] -- vbum1=vbuc1 
+    sta digit
+    // uctoa::@6
+  __b6:
+    // max_digits-1
+    // [1611] uctoa::$4 = uctoa::max_digits#7 - 1 -- vbuz1=vbum2_minus_1 
+    ldx max_digits
+    dex
+    stx.z uctoa__4
+    // for( char digit=0; digit<max_digits-1; digit++ )
+    // [1612] if(uctoa::digit#2<uctoa::$4) goto uctoa::@7 -- vbum1_lt_vbuz2_then_la1 
+    lda digit
+    cmp.z uctoa__4
+    bcc __b7
+    // uctoa::@8
+    // *buffer++ = DIGITS[(char)value]
+    // [1613] *uctoa::buffer#11 = DIGITS[uctoa::value#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
+    ldy value
+    lda DIGITS,y
+    ldy #0
+    sta (buffer),y
+    // *buffer++ = DIGITS[(char)value];
+    // [1614] uctoa::buffer#3 = ++ uctoa::buffer#11 -- pbuz1=_inc_pbuz1 
+    inc.z buffer
+    bne !+
+    inc.z buffer+1
+  !:
+    // *buffer = 0
+    // [1615] *uctoa::buffer#3 = 0 -- _deref_pbuz1=vbuc1 
+    lda #0
+    tay
+    sta (buffer),y
+    rts
+    // uctoa::@7
+  __b7:
+    // unsigned char digit_value = digit_values[digit]
+    // [1616] uctoa::digit_value#0 = uctoa::digit_values#8[uctoa::digit#2] -- vbum1=pbuz2_derefidx_vbum3 
+    ldy digit
+    lda (digit_values),y
+    sta digit_value
+    // if (started || value >= digit_value)
+    // [1617] if(0!=uctoa::started#2) goto uctoa::@10 -- 0_neq_vbum1_then_la1 
+    lda started
+    bne __b10
+    // uctoa::@12
+    // [1618] if(uctoa::value#2>=uctoa::digit_value#0) goto uctoa::@10 -- vbum1_ge_vbum2_then_la1 
+    lda value
+    cmp digit_value
+    bcs __b10
+    // [1619] phi from uctoa::@12 to uctoa::@9 [phi:uctoa::@12->uctoa::@9]
+    // [1619] phi uctoa::buffer#14 = uctoa::buffer#11 [phi:uctoa::@12->uctoa::@9#0] -- register_copy 
+    // [1619] phi uctoa::started#4 = uctoa::started#2 [phi:uctoa::@12->uctoa::@9#1] -- register_copy 
+    // [1619] phi uctoa::value#6 = uctoa::value#2 [phi:uctoa::@12->uctoa::@9#2] -- register_copy 
+    // uctoa::@9
+  __b9:
+    // for( char digit=0; digit<max_digits-1; digit++ )
+    // [1620] uctoa::digit#1 = ++ uctoa::digit#2 -- vbum1=_inc_vbum1 
+    inc digit
+    // [1610] phi from uctoa::@9 to uctoa::@6 [phi:uctoa::@9->uctoa::@6]
+    // [1610] phi uctoa::buffer#11 = uctoa::buffer#14 [phi:uctoa::@9->uctoa::@6#0] -- register_copy 
+    // [1610] phi uctoa::started#2 = uctoa::started#4 [phi:uctoa::@9->uctoa::@6#1] -- register_copy 
+    // [1610] phi uctoa::value#2 = uctoa::value#6 [phi:uctoa::@9->uctoa::@6#2] -- register_copy 
+    // [1610] phi uctoa::digit#2 = uctoa::digit#1 [phi:uctoa::@9->uctoa::@6#3] -- register_copy 
+    jmp __b6
+    // uctoa::@10
+  __b10:
+    // uctoa_append(buffer++, value, digit_value)
+    // [1621] uctoa_append::buffer#0 = uctoa::buffer#11 -- pbuz1=pbuz2 
+    lda.z buffer
+    sta.z uctoa_append.buffer
+    lda.z buffer+1
+    sta.z uctoa_append.buffer+1
+    // [1622] uctoa_append::value#0 = uctoa::value#2
+    // [1623] uctoa_append::sub#0 = uctoa::digit_value#0
+    // [1624] call uctoa_append
+    // [2210] phi from uctoa::@10 to uctoa_append [phi:uctoa::@10->uctoa_append]
+    jsr uctoa_append
+    // uctoa_append(buffer++, value, digit_value)
+    // [1625] uctoa_append::return#0 = uctoa_append::value#2
+    // uctoa::@11
+    // value = uctoa_append(buffer++, value, digit_value)
+    // [1626] uctoa::value#0 = uctoa_append::return#0
+    // value = uctoa_append(buffer++, value, digit_value);
+    // [1627] uctoa::buffer#4 = ++ uctoa::buffer#11 -- pbuz1=_inc_pbuz1 
+    inc.z buffer
+    bne !+
+    inc.z buffer+1
+  !:
+    // [1619] phi from uctoa::@11 to uctoa::@9 [phi:uctoa::@11->uctoa::@9]
+    // [1619] phi uctoa::buffer#14 = uctoa::buffer#4 [phi:uctoa::@11->uctoa::@9#0] -- register_copy 
+    // [1619] phi uctoa::started#4 = 1 [phi:uctoa::@11->uctoa::@9#1] -- vbum1=vbuc1 
+    lda #1
+    sta started
+    // [1619] phi uctoa::value#6 = uctoa::value#0 [phi:uctoa::@11->uctoa::@9#2] -- register_copy 
+    jmp __b9
+  .segment Data
+    digit_value: .byte 0
+    digit: .byte 0
+    .label value = printf_uchar.uvalue
+    .label radix = printf_uchar.format_radix
+    started: .byte 0
+    max_digits: .byte 0
+}
+.segment Code
+  // printf_number_buffer
+// Print the contents of the number buffer using a specific format.
+// This handles minimum length, zero-filling, and left/right justification from the format
+// void printf_number_buffer(__zp($37) void (*putc)(char), __mem() char buffer_sign, char *buffer_digits, __mem() char format_min_length, char format_justify_left, char format_sign_always, __mem() char format_zero_padding, char format_upper_case, char format_radix)
+printf_number_buffer: {
+    .label printf_number_buffer__19 = $56
+    .label putc = $37
+    // if(format.min_length)
+    // [1629] if(0==printf_number_buffer::format_min_length#3) goto printf_number_buffer::@1 -- 0_eq_vbum1_then_la1 
+    lda format_min_length
+    beq __b5
+    // [1630] phi from printf_number_buffer to printf_number_buffer::@5 [phi:printf_number_buffer->printf_number_buffer::@5]
+    // printf_number_buffer::@5
+    // strlen(buffer.digits)
+    // [1631] call strlen
+    // [1920] phi from printf_number_buffer::@5 to strlen [phi:printf_number_buffer::@5->strlen]
+    // [1920] phi strlen::str#8 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:printf_number_buffer::@5->strlen#0] -- pbuz1=pbuc1 
+    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z strlen.str
+    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z strlen.str+1
+    jsr strlen
+    // strlen(buffer.digits)
+    // [1632] strlen::return#3 = strlen::len#2
+    // printf_number_buffer::@11
+    // [1633] printf_number_buffer::$19 = strlen::return#3 -- vwuz1=vwum2 
+    lda strlen.return
+    sta.z printf_number_buffer__19
+    lda strlen.return+1
+    sta.z printf_number_buffer__19+1
+    // signed char len = (signed char)strlen(buffer.digits)
+    // [1634] printf_number_buffer::len#0 = (signed char)printf_number_buffer::$19 -- vbsm1=_sbyte_vwuz2 
+    // There is a minimum length - work out the padding
+    lda.z printf_number_buffer__19
+    sta len
+    // if(buffer.sign)
+    // [1635] if(0==printf_number_buffer::buffer_sign#10) goto printf_number_buffer::@10 -- 0_eq_vbum1_then_la1 
+    lda buffer_sign
+    beq __b10
+    // printf_number_buffer::@6
+    // len++;
+    // [1636] printf_number_buffer::len#1 = ++ printf_number_buffer::len#0 -- vbsm1=_inc_vbsm1 
+    inc len
+    // [1637] phi from printf_number_buffer::@11 printf_number_buffer::@6 to printf_number_buffer::@10 [phi:printf_number_buffer::@11/printf_number_buffer::@6->printf_number_buffer::@10]
+    // [1637] phi printf_number_buffer::len#2 = printf_number_buffer::len#0 [phi:printf_number_buffer::@11/printf_number_buffer::@6->printf_number_buffer::@10#0] -- register_copy 
+    // printf_number_buffer::@10
+  __b10:
+    // padding = (signed char)format.min_length - len
+    // [1638] printf_number_buffer::padding#1 = (signed char)printf_number_buffer::format_min_length#3 - printf_number_buffer::len#2 -- vbsm1=vbsm2_minus_vbsm1 
+    lda format_min_length
+    sec
+    sbc padding
+    sta padding
+    // if(padding<0)
+    // [1639] if(printf_number_buffer::padding#1>=0) goto printf_number_buffer::@15 -- vbsm1_ge_0_then_la1 
+    cmp #0
+    bpl __b1
+    // [1641] phi from printf_number_buffer printf_number_buffer::@10 to printf_number_buffer::@1 [phi:printf_number_buffer/printf_number_buffer::@10->printf_number_buffer::@1]
+  __b5:
+    // [1641] phi printf_number_buffer::padding#10 = 0 [phi:printf_number_buffer/printf_number_buffer::@10->printf_number_buffer::@1#0] -- vbsm1=vbsc1 
+    lda #0
+    sta padding
+    // [1640] phi from printf_number_buffer::@10 to printf_number_buffer::@15 [phi:printf_number_buffer::@10->printf_number_buffer::@15]
+    // printf_number_buffer::@15
+    // [1641] phi from printf_number_buffer::@15 to printf_number_buffer::@1 [phi:printf_number_buffer::@15->printf_number_buffer::@1]
+    // [1641] phi printf_number_buffer::padding#10 = printf_number_buffer::padding#1 [phi:printf_number_buffer::@15->printf_number_buffer::@1#0] -- register_copy 
+    // printf_number_buffer::@1
+  __b1:
+    // printf_number_buffer::@13
+    // if(!format.justify_left && !format.zero_padding && padding)
+    // [1642] if(0!=printf_number_buffer::format_zero_padding#10) goto printf_number_buffer::@2 -- 0_neq_vbum1_then_la1 
+    lda format_zero_padding
+    bne __b2
+    // printf_number_buffer::@12
+    // [1643] if(0!=printf_number_buffer::padding#10) goto printf_number_buffer::@7 -- 0_neq_vbsm1_then_la1 
+    lda padding
+    cmp #0
+    bne __b7
+    jmp __b2
+    // printf_number_buffer::@7
+  __b7:
+    // printf_padding(putc, ' ',(char)padding)
+    // [1644] printf_padding::putc#0 = printf_number_buffer::putc#10 -- pprz1=pprz2 
+    lda.z putc
+    sta.z printf_padding.putc
+    lda.z putc+1
+    sta.z printf_padding.putc+1
+    // [1645] printf_padding::length#0 = (char)printf_number_buffer::padding#10 -- vbum1=vbum2 
+    lda padding
+    sta printf_padding.length
+    // [1646] call printf_padding
+    // [1926] phi from printf_number_buffer::@7 to printf_padding [phi:printf_number_buffer::@7->printf_padding]
+    // [1926] phi printf_padding::putc#7 = printf_padding::putc#0 [phi:printf_number_buffer::@7->printf_padding#0] -- register_copy 
+    // [1926] phi printf_padding::pad#7 = ' ' [phi:printf_number_buffer::@7->printf_padding#1] -- vbum1=vbuc1 
+    lda #' '
+    sta printf_padding.pad
+    // [1926] phi printf_padding::length#6 = printf_padding::length#0 [phi:printf_number_buffer::@7->printf_padding#2] -- register_copy 
+    jsr printf_padding
+    // printf_number_buffer::@2
+  __b2:
+    // if(buffer.sign)
+    // [1647] if(0==printf_number_buffer::buffer_sign#10) goto printf_number_buffer::@3 -- 0_eq_vbum1_then_la1 
+    lda buffer_sign
+    beq __b3
+    // printf_number_buffer::@8
+    // putc(buffer.sign)
+    // [1648] stackpush(char) = printf_number_buffer::buffer_sign#10 -- _stackpushbyte_=vbum1 
+    pha
+    // [1649] callexecute *printf_number_buffer::putc#10  -- call__deref_pprz1 
+    jsr icall15
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // printf_number_buffer::@3
+  __b3:
+    // if(format.zero_padding && padding)
+    // [1651] if(0==printf_number_buffer::format_zero_padding#10) goto printf_number_buffer::@4 -- 0_eq_vbum1_then_la1 
+    lda format_zero_padding
+    beq __b4
+    // printf_number_buffer::@14
+    // [1652] if(0!=printf_number_buffer::padding#10) goto printf_number_buffer::@9 -- 0_neq_vbsm1_then_la1 
+    lda padding
+    cmp #0
+    bne __b9
+    jmp __b4
+    // printf_number_buffer::@9
+  __b9:
+    // printf_padding(putc, '0',(char)padding)
+    // [1653] printf_padding::putc#1 = printf_number_buffer::putc#10 -- pprz1=pprz2 
+    lda.z putc
+    sta.z printf_padding.putc
+    lda.z putc+1
+    sta.z printf_padding.putc+1
+    // [1654] printf_padding::length#1 = (char)printf_number_buffer::padding#10 -- vbum1=vbum2 
+    lda padding
+    sta printf_padding.length
+    // [1655] call printf_padding
+    // [1926] phi from printf_number_buffer::@9 to printf_padding [phi:printf_number_buffer::@9->printf_padding]
+    // [1926] phi printf_padding::putc#7 = printf_padding::putc#1 [phi:printf_number_buffer::@9->printf_padding#0] -- register_copy 
+    // [1926] phi printf_padding::pad#7 = '0' [phi:printf_number_buffer::@9->printf_padding#1] -- vbum1=vbuc1 
+    lda #'0'
+    sta printf_padding.pad
+    // [1926] phi printf_padding::length#6 = printf_padding::length#1 [phi:printf_number_buffer::@9->printf_padding#2] -- register_copy 
+    jsr printf_padding
+    // printf_number_buffer::@4
+  __b4:
+    // printf_str(putc, buffer.digits)
+    // [1656] printf_str::putc#0 = printf_number_buffer::putc#10
+    // [1657] call printf_str
+    // [785] phi from printf_number_buffer::@4 to printf_str [phi:printf_number_buffer::@4->printf_str]
+    // [785] phi printf_str::putc#54 = printf_str::putc#0 [phi:printf_number_buffer::@4->printf_str#0] -- register_copy 
+    // [785] phi printf_str::s#54 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:printf_number_buffer::@4->printf_str#1] -- pbuz1=pbuc1 
+    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z printf_str.s
+    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z printf_str.s+1
+    jsr printf_str
+    // printf_number_buffer::@return
+    // }
+    // [1658] return 
+    rts
+    // Outside Flow
+  icall15:
+    jmp (putc)
+  .segment Data
+    buffer_sign: .byte 0
+    .label format_min_length = printf_uchar.format_min_length
+    .label format_zero_padding = printf_uchar.format_zero_padding
+    len: .byte 0
+    .label padding = len
+}
+.segment Code
+  // vera_verify
+vera_verify: {
+    .label vera_verify__15 = $6c
+    .label ram_address = $50
+    // unsigned long vera_boundary = vera_file_size
+    // [1659] vera_verify::vera_boundary#0 = vera_file_size#1 -- vdum1=vdum2 
+    lda vera_file_size
+    sta vera_boundary
+    lda vera_file_size+1
+    sta vera_boundary+1
+    lda vera_file_size+2
+    sta vera_boundary+2
+    lda vera_file_size+3
+    sta vera_boundary+3
+    // [1660] spi_manufacturer#420 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1661] spi_memory_type#421 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1662] spi_memory_capacity#422 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_COMPARING, "Comparing VERA ...")
+    // [1663] call display_info_vera
+    // [650] phi from vera_verify to display_info_vera [phi:vera_verify->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = vera_verify::info_text [phi:vera_verify->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_info_vera.info_text
+    lda #>info_text
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#422 [phi:vera_verify->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#421 [phi:vera_verify->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#420 [phi:vera_verify->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_COMPARING [phi:vera_verify->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_COMPARING
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [1664] phi from vera_verify to vera_verify::@11 [phi:vera_verify->vera_verify::@11]
+    // vera_verify::@11
+    // gotoxy(x, y)
+    // [1665] call gotoxy
+    // [454] phi from vera_verify::@11 to gotoxy [phi:vera_verify::@11->gotoxy]
+    // [454] phi gotoxy::y#27 = PROGRESS_Y [phi:vera_verify::@11->gotoxy#0] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = PROGRESS_X [phi:vera_verify::@11->gotoxy#1] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta gotoxy.x
+    jsr gotoxy
+    // [1666] phi from vera_verify::@11 to vera_verify::@12 [phi:vera_verify::@11->vera_verify::@12]
+    // vera_verify::@12
+    // spi_read_flash(0UL)
+    // [1667] call spi_read_flash
+    // [2217] phi from vera_verify::@12 to spi_read_flash [phi:vera_verify::@12->spi_read_flash]
+    jsr spi_read_flash
+    // [1668] phi from vera_verify::@12 to vera_verify::@1 [phi:vera_verify::@12->vera_verify::@1]
+    // [1668] phi vera_verify::y#3 = PROGRESS_Y [phi:vera_verify::@12->vera_verify::@1#0] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta y
+    // [1668] phi vera_verify::progress_row_current#3 = 0 [phi:vera_verify::@12->vera_verify::@1#1] -- vwum1=vwuc1 
+    lda #<0
+    sta progress_row_current
+    sta progress_row_current+1
+    // [1668] phi vera_verify::vera_different_bytes#11 = 0 [phi:vera_verify::@12->vera_verify::@1#2] -- vdum1=vduc1 
+    sta vera_different_bytes
+    sta vera_different_bytes+1
+    lda #<0>>$10
+    sta vera_different_bytes+2
+    lda #>0>>$10
+    sta vera_different_bytes+3
+    // [1668] phi vera_verify::ram_address#10 = (char *)$7800 [phi:vera_verify::@12->vera_verify::@1#3] -- pbuz1=pbuc1 
+    lda #<$7800
+    sta.z ram_address
+    lda #>$7800
+    sta.z ram_address+1
+    // [1668] phi vera_verify::bram_bank#11 = 0 [phi:vera_verify::@12->vera_verify::@1#4] -- vbum1=vbuc1 
+    lda #0
+    sta bram_bank
+    // [1668] phi vera_verify::vera_address#11 = 0 [phi:vera_verify::@12->vera_verify::@1#5] -- vdum1=vduc1 
+    sta vera_address
+    sta vera_address+1
+    lda #<0>>$10
+    sta vera_address+2
+    lda #>0>>$10
+    sta vera_address+3
+    // vera_verify::@1
+  __b1:
+    // while (vera_address < vera_boundary)
+    // [1669] if(vera_verify::vera_address#11<vera_verify::vera_boundary#0) goto vera_verify::@2 -- vdum1_lt_vdum2_then_la1 
+    lda vera_address+3
+    cmp vera_boundary+3
+    bcc __b2
+    bne !+
+    lda vera_address+2
+    cmp vera_boundary+2
+    bcc __b2
+    bne !+
+    lda vera_address+1
+    cmp vera_boundary+1
+    bcc __b2
+    bne !+
+    lda vera_address
+    cmp vera_boundary
+    bcc __b2
+  !:
+    // vera_verify::@return
+    // }
+    // [1670] return 
+    rts
+    // vera_verify::@2
+  __b2:
+    // unsigned int equal_bytes = vera_compare(bram_bank, (ram_ptr_t)ram_address, VERA_PROGRESS_CELL)
+    // [1671] vera_compare::bank_ram#0 = vera_verify::bram_bank#11 -- vbum1=vbum2 
+    lda bram_bank
+    sta vera_compare.bank_ram
+    // [1672] vera_compare::ptr_ram#1 = vera_verify::ram_address#10 -- pbuz1=pbuz2 
+    lda.z ram_address
+    sta.z vera_compare.ptr_ram
+    lda.z ram_address+1
+    sta.z vera_compare.ptr_ram+1
+    // [1673] call vera_compare
+  // {asm{.byte $db}}
+    // [2228] phi from vera_verify::@2 to vera_compare [phi:vera_verify::@2->vera_compare]
+    jsr vera_compare
+    // unsigned int equal_bytes = vera_compare(bram_bank, (ram_ptr_t)ram_address, VERA_PROGRESS_CELL)
+    // [1674] vera_compare::return#2 = vera_compare::equal_bytes#2
+    // vera_verify::@13
+    // [1675] vera_verify::equal_bytes#0 = vera_compare::return#2
+    // if (progress_row_current == VERA_PROGRESS_ROW)
+    // [1676] if(vera_verify::progress_row_current#3!=VERA_PROGRESS_ROW) goto vera_verify::@3 -- vwum1_neq_vwuc1_then_la1 
+    lda progress_row_current+1
+    cmp #>VERA_PROGRESS_ROW
+    bne __b3
+    lda progress_row_current
+    cmp #<VERA_PROGRESS_ROW
+    bne __b3
+    // vera_verify::@8
+    // gotoxy(x, ++y);
+    // [1677] vera_verify::y#1 = ++ vera_verify::y#3 -- vbum1=_inc_vbum1 
+    inc y
+    // gotoxy(x, ++y)
+    // [1678] gotoxy::y#26 = vera_verify::y#1 -- vbum1=vbum2 
+    lda y
+    sta gotoxy.y
+    // [1679] call gotoxy
+    // [454] phi from vera_verify::@8 to gotoxy [phi:vera_verify::@8->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#26 [phi:vera_verify::@8->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = PROGRESS_X [phi:vera_verify::@8->gotoxy#1] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta gotoxy.x
+    jsr gotoxy
+    // [1680] phi from vera_verify::@8 to vera_verify::@3 [phi:vera_verify::@8->vera_verify::@3]
+    // [1680] phi vera_verify::y#10 = vera_verify::y#1 [phi:vera_verify::@8->vera_verify::@3#0] -- register_copy 
+    // [1680] phi vera_verify::progress_row_current#4 = 0 [phi:vera_verify::@8->vera_verify::@3#1] -- vwum1=vbuc1 
+    lda #<0
+    sta progress_row_current
+    sta progress_row_current+1
+    // [1680] phi from vera_verify::@13 to vera_verify::@3 [phi:vera_verify::@13->vera_verify::@3]
+    // [1680] phi vera_verify::y#10 = vera_verify::y#3 [phi:vera_verify::@13->vera_verify::@3#0] -- register_copy 
+    // [1680] phi vera_verify::progress_row_current#4 = vera_verify::progress_row_current#3 [phi:vera_verify::@13->vera_verify::@3#1] -- register_copy 
+    // vera_verify::@3
+  __b3:
+    // if (equal_bytes != VERA_PROGRESS_CELL)
+    // [1681] if(vera_verify::equal_bytes#0!=VERA_PROGRESS_CELL) goto vera_verify::@4 -- vwum1_neq_vbuc1_then_la1 
+    lda equal_bytes+1
+    beq !__b4+
+    jmp __b4
+  !__b4:
+    lda equal_bytes
+    cmp #VERA_PROGRESS_CELL
+    beq !__b4+
+    jmp __b4
+  !__b4:
+    // vera_verify::@9
+    // cputc('=')
+    // [1682] stackpush(char) = '=' -- _stackpushbyte_=vbuc1 
+    lda #'='
+    pha
+    // [1683] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // vera_verify::@5
+  __b5:
+    // ram_address += VERA_PROGRESS_CELL
+    // [1685] vera_verify::ram_address#1 = vera_verify::ram_address#10 + VERA_PROGRESS_CELL -- pbuz1=pbuz1_plus_vbuc1 
+    lda #VERA_PROGRESS_CELL
+    clc
+    adc.z ram_address
+    sta.z ram_address
+    bcc !+
+    inc.z ram_address+1
+  !:
+    // vera_address += VERA_PROGRESS_CELL
+    // [1686] vera_verify::vera_address#1 = vera_verify::vera_address#11 + VERA_PROGRESS_CELL -- vdum1=vdum1_plus_vbuc1 
+    lda vera_address
+    clc
+    adc #VERA_PROGRESS_CELL
+    sta vera_address
+    bcc !+
+    inc vera_address+1
+    bne !+
+    inc vera_address+2
+    bne !+
+    inc vera_address+3
+  !:
+    // progress_row_current += VERA_PROGRESS_CELL
+    // [1687] vera_verify::progress_row_current#11 = vera_verify::progress_row_current#4 + VERA_PROGRESS_CELL -- vwum1=vwum1_plus_vbuc1 
+    lda #VERA_PROGRESS_CELL
+    clc
+    adc progress_row_current
+    sta progress_row_current
+    bcc !+
+    inc progress_row_current+1
+  !:
+    // if (ram_address == BRAM_HIGH)
+    // [1688] if(vera_verify::ram_address#1!=$c000) goto vera_verify::@6 -- pbuz1_neq_vwuc1_then_la1 
+    lda.z ram_address+1
+    cmp #>$c000
+    bne __b6
+    lda.z ram_address
+    cmp #<$c000
+    bne __b6
+    // vera_verify::@10
+    // bram_bank++;
+    // [1689] vera_verify::bram_bank#1 = ++ vera_verify::bram_bank#11 -- vbum1=_inc_vbum1 
+    inc bram_bank
+    // [1690] phi from vera_verify::@10 to vera_verify::@6 [phi:vera_verify::@10->vera_verify::@6]
+    // [1690] phi vera_verify::bram_bank#24 = vera_verify::bram_bank#1 [phi:vera_verify::@10->vera_verify::@6#0] -- register_copy 
+    // [1690] phi vera_verify::ram_address#6 = (char *)$a000 [phi:vera_verify::@10->vera_verify::@6#1] -- pbuz1=pbuc1 
+    lda #<$a000
+    sta.z ram_address
+    lda #>$a000
+    sta.z ram_address+1
+    // [1690] phi from vera_verify::@5 to vera_verify::@6 [phi:vera_verify::@5->vera_verify::@6]
+    // [1690] phi vera_verify::bram_bank#24 = vera_verify::bram_bank#11 [phi:vera_verify::@5->vera_verify::@6#0] -- register_copy 
+    // [1690] phi vera_verify::ram_address#6 = vera_verify::ram_address#1 [phi:vera_verify::@5->vera_verify::@6#1] -- register_copy 
+    // vera_verify::@6
+  __b6:
+    // if (ram_address == RAM_HIGH)
+    // [1691] if(vera_verify::ram_address#6!=$9800) goto vera_verify::@23 -- pbuz1_neq_vwuc1_then_la1 
+    lda.z ram_address+1
+    cmp #>$9800
+    bne __b7
+    lda.z ram_address
+    cmp #<$9800
+    bne __b7
+    // [1693] phi from vera_verify::@6 to vera_verify::@7 [phi:vera_verify::@6->vera_verify::@7]
+    // [1693] phi vera_verify::ram_address#11 = (char *)$a000 [phi:vera_verify::@6->vera_verify::@7#0] -- pbuz1=pbuc1 
+    lda #<$a000
+    sta.z ram_address
+    lda #>$a000
+    sta.z ram_address+1
+    // [1693] phi vera_verify::bram_bank#10 = 1 [phi:vera_verify::@6->vera_verify::@7#1] -- vbum1=vbuc1 
+    lda #1
+    sta bram_bank
+    // [1692] phi from vera_verify::@6 to vera_verify::@23 [phi:vera_verify::@6->vera_verify::@23]
+    // vera_verify::@23
+    // [1693] phi from vera_verify::@23 to vera_verify::@7 [phi:vera_verify::@23->vera_verify::@7]
+    // [1693] phi vera_verify::ram_address#11 = vera_verify::ram_address#6 [phi:vera_verify::@23->vera_verify::@7#0] -- register_copy 
+    // [1693] phi vera_verify::bram_bank#10 = vera_verify::bram_bank#24 [phi:vera_verify::@23->vera_verify::@7#1] -- register_copy 
+    // vera_verify::@7
+  __b7:
+    // VERA_PROGRESS_CELL - equal_bytes
+    // [1694] vera_verify::$15 = VERA_PROGRESS_CELL - vera_verify::equal_bytes#0 -- vwuz1=vwuc1_minus_vwum2 
+    sec
+    lda #<VERA_PROGRESS_CELL
+    sbc equal_bytes
+    sta.z vera_verify__15
+    lda #>VERA_PROGRESS_CELL
+    sbc equal_bytes+1
+    sta.z vera_verify__15+1
+    // vera_different_bytes += (VERA_PROGRESS_CELL - equal_bytes)
+    // [1695] vera_verify::vera_different_bytes#1 = vera_verify::vera_different_bytes#11 + vera_verify::$15 -- vdum1=vdum1_plus_vwuz2 
+    lda vera_different_bytes
+    clc
+    adc.z vera_verify__15
+    sta vera_different_bytes
+    lda vera_different_bytes+1
+    adc.z vera_verify__15+1
+    sta vera_different_bytes+1
+    lda vera_different_bytes+2
+    adc #0
+    sta vera_different_bytes+2
+    lda vera_different_bytes+3
+    adc #0
+    sta vera_different_bytes+3
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1696] call snprintf_init
+    jsr snprintf_init
+    // [1697] phi from vera_verify::@7 to vera_verify::@14 [phi:vera_verify::@7->vera_verify::@14]
+    // vera_verify::@14
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1698] call printf_str
+    // [785] phi from vera_verify::@14 to printf_str [phi:vera_verify::@14->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_verify::@14->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_verify::s [phi:vera_verify::@14->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_verify::@15
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1699] printf_ulong::uvalue#4 = vera_verify::vera_different_bytes#1 -- vdum1=vdum2 
+    lda vera_different_bytes
+    sta printf_ulong.uvalue
+    lda vera_different_bytes+1
+    sta printf_ulong.uvalue+1
+    lda vera_different_bytes+2
+    sta printf_ulong.uvalue+2
+    lda vera_different_bytes+3
+    sta printf_ulong.uvalue+3
+    // [1700] call printf_ulong
+    // [1720] phi from vera_verify::@15 to printf_ulong [phi:vera_verify::@15->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:vera_verify::@15->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:vera_verify::@15->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#4 [phi:vera_verify::@15->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // [1701] phi from vera_verify::@15 to vera_verify::@16 [phi:vera_verify::@15->vera_verify::@16]
+    // vera_verify::@16
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1702] call printf_str
+    // [785] phi from vera_verify::@16 to printf_str [phi:vera_verify::@16->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_verify::@16->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_verify::s1 [phi:vera_verify::@16->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_verify::@17
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1703] printf_uchar::uvalue#9 = vera_verify::bram_bank#10 -- vbum1=vbum2 
+    lda bram_bank
+    sta printf_uchar.uvalue
+    // [1704] call printf_uchar
+    // [835] phi from vera_verify::@17 to printf_uchar [phi:vera_verify::@17->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:vera_verify::@17->printf_uchar#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 2 [phi:vera_verify::@17->printf_uchar#1] -- vbum1=vbuc1 
+    lda #2
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:vera_verify::@17->printf_uchar#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uchar.putc
+    lda #>snputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:vera_verify::@17->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#9 [phi:vera_verify::@17->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // [1705] phi from vera_verify::@17 to vera_verify::@18 [phi:vera_verify::@17->vera_verify::@18]
+    // vera_verify::@18
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1706] call printf_str
+    // [785] phi from vera_verify::@18 to printf_str [phi:vera_verify::@18->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_verify::@18->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s1 [phi:vera_verify::@18->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s1
+    sta.z printf_str.s
+    lda #>@s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_verify::@19
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1707] printf_uint::uvalue#5 = (unsigned int)vera_verify::ram_address#11 -- vwum1=vwuz2 
+    lda.z ram_address
+    sta printf_uint.uvalue
+    lda.z ram_address+1
+    sta printf_uint.uvalue+1
+    // [1708] call printf_uint
+    // [1445] phi from vera_verify::@19 to printf_uint [phi:vera_verify::@19->printf_uint]
+    // [1445] phi printf_uint::format_zero_padding#10 = 1 [phi:vera_verify::@19->printf_uint#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uint.format_zero_padding
+    // [1445] phi printf_uint::format_min_length#10 = 4 [phi:vera_verify::@19->printf_uint#1] -- vbum1=vbuc1 
+    lda #4
+    sta printf_uint.format_min_length
+    // [1445] phi printf_uint::putc#10 = &snputc [phi:vera_verify::@19->printf_uint#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uint.putc
+    lda #>snputc
+    sta.z printf_uint.putc+1
+    // [1445] phi printf_uint::format_radix#10 = HEXADECIMAL [phi:vera_verify::@19->printf_uint#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uint.format_radix
+    // [1445] phi printf_uint::uvalue#6 = printf_uint::uvalue#5 [phi:vera_verify::@19->printf_uint#4] -- register_copy 
+    jsr printf_uint
+    // [1709] phi from vera_verify::@19 to vera_verify::@20 [phi:vera_verify::@19->vera_verify::@20]
+    // vera_verify::@20
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1710] call printf_str
+    // [785] phi from vera_verify::@20 to printf_str [phi:vera_verify::@20->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_verify::@20->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_verify::s3 [phi:vera_verify::@20->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s3
+    sta.z printf_str.s
+    lda #>s3
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_verify::@21
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1711] printf_ulong::uvalue#5 = vera_verify::vera_address#1 -- vdum1=vdum2 
+    lda vera_address
+    sta printf_ulong.uvalue
+    lda vera_address+1
+    sta printf_ulong.uvalue+1
+    lda vera_address+2
+    sta printf_ulong.uvalue+2
+    lda vera_address+3
+    sta printf_ulong.uvalue+3
+    // [1712] call printf_ulong
+    // [1720] phi from vera_verify::@21 to printf_ulong [phi:vera_verify::@21->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:vera_verify::@21->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:vera_verify::@21->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#5 [phi:vera_verify::@21->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // vera_verify::@22
+    // sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, bram_bank, ram_address, vera_address)
+    // [1713] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [1714] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_text(info_text)
+    // [1716] call display_action_text
+    // [846] phi from vera_verify::@22 to display_action_text [phi:vera_verify::@22->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:vera_verify::@22->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_action_text.info_text
+    lda #>@info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [1668] phi from vera_verify::@22 to vera_verify::@1 [phi:vera_verify::@22->vera_verify::@1]
+    // [1668] phi vera_verify::y#3 = vera_verify::y#10 [phi:vera_verify::@22->vera_verify::@1#0] -- register_copy 
+    // [1668] phi vera_verify::progress_row_current#3 = vera_verify::progress_row_current#11 [phi:vera_verify::@22->vera_verify::@1#1] -- register_copy 
+    // [1668] phi vera_verify::vera_different_bytes#11 = vera_verify::vera_different_bytes#1 [phi:vera_verify::@22->vera_verify::@1#2] -- register_copy 
+    // [1668] phi vera_verify::ram_address#10 = vera_verify::ram_address#11 [phi:vera_verify::@22->vera_verify::@1#3] -- register_copy 
+    // [1668] phi vera_verify::bram_bank#11 = vera_verify::bram_bank#10 [phi:vera_verify::@22->vera_verify::@1#4] -- register_copy 
+    // [1668] phi vera_verify::vera_address#11 = vera_verify::vera_address#1 [phi:vera_verify::@22->vera_verify::@1#5] -- register_copy 
+    jmp __b1
+    // vera_verify::@4
+  __b4:
+    // cputc('*')
+    // [1717] stackpush(char) = '*' -- _stackpushbyte_=vbuc1 
+    lda #'*'
+    pha
+    // [1718] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    jmp __b5
+  .segment Data
+    info_text: .text "Comparing VERA ..."
+    .byte 0
+    s: .text "Comparing: "
+    .byte 0
+    s1: .text " differences between RAM:"
+    .byte 0
+    s3: .text " <-> ROM:"
+    .byte 0
+    vera_boundary: .dword 0
+    .label equal_bytes = vera_compare.equal_bytes
+    y: .byte 0
+    vera_address: .dword 0
+    bram_bank: .byte 0
+    vera_different_bytes: .dword 0
+    .label return = vera_different_bytes
+    progress_row_current: .word 0
+}
+.segment Code
+  // printf_ulong
+// Print an unsigned int using a specific format
+// void printf_ulong(void (*putc)(char), __mem() unsigned long uvalue, __mem() char format_min_length, char format_justify_left, char format_sign_always, __mem() char format_zero_padding, char format_upper_case, char format_radix)
+printf_ulong: {
+    // printf_ulong::@1
+    // printf_buffer.sign = format.sign_always?'+':0
+    // [1721] *((char *)&printf_buffer) = 0 -- _deref_pbuc1=vbuc2 
+    // Handle any sign
+    lda #0
+    sta printf_buffer
+    // ultoa(uvalue, printf_buffer.digits, format.radix)
+    // [1722] ultoa::value#1 = printf_ulong::uvalue#10
+    // [1723] call ultoa
+  // Format number into buffer
+    // [2242] phi from printf_ulong::@1 to ultoa [phi:printf_ulong::@1->ultoa]
+    jsr ultoa
+    // printf_ulong::@2
+    // printf_number_buffer(putc, printf_buffer, format)
+    // [1724] printf_number_buffer::buffer_sign#0 = *((char *)&printf_buffer) -- vbum1=_deref_pbuc1 
+    lda printf_buffer
+    sta printf_number_buffer.buffer_sign
+    // [1725] printf_number_buffer::format_min_length#0 = printf_ulong::format_min_length#10
+    // [1726] printf_number_buffer::format_zero_padding#0 = printf_ulong::format_zero_padding#10
+    // [1727] call printf_number_buffer
+  // Print using format
+    // [1628] phi from printf_ulong::@2 to printf_number_buffer [phi:printf_ulong::@2->printf_number_buffer]
+    // [1628] phi printf_number_buffer::putc#10 = &snputc [phi:printf_ulong::@2->printf_number_buffer#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_number_buffer.putc
+    lda #>snputc
+    sta.z printf_number_buffer.putc+1
+    // [1628] phi printf_number_buffer::buffer_sign#10 = printf_number_buffer::buffer_sign#0 [phi:printf_ulong::@2->printf_number_buffer#1] -- register_copy 
+    // [1628] phi printf_number_buffer::format_zero_padding#10 = printf_number_buffer::format_zero_padding#0 [phi:printf_ulong::@2->printf_number_buffer#2] -- register_copy 
+    // [1628] phi printf_number_buffer::format_min_length#3 = printf_number_buffer::format_min_length#0 [phi:printf_ulong::@2->printf_number_buffer#3] -- register_copy 
+    jsr printf_number_buffer
+    // printf_ulong::@return
+    // }
+    // [1728] return 
+    rts
+  .segment Data
+    uvalue: .dword 0
+    .label format_min_length = printf_uchar.format_min_length
+    .label format_zero_padding = printf_uchar.format_zero_padding
+}
+.segment Code
+  // vera_erase
+vera_erase: {
+    .label vera_erase__0 = $36
+    .label vera_erase__3 = $41
+    // BYTE2(vera_file_size)
+    // [1729] vera_erase::$0 = byte2  vera_file_size#1 -- vbuz1=_byte2_vdum2 
+    lda vera_file_size+2
+    sta.z vera_erase__0
+    // unsigned char vera_total_64k_blocks = BYTE2(vera_file_size)+1
+    // [1730] vera_erase::vera_total_64k_blocks#0 = vera_erase::$0 + 1 -- vbum1=vbuz2_plus_1 
+    inc
+    sta vera_total_64k_blocks
+    // [1731] phi from vera_erase to vera_erase::@1 [phi:vera_erase->vera_erase::@1]
+    // [1731] phi vera_erase::vera_address#2 = 0 [phi:vera_erase->vera_erase::@1#0] -- vdum1=vduc1 
+    lda #<0
+    sta vera_address
+    sta vera_address+1
+    lda #<0>>$10
+    sta vera_address+2
+    lda #>0>>$10
+    sta vera_address+3
+    // [1731] phi vera_erase::vera_current_64k_block#2 = 0 [phi:vera_erase->vera_erase::@1#1] -- vbum1=vbuc1 
+    lda #0
+    sta vera_current_64k_block
+    // vera_erase::@1
+  __b1:
+    // while(vera_current_64k_block < vera_total_64k_blocks)
+    // [1732] if(vera_erase::vera_current_64k_block#2<vera_erase::vera_total_64k_blocks#0) goto vera_erase::@2 -- vbum1_lt_vbum2_then_la1 
+    lda vera_current_64k_block
+    cmp vera_total_64k_blocks
+    bcc __b2
+    // [1733] phi from vera_erase::@1 to vera_erase::@return [phi:vera_erase::@1->vera_erase::@return]
+    // [1733] phi vera_erase::return#2 = 0 [phi:vera_erase::@1->vera_erase::@return#0] -- vbum1=vbuc1 
+    lda #0
+    sta return
+    // vera_erase::@return
+    // }
+    // [1734] return 
+    rts
+    // [1735] phi from vera_erase::@1 to vera_erase::@2 [phi:vera_erase::@1->vera_erase::@2]
+    // vera_erase::@2
+  __b2:
+    // spi_wait_non_busy()
+    // [1736] call spi_wait_non_busy
+    // [2263] phi from vera_erase::@2 to spi_wait_non_busy [phi:vera_erase::@2->spi_wait_non_busy]
+    jsr spi_wait_non_busy
+    // spi_wait_non_busy()
+    // [1737] spi_wait_non_busy::return#4 = spi_wait_non_busy::return#3
+    // vera_erase::@4
+    // [1738] vera_erase::$3 = spi_wait_non_busy::return#4 -- vbuz1=vbum2 
+    lda spi_wait_non_busy.return
+    sta.z vera_erase__3
+    // if(spi_wait_non_busy() == 0)
+    // [1739] if(vera_erase::$3==0) goto vera_erase::@3 -- vbuz1_eq_0_then_la1 
+    beq __b3
+    // [1733] phi from vera_erase::@4 to vera_erase::@return [phi:vera_erase::@4->vera_erase::@return]
+    // [1733] phi vera_erase::return#2 = 1 [phi:vera_erase::@4->vera_erase::@return#0] -- vbum1=vbuc1 
+    lda #1
+    sta return
+    rts
+    // vera_erase::@3
+  __b3:
+    // spi_block_erase(vera_address)
+    // [1740] spi_block_erase::data#0 = vera_erase::vera_address#2 -- vdum1=vdum2 
+    lda vera_address
+    sta spi_block_erase.data
+    lda vera_address+1
+    sta spi_block_erase.data+1
+    lda vera_address+2
+    sta spi_block_erase.data+2
+    lda vera_address+3
+    sta spi_block_erase.data+3
+    // [1741] call spi_block_erase
+    // [2280] phi from vera_erase::@3 to spi_block_erase [phi:vera_erase::@3->spi_block_erase]
+    jsr spi_block_erase
+    // vera_erase::@5
+    // vera_address += 0x10000
+    // [1742] vera_erase::vera_address#1 = vera_erase::vera_address#2 + $10000 -- vdum1=vdum1_plus_vduc1 
+    clc
+    lda vera_address
+    adc #<$10000
+    sta vera_address
+    lda vera_address+1
+    adc #>$10000
+    sta vera_address+1
+    lda vera_address+2
+    adc #<$10000>>$10
+    sta vera_address+2
+    lda vera_address+3
+    adc #>$10000>>$10
+    sta vera_address+3
+    // vera_current_64k_block++;
+    // [1743] vera_erase::vera_current_64k_block#1 = ++ vera_erase::vera_current_64k_block#2 -- vbum1=_inc_vbum1 
+    inc vera_current_64k_block
+    // [1731] phi from vera_erase::@5 to vera_erase::@1 [phi:vera_erase::@5->vera_erase::@1]
+    // [1731] phi vera_erase::vera_address#2 = vera_erase::vera_address#1 [phi:vera_erase::@5->vera_erase::@1#0] -- register_copy 
+    // [1731] phi vera_erase::vera_current_64k_block#2 = vera_erase::vera_current_64k_block#1 [phi:vera_erase::@5->vera_erase::@1#1] -- register_copy 
+    jmp __b1
+  .segment Data
+    vera_total_64k_blocks: .byte 0
+    vera_address: .dword 0
+    vera_current_64k_block: .byte 0
+    // There is an error. We must exit properly back to a prompt, no CX16 reset may happen!
+    return: .byte 0
+}
+.segment Code
+  // display_info_roms
+// void display_info_roms(char info_status, char *info_text)
+display_info_roms: {
+    // [1745] phi from display_info_roms to display_info_roms::@1 [phi:display_info_roms->display_info_roms::@1]
+    // [1745] phi display_info_roms::rom_chip#2 = 0 [phi:display_info_roms->display_info_roms::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta rom_chip
+    // display_info_roms::@1
+  __b1:
+    // for(unsigned char rom_chip=0; rom_chip<8; rom_chip++)
+    // [1746] if(display_info_roms::rom_chip#2<8) goto display_info_roms::@2 -- vbum1_lt_vbuc1_then_la1 
+    lda rom_chip
+    cmp #8
+    bcc __b2
+    // display_info_roms::@return
+    // }
+    // [1747] return 
+    rts
+    // display_info_roms::@2
+  __b2:
+    // display_info_rom(rom_chip, info_status, info_text)
+    // [1748] display_info_rom::rom_chip#1 = display_info_roms::rom_chip#2 -- vbum1=vbum2 
+    lda rom_chip
+    sta display_info_rom.rom_chip
+    // [1749] call display_info_rom
+    // [1076] phi from display_info_roms::@2 to display_info_rom [phi:display_info_roms::@2->display_info_rom]
+    // [1076] phi display_info_rom::info_text#10 = 0 [phi:display_info_roms::@2->display_info_rom#0] -- pbuz1=vbuc1 
+    lda #<0
+    sta.z display_info_rom.info_text
+    sta.z display_info_rom.info_text+1
+    // [1076] phi display_info_rom::rom_chip#10 = display_info_rom::rom_chip#1 [phi:display_info_roms::@2->display_info_rom#1] -- register_copy 
+    // [1076] phi display_info_rom::info_status#10 = STATUS_ERROR [phi:display_info_roms::@2->display_info_rom#2] -- vbum1=vbuc1 
+    lda #STATUS_ERROR
+    sta display_info_rom.info_status
+    jsr display_info_rom
+    // display_info_roms::@3
+    // for(unsigned char rom_chip=0; rom_chip<8; rom_chip++)
+    // [1750] display_info_roms::rom_chip#1 = ++ display_info_roms::rom_chip#2 -- vbum1=_inc_vbum1 
+    inc rom_chip
+    // [1745] phi from display_info_roms::@3 to display_info_roms::@1 [phi:display_info_roms::@3->display_info_roms::@1]
+    // [1745] phi display_info_roms::rom_chip#2 = display_info_roms::rom_chip#1 [phi:display_info_roms::@3->display_info_roms::@1#0] -- register_copy 
+    jmp __b1
+  .segment Data
+    rom_chip: .byte 0
+}
+.segment Code
+  // spi_deselect
+spi_deselect: {
+    // *vera_reg_SPICtrl &= 0xfe
+    // [1751] *vera_reg_SPICtrl = *vera_reg_SPICtrl & $fe -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    /*
+.proc spi_deselect
+    lda Vera::Reg::SPICtrl
+    and #$fe
+    sta Vera::Reg::SPICtrl
+    jsr spi_read
+	rts
+.endproc
+*/
+    lda #$fe
+    and vera_reg_SPICtrl
+    sta vera_reg_SPICtrl
+    // unsigned char value = spi_read()
+    // [1752] call spi_read
+    jsr spi_read
+    // spi_deselect::@return
+    // }
+    // [1753] return 
+    rts
+}
+  // vera_flash
+vera_flash: {
+    .label vera_flash__9 = $61
+    .label vera_flash__23 = $68
+    .label ram_address1 = $4a
+    // display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.")
+    // [1755] call display_action_progress
+  // Now we compare the RAM with the actual ROM contents.
+    // [556] phi from vera_flash to display_action_progress [phi:vera_flash->display_action_progress]
+    // [556] phi display_action_progress::info_text#19 = vera_flash::info_text [phi:vera_flash->display_action_progress#0] -- pbuz1=pbuc1 
+    lda #<info_text
+    sta.z display_action_progress.info_text
+    lda #>info_text
+    sta.z display_action_progress.info_text+1
+    jsr display_action_progress
+    // vera_flash::@15
+    // [1756] spi_manufacturer#419 = spi_read::return#0 -- vbum1=vbum2 
+    lda spi_read.return
+    sta spi_manufacturer
+    // [1757] spi_memory_type#420 = spi_read::return#1 -- vbum1=vbum2 
+    lda spi_read.return_1
+    sta spi_memory_type
+    // [1758] spi_memory_capacity#421 = spi_read::return#10 -- vbum1=vbum2 
+    lda spi_read.return_3
+    sta spi_memory_capacity
+    // display_info_vera(STATUS_FLASHING, "Flashing ...")
+    // [1759] call display_info_vera
+    // [650] phi from vera_flash::@15 to display_info_vera [phi:vera_flash::@15->display_info_vera]
+    // [650] phi display_info_vera::info_text#18 = vera_flash::info_text1 [phi:vera_flash::@15->display_info_vera#0] -- pbuz1=pbuc1 
+    lda #<info_text1
+    sta.z display_info_vera.info_text
+    lda #>info_text1
+    sta.z display_info_vera.info_text+1
+    // [650] phi spi_memory_capacity#109 = spi_memory_capacity#421 [phi:vera_flash::@15->display_info_vera#1] -- register_copy 
+    // [650] phi spi_memory_type#110 = spi_memory_type#420 [phi:vera_flash::@15->display_info_vera#2] -- register_copy 
+    // [650] phi spi_manufacturer#100 = spi_manufacturer#419 [phi:vera_flash::@15->display_info_vera#3] -- register_copy 
+    // [650] phi display_info_vera::info_status#18 = STATUS_FLASHING [phi:vera_flash::@15->display_info_vera#4] -- vbum1=vbuc1 
+    lda #STATUS_FLASHING
+    sta display_info_vera.info_status
+    jsr display_info_vera
+    // [1760] phi from vera_flash::@15 to vera_flash::@1 [phi:vera_flash::@15->vera_flash::@1]
+    // [1760] phi vera_flash::bram_bank_sector#11 = 0 [phi:vera_flash::@15->vera_flash::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta bram_bank_sector
+    // [1760] phi vera_flash::y_sector#13 = PROGRESS_Y [phi:vera_flash::@15->vera_flash::@1#1] -- vbum1=vbuc1 
+    lda #PROGRESS_Y
+    sta y_sector
+    // [1760] phi vera_flash::x_sector#13 = PROGRESS_X [phi:vera_flash::@15->vera_flash::@1#2] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta x_sector
+    // [1760] phi vera_flash::vera_address_page#12 = 0 [phi:vera_flash::@15->vera_flash::@1#3] -- vdum1=vduc1 
+    lda #<0
+    sta vera_address_page
+    sta vera_address_page+1
+    lda #<0>>$10
+    sta vera_address_page+2
+    lda #>0>>$10
+    sta vera_address_page+3
+    // [1760] phi from vera_flash::@12 to vera_flash::@1 [phi:vera_flash::@12->vera_flash::@1]
+    // [1760] phi vera_flash::bram_bank_sector#11 = vera_flash::bram_bank_sector#23 [phi:vera_flash::@12->vera_flash::@1#0] -- register_copy 
+    // [1760] phi vera_flash::y_sector#13 = vera_flash::y_sector#13 [phi:vera_flash::@12->vera_flash::@1#1] -- register_copy 
+    // [1760] phi vera_flash::x_sector#13 = vera_flash::x_sector#1 [phi:vera_flash::@12->vera_flash::@1#2] -- register_copy 
+    // [1760] phi vera_flash::vera_address_page#12 = vera_flash::vera_address_page#1 [phi:vera_flash::@12->vera_flash::@1#3] -- register_copy 
+    // vera_flash::@1
+  __b1:
+    // while (vera_address_page < vera_file_size)
+    // [1761] if(vera_flash::vera_address_page#12<vera_file_size#1) goto vera_flash::@2 -- vdum1_lt_vdum2_then_la1 
+    lda vera_address_page+3
+    cmp vera_file_size+3
+    bcs !__b2+
+    jmp __b2
+  !__b2:
+    bne !+
+    lda vera_address_page+2
+    cmp vera_file_size+2
+    bcc __b2
+    bne !+
+    lda vera_address_page+1
+    cmp vera_file_size+1
+    bcc __b2
+    bne !+
+    lda vera_address_page
+    cmp vera_file_size
+    bcc __b2
+  !:
+    // [1762] phi from vera_flash::@1 to vera_flash::@3 [phi:vera_flash::@1->vera_flash::@3]
+    // vera_flash::@3
+    // sprintf(info_text, "Flashed %05x bytes from RAM -> VERA ... ", vera_address_page)
+    // [1763] call snprintf_init
+    jsr snprintf_init
+    // [1764] phi from vera_flash::@3 to vera_flash::@18 [phi:vera_flash::@3->vera_flash::@18]
+    // vera_flash::@18
+    // sprintf(info_text, "Flashed %05x bytes from RAM -> VERA ... ", vera_address_page)
+    // [1765] call printf_str
+    // [785] phi from vera_flash::@18 to printf_str [phi:vera_flash::@18->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_flash::@18->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_flash::s [phi:vera_flash::@18->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s
+    sta.z printf_str.s
+    lda #>s
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_flash::@19
+    // sprintf(info_text, "Flashed %05x bytes from RAM -> VERA ... ", vera_address_page)
+    // [1766] printf_ulong::uvalue#2 = vera_flash::vera_address_page#12 -- vdum1=vdum2 
+    lda vera_address_page
+    sta printf_ulong.uvalue
+    lda vera_address_page+1
+    sta printf_ulong.uvalue+1
+    lda vera_address_page+2
+    sta printf_ulong.uvalue+2
+    lda vera_address_page+3
+    sta printf_ulong.uvalue+3
+    // [1767] call printf_ulong
+    // [1720] phi from vera_flash::@19 to printf_ulong [phi:vera_flash::@19->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:vera_flash::@19->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:vera_flash::@19->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#2 [phi:vera_flash::@19->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // [1768] phi from vera_flash::@19 to vera_flash::@20 [phi:vera_flash::@19->vera_flash::@20]
+    // vera_flash::@20
+    // sprintf(info_text, "Flashed %05x bytes from RAM -> VERA ... ", vera_address_page)
+    // [1769] call printf_str
+    // [785] phi from vera_flash::@20 to printf_str [phi:vera_flash::@20->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_flash::@20->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_flash::s1 [phi:vera_flash::@20->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s1
+    sta.z printf_str.s
+    lda #>s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_flash::@21
+    // sprintf(info_text, "Flashed %05x bytes from RAM -> VERA ... ", vera_address_page)
+    // [1770] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [1771] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_text(info_text)
+    // [1773] call display_action_text
+    // [846] phi from vera_flash::@21 to display_action_text [phi:vera_flash::@21->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:vera_flash::@21->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_action_text.info_text
+    lda #>@info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [1774] phi from vera_flash::@21 to vera_flash::@22 [phi:vera_flash::@21->vera_flash::@22]
+    // vera_flash::@22
+    // wait_moment(32)
+    // [1775] call wait_moment
+    // [794] phi from vera_flash::@22 to wait_moment [phi:vera_flash::@22->wait_moment]
+    // [794] phi wait_moment::w#12 = $20 [phi:vera_flash::@22->wait_moment#0] -- vbum1=vbuc1 
+    lda #$20
+    sta wait_moment.w
+    jsr wait_moment
+    // [1776] phi from vera_flash::@22 to vera_flash::@return [phi:vera_flash::@22->vera_flash::@return]
+    // [1776] phi vera_flash::return#2 = vera_flash::vera_address_page#12 [phi:vera_flash::@22->vera_flash::@return#0] -- register_copy 
+    // vera_flash::@return
+    // }
+    // [1777] return 
+    rts
+    // vera_flash::@2
+  __b2:
+    // unsigned long vera_page_boundary = vera_address_page + VERA_PROGRESS_PAGE
+    // [1778] vera_flash::vera_page_boundary#0 = vera_flash::vera_address_page#12 + VERA_PROGRESS_PAGE -- vdum1=vdum2_plus_vwuc1 
+    // {asm{.byte $db}}
+    clc
+    lda vera_address_page
+    adc #<VERA_PROGRESS_PAGE
+    sta vera_page_boundary
+    lda vera_address_page+1
+    adc #>VERA_PROGRESS_PAGE
+    sta vera_page_boundary+1
+    lda vera_address_page+2
+    adc #0
+    sta vera_page_boundary+2
+    lda vera_address_page+3
+    adc #0
+    sta vera_page_boundary+3
+    // cputcxy(x,y,'.')
+    // [1779] cputcxy::x#1 = vera_flash::x_sector#13 -- vbum1=vbum2 
+    lda x_sector
+    sta cputcxy.x
+    // [1780] cputcxy::y#1 = vera_flash::y_sector#13 -- vbum1=vbum2 
+    lda y_sector
+    sta cputcxy.y
+    // [1781] call cputcxy
+    // [1358] phi from vera_flash::@2 to cputcxy [phi:vera_flash::@2->cputcxy]
+    // [1358] phi cputcxy::c#16 = '.' [phi:vera_flash::@2->cputcxy#0] -- vbum1=vbuc1 
+    lda #'.'
+    sta cputcxy.c
+    // [1358] phi cputcxy::y#16 = cputcxy::y#1 [phi:vera_flash::@2->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#1 [phi:vera_flash::@2->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // vera_flash::@16
+    // cputc('.')
+    // [1782] stackpush(char) = '.' -- _stackpushbyte_=vbuc1 
+    lda #'.'
+    pha
+    // [1783] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // spi_wait_non_busy()
+    // [1785] call spi_wait_non_busy
+    // [2263] phi from vera_flash::@16 to spi_wait_non_busy [phi:vera_flash::@16->spi_wait_non_busy]
+    jsr spi_wait_non_busy
+    // spi_wait_non_busy()
+    // [1786] spi_wait_non_busy::return#5 = spi_wait_non_busy::return#3
+    // vera_flash::@17
+    // [1787] vera_flash::$9 = spi_wait_non_busy::return#5 -- vbuz1=vbum2 
+    lda spi_wait_non_busy.return
+    sta.z vera_flash__9
+    // if(!spi_wait_non_busy())
+    // [1788] if(0==vera_flash::$9) goto vera_flash::@4 -- 0_eq_vbuz1_then_la1 
+    beq __b4
+    // [1776] phi from vera_flash::@17 to vera_flash::@return [phi:vera_flash::@17->vera_flash::@return]
+    // [1776] phi vera_flash::return#2 = 0 [phi:vera_flash::@17->vera_flash::@return#0] -- vdum1=vbuc1 
+    lda #0
+    sta return
+    sta return+1
+    sta return+2
+    sta return+3
+    rts
+    // vera_flash::@4
+  __b4:
+    // spi_write_page_begin(vera_address_page)
+    // [1789] spi_write_page_begin::data#0 = vera_flash::vera_address_page#12 -- vdum1=vdum2 
+    lda vera_address_page
+    sta spi_write_page_begin.data
+    lda vera_address_page+1
+    sta spi_write_page_begin.data+1
+    lda vera_address_page+2
+    sta spi_write_page_begin.data+2
+    lda vera_address_page+3
+    sta spi_write_page_begin.data+3
+    // [1790] call spi_write_page_begin
+    // [2305] phi from vera_flash::@4 to spi_write_page_begin [phi:vera_flash::@4->spi_write_page_begin]
+    jsr spi_write_page_begin
+    // vera_flash::@23
+    // [1791] vera_flash::vera_address#22 = vera_flash::vera_address_page#12 -- vdum1=vdum2 
+    lda vera_address_page
+    sta vera_address
+    lda vera_address_page+1
+    sta vera_address+1
+    lda vera_address_page+2
+    sta vera_address+2
+    lda vera_address_page+3
+    sta vera_address+3
+    // [1792] vera_flash::x#22 = vera_flash::x_sector#13 -- vbum1=vbum2 
+    lda x_sector
+    sta x
+    // [1793] phi from vera_flash::@23 to vera_flash::@6 [phi:vera_flash::@23->vera_flash::@6]
+    // [1793] phi vera_flash::x#10 = vera_flash::x#22 [phi:vera_flash::@23->vera_flash::@6#0] -- register_copy 
+    // [1793] phi vera_flash::ram_address1#10 = (char *)$7800 [phi:vera_flash::@23->vera_flash::@6#1] -- pbuz1=pbuc1 
+    lda #<$7800
+    sta.z ram_address1
+    lda #>$7800
+    sta.z ram_address1+1
+    // [1793] phi vera_flash::vera_address#12 = vera_flash::vera_address#22 [phi:vera_flash::@23->vera_flash::@6#2] -- register_copy 
+    // vera_flash::@6
+  __b6:
+    // while (vera_address < vera_page_boundary)
+    // [1794] if(vera_flash::vera_address#12<vera_flash::vera_page_boundary#0) goto vera_flash::@7 -- vdum1_lt_vdum2_then_la1 
+    lda vera_address+3
+    cmp vera_page_boundary+3
+    bcs !__b7+
+    jmp __b7
+  !__b7:
+    bne !+
+    lda vera_address+2
+    cmp vera_page_boundary+2
+    bcs !__b7+
+    jmp __b7
+  !__b7:
+    bne !+
+    lda vera_address+1
+    cmp vera_page_boundary+1
+    bcs !__b7+
+    jmp __b7
+  !__b7:
+    bne !+
+    lda vera_address
+    cmp vera_page_boundary
+    bcs !__b7+
+    jmp __b7
+  !__b7:
+  !:
+    // vera_flash::@5
+    // ram_address += VERA_PROGRESS_PAGE
+    // [1795] vera_flash::ram_address1#1 = vera_flash::ram_address1#10 + VERA_PROGRESS_PAGE -- pbuz1=pbuz1_plus_vwuc1 
+    lda.z ram_address1
+    clc
+    adc #<VERA_PROGRESS_PAGE
+    sta.z ram_address1
+    lda.z ram_address1+1
+    adc #>VERA_PROGRESS_PAGE
+    sta.z ram_address1+1
+    // vera_address_page += VERA_PROGRESS_PAGE
+    // [1796] vera_flash::vera_address_page#1 = vera_flash::vera_address_page#12 + VERA_PROGRESS_PAGE -- vdum1=vdum1_plus_vwuc1 
+    clc
+    lda vera_address_page
+    adc #<VERA_PROGRESS_PAGE
+    sta vera_address_page
+    lda vera_address_page+1
+    adc #>VERA_PROGRESS_PAGE
+    sta vera_address_page+1
+    lda vera_address_page+2
+    adc #0
+    sta vera_address_page+2
+    lda vera_address_page+3
+    adc #0
+    sta vera_address_page+3
+    // if (ram_address == BRAM_HIGH)
+    // [1797] if(vera_flash::ram_address1#1!=$c000) goto vera_flash::@11 -- pbuz1_neq_vwuc1_then_la1 
+    lda.z ram_address1+1
+    cmp #>$c000
+    bne __b11
+    lda.z ram_address1
+    cmp #<$c000
+    bne __b11
+    // vera_flash::@13
+    // bram_bank_sector++;
+    // [1798] vera_flash::bram_bank_sector#1 = ++ vera_flash::bram_bank_sector#11 -- vbum1=_inc_vbum1 
+    inc bram_bank_sector
+    // [1799] phi from vera_flash::@13 to vera_flash::@11 [phi:vera_flash::@13->vera_flash::@11]
+    // [1799] phi vera_flash::bram_bank_sector#29 = vera_flash::bram_bank_sector#1 [phi:vera_flash::@13->vera_flash::@11#0] -- register_copy 
+    // [1799] phi vera_flash::ram_address1#9 = (char *)$a000 [phi:vera_flash::@13->vera_flash::@11#1] -- pbuz1=pbuc1 
+    lda #<$a000
+    sta.z ram_address1
+    lda #>$a000
+    sta.z ram_address1+1
+    // [1799] phi from vera_flash::@5 to vera_flash::@11 [phi:vera_flash::@5->vera_flash::@11]
+    // [1799] phi vera_flash::bram_bank_sector#29 = vera_flash::bram_bank_sector#11 [phi:vera_flash::@5->vera_flash::@11#0] -- register_copy 
+    // [1799] phi vera_flash::ram_address1#9 = vera_flash::ram_address1#1 [phi:vera_flash::@5->vera_flash::@11#1] -- register_copy 
+    // vera_flash::@11
+  __b11:
+    // if (ram_address == RAM_HIGH)
+    // [1800] if(vera_flash::ram_address1#9!=$9800) goto vera_flash::@34 -- pbuz1_neq_vwuc1_then_la1 
+    lda.z ram_address1+1
+    cmp #>$9800
+    bne __b12
+    lda.z ram_address1
+    cmp #<$9800
+    bne __b12
+    // [1802] phi from vera_flash::@11 to vera_flash::@12 [phi:vera_flash::@11->vera_flash::@12]
+    // [1802] phi vera_flash::bram_bank_sector#23 = 1 [phi:vera_flash::@11->vera_flash::@12#0] -- vbum1=vbuc1 
+    lda #1
+    sta bram_bank_sector
+    // [1801] phi from vera_flash::@11 to vera_flash::@34 [phi:vera_flash::@11->vera_flash::@34]
+    // vera_flash::@34
+    // [1802] phi from vera_flash::@34 to vera_flash::@12 [phi:vera_flash::@34->vera_flash::@12]
+    // [1802] phi vera_flash::bram_bank_sector#23 = vera_flash::bram_bank_sector#29 [phi:vera_flash::@34->vera_flash::@12#0] -- register_copy 
+    // vera_flash::@12
+  __b12:
+    // x_sector += 2
+    // [1803] vera_flash::x_sector#1 = vera_flash::x_sector#13 + 2 -- vbum1=vbum1_plus_2 
+    lda x_sector
+    clc
+    adc #2
+    sta x_sector
+    // vera_address_page % VERA_PROGRESS_ROW
+    // [1804] vera_flash::$23 = vera_flash::vera_address_page#1 & VERA_PROGRESS_ROW-1 -- vduz1=vdum2_band_vduc1 
+    lda vera_address_page
+    and #<VERA_PROGRESS_ROW-1
+    sta.z vera_flash__23
+    lda vera_address_page+1
+    and #>VERA_PROGRESS_ROW-1
+    sta.z vera_flash__23+1
+    lda vera_address_page+2
+    and #<VERA_PROGRESS_ROW-1>>$10
+    sta.z vera_flash__23+2
+    lda vera_address_page+3
+    and #>VERA_PROGRESS_ROW-1>>$10
+    sta.z vera_flash__23+3
+    // if (!(vera_address_page % VERA_PROGRESS_ROW))
+    // [1805] if(0!=vera_flash::$23) goto vera_flash::@1 -- 0_neq_vduz1_then_la1 
+    lda.z vera_flash__23
+    ora.z vera_flash__23+1
+    ora.z vera_flash__23+2
+    ora.z vera_flash__23+3
+    beq !__b1+
+    jmp __b1
+  !__b1:
+    // vera_flash::@14
+    // y_sector++;
+    // [1806] vera_flash::y_sector#1 = ++ vera_flash::y_sector#13 -- vbum1=_inc_vbum1 
+    inc y_sector
+    // [1760] phi from vera_flash::@14 to vera_flash::@1 [phi:vera_flash::@14->vera_flash::@1]
+    // [1760] phi vera_flash::bram_bank_sector#11 = vera_flash::bram_bank_sector#23 [phi:vera_flash::@14->vera_flash::@1#0] -- register_copy 
+    // [1760] phi vera_flash::y_sector#13 = vera_flash::y_sector#1 [phi:vera_flash::@14->vera_flash::@1#1] -- register_copy 
+    // [1760] phi vera_flash::x_sector#13 = PROGRESS_X [phi:vera_flash::@14->vera_flash::@1#2] -- vbum1=vbuc1 
+    lda #PROGRESS_X
+    sta x_sector
+    // [1760] phi vera_flash::vera_address_page#12 = vera_flash::vera_address_page#1 [phi:vera_flash::@14->vera_flash::@1#3] -- register_copy 
+    jmp __b1
+    // [1807] phi from vera_flash::@6 to vera_flash::@7 [phi:vera_flash::@6->vera_flash::@7]
+    // vera_flash::@7
+  __b7:
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1808] call snprintf_init
+    jsr snprintf_init
+    // [1809] phi from vera_flash::@7 to vera_flash::@24 [phi:vera_flash::@7->vera_flash::@24]
+    // vera_flash::@24
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1810] call printf_str
+    // [785] phi from vera_flash::@24 to printf_str [phi:vera_flash::@24->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_flash::@24->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_flash::s2 [phi:vera_flash::@24->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s2
+    sta.z printf_str.s
+    lda #>s2
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_flash::@25
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1811] printf_uchar::uvalue#4 = vera_flash::bram_bank_sector#11 -- vbum1=vbum2 
+    lda bram_bank_sector
+    sta printf_uchar.uvalue
+    // [1812] call printf_uchar
+    // [835] phi from vera_flash::@25 to printf_uchar [phi:vera_flash::@25->printf_uchar]
+    // [835] phi printf_uchar::format_zero_padding#12 = 1 [phi:vera_flash::@25->printf_uchar#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uchar.format_zero_padding
+    // [835] phi printf_uchar::format_min_length#12 = 2 [phi:vera_flash::@25->printf_uchar#1] -- vbum1=vbuc1 
+    lda #2
+    sta printf_uchar.format_min_length
+    // [835] phi printf_uchar::putc#12 = &snputc [phi:vera_flash::@25->printf_uchar#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uchar.putc
+    lda #>snputc
+    sta.z printf_uchar.putc+1
+    // [835] phi printf_uchar::format_radix#12 = HEXADECIMAL [phi:vera_flash::@25->printf_uchar#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uchar.format_radix
+    // [835] phi printf_uchar::uvalue#12 = printf_uchar::uvalue#4 [phi:vera_flash::@25->printf_uchar#4] -- register_copy 
+    jsr printf_uchar
+    // [1813] phi from vera_flash::@25 to vera_flash::@26 [phi:vera_flash::@25->vera_flash::@26]
+    // vera_flash::@26
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1814] call printf_str
+    // [785] phi from vera_flash::@26 to printf_str [phi:vera_flash::@26->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_flash::@26->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = s1 [phi:vera_flash::@26->printf_str#1] -- pbuz1=pbuc1 
+    lda #<@s1
+    sta.z printf_str.s
+    lda #>@s1
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_flash::@27
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1815] printf_uint::uvalue#3 = (unsigned int)vera_flash::ram_address1#10 -- vwum1=vwuz2 
+    lda.z ram_address1
+    sta printf_uint.uvalue
+    lda.z ram_address1+1
+    sta printf_uint.uvalue+1
+    // [1816] call printf_uint
+    // [1445] phi from vera_flash::@27 to printf_uint [phi:vera_flash::@27->printf_uint]
+    // [1445] phi printf_uint::format_zero_padding#10 = 1 [phi:vera_flash::@27->printf_uint#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_uint.format_zero_padding
+    // [1445] phi printf_uint::format_min_length#10 = 4 [phi:vera_flash::@27->printf_uint#1] -- vbum1=vbuc1 
+    lda #4
+    sta printf_uint.format_min_length
+    // [1445] phi printf_uint::putc#10 = &snputc [phi:vera_flash::@27->printf_uint#2] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_uint.putc
+    lda #>snputc
+    sta.z printf_uint.putc+1
+    // [1445] phi printf_uint::format_radix#10 = HEXADECIMAL [phi:vera_flash::@27->printf_uint#3] -- vbum1=vbuc1 
+    lda #HEXADECIMAL
+    sta printf_uint.format_radix
+    // [1445] phi printf_uint::uvalue#6 = printf_uint::uvalue#3 [phi:vera_flash::@27->printf_uint#4] -- register_copy 
+    jsr printf_uint
+    // [1817] phi from vera_flash::@27 to vera_flash::@28 [phi:vera_flash::@27->vera_flash::@28]
+    // vera_flash::@28
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1818] call printf_str
+    // [785] phi from vera_flash::@28 to printf_str [phi:vera_flash::@28->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_flash::@28->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_flash::s4 [phi:vera_flash::@28->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s4
+    sta.z printf_str.s
+    lda #>s4
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_flash::@29
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1819] printf_ulong::uvalue#3 = vera_flash::vera_address_page#12 -- vdum1=vdum2 
+    lda vera_address_page
+    sta printf_ulong.uvalue
+    lda vera_address_page+1
+    sta printf_ulong.uvalue+1
+    lda vera_address_page+2
+    sta printf_ulong.uvalue+2
+    lda vera_address_page+3
+    sta printf_ulong.uvalue+3
+    // [1820] call printf_ulong
+    // [1720] phi from vera_flash::@29 to printf_ulong [phi:vera_flash::@29->printf_ulong]
+    // [1720] phi printf_ulong::format_zero_padding#10 = 1 [phi:vera_flash::@29->printf_ulong#0] -- vbum1=vbuc1 
+    lda #1
+    sta printf_ulong.format_zero_padding
+    // [1720] phi printf_ulong::format_min_length#10 = 5 [phi:vera_flash::@29->printf_ulong#1] -- vbum1=vbuc1 
+    lda #5
+    sta printf_ulong.format_min_length
+    // [1720] phi printf_ulong::uvalue#10 = printf_ulong::uvalue#3 [phi:vera_flash::@29->printf_ulong#2] -- register_copy 
+    jsr printf_ulong
+    // [1821] phi from vera_flash::@29 to vera_flash::@30 [phi:vera_flash::@29->vera_flash::@30]
+    // vera_flash::@30
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1822] call printf_str
+    // [785] phi from vera_flash::@30 to printf_str [phi:vera_flash::@30->printf_str]
+    // [785] phi printf_str::putc#54 = &snputc [phi:vera_flash::@30->printf_str#0] -- pprz1=pprc1 
+    lda #<snputc
+    sta.z printf_str.putc
+    lda #>snputc
+    sta.z printf_str.putc+1
+    // [785] phi printf_str::s#54 = vera_flash::s5 [phi:vera_flash::@30->printf_str#1] -- pbuz1=pbuc1 
+    lda #<s5
+    sta.z printf_str.s
+    lda #>s5
+    sta.z printf_str.s+1
+    jsr printf_str
+    // vera_flash::@31
+    // sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", bram_bank_sector, ram_address, vera_address_page)
+    // [1823] stackpush(char) = 0 -- _stackpushbyte_=vbuc1 
+    lda #0
+    pha
+    // [1824] callexecute snputc  -- call_vprc1 
+    jsr snputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_action_text(info_text)
+    // [1826] call display_action_text
+    // [846] phi from vera_flash::@31 to display_action_text [phi:vera_flash::@31->display_action_text]
+    // [846] phi display_action_text::info_text#19 = info_text [phi:vera_flash::@31->display_action_text#0] -- pbuz1=pbuc1 
+    lda #<@info_text
+    sta.z display_action_text.info_text
+    lda #>@info_text
+    sta.z display_action_text.info_text+1
+    jsr display_action_text
+    // [1827] phi from vera_flash::@31 to vera_flash::@8 [phi:vera_flash::@31->vera_flash::@8]
+    // [1827] phi vera_flash::i#2 = 0 [phi:vera_flash::@31->vera_flash::@8#0] -- vbum1=vbuc1 
+    lda #0
+    sta i
+    // vera_flash::@8
+  __b8:
+    // for(unsigned char i=0; i<255; i++)
+    // [1828] if(vera_flash::i#2<$ff) goto vera_flash::@9 -- vbum1_lt_vbuc1_then_la1 
+    lda i
+    cmp #$ff
+    bcc __b9
+    // vera_flash::@10
+    // cputcxy(x,y,'+')
+    // [1829] cputcxy::x#2 = vera_flash::x#10 -- vbum1=vbum2 
+    lda x
+    sta cputcxy.x
+    // [1830] cputcxy::y#2 = vera_flash::y_sector#13 -- vbum1=vbum2 
+    lda y_sector
+    sta cputcxy.y
+    // [1831] call cputcxy
+    // [1358] phi from vera_flash::@10 to cputcxy [phi:vera_flash::@10->cputcxy]
+    // [1358] phi cputcxy::c#16 = '+' [phi:vera_flash::@10->cputcxy#0] -- vbum1=vbuc1 
+    lda #'+'
+    sta cputcxy.c
+    // [1358] phi cputcxy::y#16 = cputcxy::y#2 [phi:vera_flash::@10->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#2 [phi:vera_flash::@10->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // vera_flash::@33
+    // cputc('+')
+    // [1832] stackpush(char) = '+' -- _stackpushbyte_=vbuc1 
+    lda #'+'
+    pha
+    // [1833] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // ram_address += VERA_PROGRESS_PAGE
+    // [1835] vera_flash::ram_address1#2 = vera_flash::ram_address1#10 + VERA_PROGRESS_PAGE -- pbuz1=pbuz1_plus_vwuc1 
+    lda.z ram_address1
+    clc
+    adc #<VERA_PROGRESS_PAGE
+    sta.z ram_address1
+    lda.z ram_address1+1
+    adc #>VERA_PROGRESS_PAGE
+    sta.z ram_address1+1
+    // vera_address += VERA_PROGRESS_PAGE
+    // [1836] vera_flash::vera_address#1 = vera_flash::vera_address#12 + VERA_PROGRESS_PAGE -- vdum1=vdum1_plus_vwuc1 
+    clc
+    lda vera_address
+    adc #<VERA_PROGRESS_PAGE
+    sta vera_address
+    lda vera_address+1
+    adc #>VERA_PROGRESS_PAGE
+    sta vera_address+1
+    lda vera_address+2
+    adc #0
+    sta vera_address+2
+    lda vera_address+3
+    adc #0
+    sta vera_address+3
+    // x++;
+    // [1837] vera_flash::x#1 = ++ vera_flash::x#10 -- vbum1=_inc_vbum1 
+    inc x
+    // [1793] phi from vera_flash::@33 to vera_flash::@6 [phi:vera_flash::@33->vera_flash::@6]
+    // [1793] phi vera_flash::x#10 = vera_flash::x#1 [phi:vera_flash::@33->vera_flash::@6#0] -- register_copy 
+    // [1793] phi vera_flash::ram_address1#10 = vera_flash::ram_address1#2 [phi:vera_flash::@33->vera_flash::@6#1] -- register_copy 
+    // [1793] phi vera_flash::vera_address#12 = vera_flash::vera_address#1 [phi:vera_flash::@33->vera_flash::@6#2] -- register_copy 
+    jmp __b6
+    // vera_flash::@9
+  __b9:
+    // spi_write(ram_address[i])
+    // [1838] spi_write::data = vera_flash::ram_address1#10[vera_flash::i#2] -- vbum1=pbuz2_derefidx_vbum3 
+    ldy i
+    lda (ram_address1),y
+    sta spi_write.data
+    // [1839] call spi_write
+    jsr spi_write
+    // vera_flash::@32
+    // for(unsigned char i=0; i<255; i++)
+    // [1840] vera_flash::i#1 = ++ vera_flash::i#2 -- vbum1=_inc_vbum1 
+    inc i
+    // [1827] phi from vera_flash::@32 to vera_flash::@8 [phi:vera_flash::@32->vera_flash::@8]
+    // [1827] phi vera_flash::i#2 = vera_flash::i#1 [phi:vera_flash::@32->vera_flash::@8#0] -- register_copy 
+    jmp __b8
+  .segment Data
+    info_text: .text "Flashing ... (-) equal, (+) flashed, (!) error."
+    .byte 0
+    info_text1: .text "Flashing ..."
+    .byte 0
+    s: .text "Flashed "
+    .byte 0
+    s1: .text " bytes from RAM -> VERA ... "
+    .byte 0
+    s2: .text "Flashing 256 bytes from RAM:"
+    .byte 0
+    s4: .text " -> VERA:"
+    .byte 0
+    s5: .text " ... "
+    .byte 0
+    vera_page_boundary: .dword 0
+    // TODO: ERROR!!!
+    return: .dword 0
+    .label vera_address_page = return
+    i: .byte 0
+    vera_address: .dword 0
+    x: .byte 0
+    bram_bank_sector: .byte 0
+    x_sector: .byte 0
+    y_sector: .byte 0
+}
+.segment Code
+  // cbm_k_getin
+/**
+ * @brief Scan a character from keyboard without pressing enter.
+ * 
+ * @return char The character read.
+ */
+cbm_k_getin: {
+    // __mem unsigned char ch
+    // [1841] cbm_k_getin::ch = 0 -- vbum1=vbuc1 
+    lda #0
+    sta ch
+    // asm
+    // asm { jsrCBM_GETIN stach  }
+    jsr CBM_GETIN
+    sta ch
+    // return ch;
+    // [1843] cbm_k_getin::return#0 = cbm_k_getin::ch -- vbum1=vbum2 
+    sta return
+    // cbm_k_getin::@return
+    // }
+    // [1844] cbm_k_getin::return#1 = cbm_k_getin::return#0
+    // [1845] return 
+    rts
+  .segment Data
+    ch: .byte 0
+    return: .byte 0
+}
+.segment Code
+  // insertup
+// Insert a new line, and scroll the upper part of the screen up.
+// void insertup(char rows)
+insertup: {
+    .label insertup__0 = $30
+    .label insertup__4 = $29
+    .label insertup__6 = $2a
+    .label insertup__7 = $29
+    // __conio.width+1
+    // [1846] insertup::$0 = *((char *)&__conio+6) + 1 -- vbuz1=_deref_pbuc1_plus_1 
+    lda __conio+6
+    inc
+    sta.z insertup__0
+    // unsigned char width = (__conio.width+1) * 2
+    // [1847] insertup::width#0 = insertup::$0 << 1 -- vbum1=vbuz2_rol_1 
+    // {asm{.byte $db}}
+    asl
+    sta width
+    // [1848] phi from insertup to insertup::@1 [phi:insertup->insertup::@1]
+    // [1848] phi insertup::y#2 = 0 [phi:insertup->insertup::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta y
+    // insertup::@1
+  __b1:
+    // for(unsigned char y=0; y<__conio.cursor_y; y++)
+    // [1849] if(insertup::y#2<*((char *)&__conio+1)) goto insertup::@2 -- vbum1_lt__deref_pbuc1_then_la1 
+    lda y
+    cmp __conio+1
+    bcc __b2
+    // [1850] phi from insertup::@1 to insertup::@3 [phi:insertup::@1->insertup::@3]
+    // insertup::@3
+    // clearline()
+    // [1851] call clearline
+    jsr clearline
+    // insertup::@return
+    // }
+    // [1852] return 
+    rts
+    // insertup::@2
+  __b2:
+    // y+1
+    // [1853] insertup::$4 = insertup::y#2 + 1 -- vbuz1=vbum2_plus_1 
+    lda y
+    inc
+    sta.z insertup__4
+    // memcpy8_vram_vram(__conio.mapbase_bank, __conio.offsets[y], __conio.mapbase_bank, __conio.offsets[y+1], width)
+    // [1854] insertup::$6 = insertup::y#2 << 1 -- vbuz1=vbum2_rol_1 
+    lda y
+    asl
+    sta.z insertup__6
+    // [1855] insertup::$7 = insertup::$4 << 1 -- vbuz1=vbuz1_rol_1 
+    asl.z insertup__7
+    // [1856] memcpy8_vram_vram::dbank_vram#0 = *((char *)&__conio+5) -- vbum1=_deref_pbuc1 
+    lda __conio+5
+    sta memcpy8_vram_vram.dbank_vram
+    // [1857] memcpy8_vram_vram::doffset_vram#0 = ((unsigned int *)&__conio+$15)[insertup::$6] -- vwum1=pwuc1_derefidx_vbuz2 
+    ldy.z insertup__6
+    lda __conio+$15,y
+    sta memcpy8_vram_vram.doffset_vram
+    lda __conio+$15+1,y
+    sta memcpy8_vram_vram.doffset_vram+1
+    // [1858] memcpy8_vram_vram::sbank_vram#0 = *((char *)&__conio+5) -- vbum1=_deref_pbuc1 
+    lda __conio+5
+    sta memcpy8_vram_vram.sbank_vram
+    // [1859] memcpy8_vram_vram::soffset_vram#0 = ((unsigned int *)&__conio+$15)[insertup::$7] -- vwum1=pwuc1_derefidx_vbuz2 
+    ldy.z insertup__7
+    lda __conio+$15,y
+    sta memcpy8_vram_vram.soffset_vram
+    lda __conio+$15+1,y
+    sta memcpy8_vram_vram.soffset_vram+1
+    // [1860] memcpy8_vram_vram::num8#1 = insertup::width#0 -- vbum1=vbum2 
+    lda width
+    sta memcpy8_vram_vram.num8_1
+    // [1861] call memcpy8_vram_vram
+    jsr memcpy8_vram_vram
+    // insertup::@4
+    // for(unsigned char y=0; y<__conio.cursor_y; y++)
+    // [1862] insertup::y#1 = ++ insertup::y#2 -- vbum1=_inc_vbum1 
+    inc y
+    // [1848] phi from insertup::@4 to insertup::@1 [phi:insertup::@4->insertup::@1]
+    // [1848] phi insertup::y#2 = insertup::y#1 [phi:insertup::@4->insertup::@1#0] -- register_copy 
+    jmp __b1
+  .segment Data
+    width: .byte 0
+    y: .byte 0
+}
+.segment Code
+  // clearline
+clearline: {
+    .label clearline__0 = $24
+    .label clearline__1 = $25
+    .label clearline__2 = $26
+    .label clearline__3 = $23
+    .label c = $22
+    // unsigned int addr = __conio.offsets[__conio.cursor_y]
+    // [1863] clearline::$3 = *((char *)&__conio+1) << 1 -- vbuz1=_deref_pbuc1_rol_1 
+    lda __conio+1
+    asl
+    sta.z clearline__3
+    // [1864] clearline::addr#0 = ((unsigned int *)&__conio+$15)[clearline::$3] -- vwum1=pwuc1_derefidx_vbuz2 
+    tay
+    lda __conio+$15,y
+    sta addr
+    lda __conio+$15+1,y
+    sta addr+1
+    // *VERA_CTRL &= ~VERA_ADDRSEL
+    // [1865] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    lda #VERA_ADDRSEL^$ff
+    and VERA_CTRL
+    sta VERA_CTRL
+    // BYTE0(addr)
+    // [1866] clearline::$0 = byte0  clearline::addr#0 -- vbuz1=_byte0_vwum2 
+    lda addr
+    sta.z clearline__0
+    // *VERA_ADDRX_L = BYTE0(addr)
+    // [1867] *VERA_ADDRX_L = clearline::$0 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_L
+    // BYTE1(addr)
+    // [1868] clearline::$1 = byte1  clearline::addr#0 -- vbuz1=_byte1_vwum2 
+    lda addr+1
+    sta.z clearline__1
+    // *VERA_ADDRX_M = BYTE1(addr)
+    // [1869] *VERA_ADDRX_M = clearline::$1 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_M
+    // __conio.mapbase_bank | VERA_INC_1
+    // [1870] clearline::$2 = *((char *)&__conio+5) | VERA_INC_1 -- vbuz1=_deref_pbuc1_bor_vbuc2 
+    lda #VERA_INC_1
+    ora __conio+5
+    sta.z clearline__2
+    // *VERA_ADDRX_H = __conio.mapbase_bank | VERA_INC_1
+    // [1871] *VERA_ADDRX_H = clearline::$2 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_H
+    // register unsigned char c=__conio.width
+    // [1872] clearline::c#0 = *((char *)&__conio+6) -- vbuz1=_deref_pbuc1 
+    lda __conio+6
+    sta.z c
+    // [1873] phi from clearline clearline::@1 to clearline::@1 [phi:clearline/clearline::@1->clearline::@1]
+    // [1873] phi clearline::c#2 = clearline::c#0 [phi:clearline/clearline::@1->clearline::@1#0] -- register_copy 
+    // clearline::@1
+  __b1:
+    // *VERA_DATA0 = ' '
+    // [1874] *VERA_DATA0 = ' ' -- _deref_pbuc1=vbuc2 
+    lda #' '
+    sta VERA_DATA0
+    // *VERA_DATA0 = __conio.color
+    // [1875] *VERA_DATA0 = *((char *)&__conio+$d) -- _deref_pbuc1=_deref_pbuc2 
+    lda __conio+$d
+    sta VERA_DATA0
+    // c--;
+    // [1876] clearline::c#1 = -- clearline::c#2 -- vbuz1=_dec_vbuz1 
+    dec.z c
+    // while(c)
+    // [1877] if(0!=clearline::c#1) goto clearline::@1 -- 0_neq_vbuz1_then_la1 
+    lda.z c
+    bne __b1
+    // clearline::@return
+    // }
+    // [1878] return 
+    rts
+  .segment Data
+    addr: .word 0
+}
+.segment Code
+  // display_frame_maskxy
+/**
+ * @brief 
+ * 
+ * @param x 
+ * @param y 
+ * @return unsigned char 
+ */
+// __mem() char display_frame_maskxy(__mem() char x, __mem() char y)
+display_frame_maskxy: {
+    .label cpeekcxy1_cpeekc1_display_frame_maskxy__0 = $36
+    .label cpeekcxy1_cpeekc1_display_frame_maskxy__1 = $41
+    .label cpeekcxy1_cpeekc1_display_frame_maskxy__2 = $39
+    // display_frame_maskxy::cpeekcxy1
+    // gotoxy(x,y)
+    // [1880] gotoxy::x#8 = display_frame_maskxy::cpeekcxy1_x#0 -- vbum1=vbum2 
+    lda cpeekcxy1_x
+    sta gotoxy.x
+    // [1881] gotoxy::y#8 = display_frame_maskxy::cpeekcxy1_y#0 -- vbum1=vbum2 
+    lda cpeekcxy1_y
+    sta gotoxy.y
+    // [1882] call gotoxy
+    // [454] phi from display_frame_maskxy::cpeekcxy1 to gotoxy [phi:display_frame_maskxy::cpeekcxy1->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#8 [phi:display_frame_maskxy::cpeekcxy1->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#8 [phi:display_frame_maskxy::cpeekcxy1->gotoxy#1] -- register_copy 
+    jsr gotoxy
+    // display_frame_maskxy::cpeekcxy1_cpeekc1
+    // *VERA_CTRL &= ~VERA_ADDRSEL
+    // [1883] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    lda #VERA_ADDRSEL^$ff
+    and VERA_CTRL
+    sta VERA_CTRL
+    // BYTE0(__conio.offset)
+    // [1884] display_frame_maskxy::cpeekcxy1_cpeekc1_$0 = byte0  *((unsigned int *)&__conio+$13) -- vbuz1=_byte0__deref_pwuc1 
+    lda __conio+$13
+    sta.z cpeekcxy1_cpeekc1_display_frame_maskxy__0
+    // *VERA_ADDRX_L = BYTE0(__conio.offset)
+    // [1885] *VERA_ADDRX_L = display_frame_maskxy::cpeekcxy1_cpeekc1_$0 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_L
+    // BYTE1(__conio.offset)
+    // [1886] display_frame_maskxy::cpeekcxy1_cpeekc1_$1 = byte1  *((unsigned int *)&__conio+$13) -- vbuz1=_byte1__deref_pwuc1 
+    lda __conio+$13+1
+    sta.z cpeekcxy1_cpeekc1_display_frame_maskxy__1
+    // *VERA_ADDRX_M = BYTE1(__conio.offset)
+    // [1887] *VERA_ADDRX_M = display_frame_maskxy::cpeekcxy1_cpeekc1_$1 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_M
+    // __conio.mapbase_bank | VERA_INC_0
+    // [1888] display_frame_maskxy::cpeekcxy1_cpeekc1_$2 = *((char *)&__conio+5) -- vbuz1=_deref_pbuc1 
+    lda __conio+5
+    sta.z cpeekcxy1_cpeekc1_display_frame_maskxy__2
+    // *VERA_ADDRX_H = __conio.mapbase_bank | VERA_INC_0
+    // [1889] *VERA_ADDRX_H = display_frame_maskxy::cpeekcxy1_cpeekc1_$2 -- _deref_pbuc1=vbuz1 
+    sta VERA_ADDRX_H
+    // return *VERA_DATA0;
+    // [1890] display_frame_maskxy::c#0 = *VERA_DATA0 -- vbum1=_deref_pbuc1 
+    lda VERA_DATA0
+    sta c
+    // display_frame_maskxy::@12
+    // case 0x70: // DR corner.
+    //             return 0b0110;
+    // [1891] if(display_frame_maskxy::c#0==$70) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$70
+    cmp c
+    beq __b2
+    // display_frame_maskxy::@1
+    // case 0x6E: // DL corner.
+    //             return 0b0011;
+    // [1892] if(display_frame_maskxy::c#0==$6e) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$6e
+    cmp c
+    beq __b1
+    // display_frame_maskxy::@2
+    // case 0x6D: // UR corner.
+    //             return 0b1100;
+    // [1893] if(display_frame_maskxy::c#0==$6d) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$6d
+    cmp c
+    beq __b3
+    // display_frame_maskxy::@3
+    // case 0x7D: // UL corner.
+    //             return 0b1001;
+    // [1894] if(display_frame_maskxy::c#0==$7d) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$7d
+    cmp c
+    beq __b4
+    // display_frame_maskxy::@4
+    // case 0x40: // HL line.
+    //             return 0b0101;
+    // [1895] if(display_frame_maskxy::c#0==$40) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$40
+    cmp c
+    beq __b5
+    // display_frame_maskxy::@5
+    // case 0x5D: // VL line.
+    //             return 0b1010;
+    // [1896] if(display_frame_maskxy::c#0==$5d) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$5d
+    cmp c
+    beq __b6
+    // display_frame_maskxy::@6
+    // case 0x6B: // VR junction.
+    //             return 0b1110;
+    // [1897] if(display_frame_maskxy::c#0==$6b) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$6b
+    cmp c
+    beq __b7
+    // display_frame_maskxy::@7
+    // case 0x73: // VL junction.
+    //             return 0b1011;
+    // [1898] if(display_frame_maskxy::c#0==$73) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$73
+    cmp c
+    beq __b8
+    // display_frame_maskxy::@8
+    // case 0x72: // HD junction.
+    //             return 0b0111;
+    // [1899] if(display_frame_maskxy::c#0==$72) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$72
+    cmp c
+    beq __b9
+    // display_frame_maskxy::@9
+    // case 0x71: // HU junction.
+    //             return 0b1101;
+    // [1900] if(display_frame_maskxy::c#0==$71) goto display_frame_maskxy::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #$71
+    cmp c
+    beq __b10
+    // display_frame_maskxy::@10
+    // case 0x5B: // HV junction.
+    //             return 0b1111;
+    // [1901] if(display_frame_maskxy::c#0==$5b) goto display_frame_maskxy::@11 -- vbum1_eq_vbuc1_then_la1 
+    lda #$5b
+    cmp c
+    beq __b11
+    // [1903] phi from display_frame_maskxy::@10 to display_frame_maskxy::@return [phi:display_frame_maskxy::@10->display_frame_maskxy::@return]
+    // [1903] phi display_frame_maskxy::return#12 = 0 [phi:display_frame_maskxy::@10->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #0
+    sta return
+    rts
+    // [1902] phi from display_frame_maskxy::@10 to display_frame_maskxy::@11 [phi:display_frame_maskxy::@10->display_frame_maskxy::@11]
+    // display_frame_maskxy::@11
+  __b11:
+    // [1903] phi from display_frame_maskxy::@11 to display_frame_maskxy::@return [phi:display_frame_maskxy::@11->display_frame_maskxy::@return]
+    // [1903] phi display_frame_maskxy::return#12 = $f [phi:display_frame_maskxy::@11->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #$f
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@1 to display_frame_maskxy::@return [phi:display_frame_maskxy::@1->display_frame_maskxy::@return]
+  __b1:
+    // [1903] phi display_frame_maskxy::return#12 = 3 [phi:display_frame_maskxy::@1->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #3
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@12 to display_frame_maskxy::@return [phi:display_frame_maskxy::@12->display_frame_maskxy::@return]
+  __b2:
+    // [1903] phi display_frame_maskxy::return#12 = 6 [phi:display_frame_maskxy::@12->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #6
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@2 to display_frame_maskxy::@return [phi:display_frame_maskxy::@2->display_frame_maskxy::@return]
+  __b3:
+    // [1903] phi display_frame_maskxy::return#12 = $c [phi:display_frame_maskxy::@2->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #$c
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@3 to display_frame_maskxy::@return [phi:display_frame_maskxy::@3->display_frame_maskxy::@return]
+  __b4:
+    // [1903] phi display_frame_maskxy::return#12 = 9 [phi:display_frame_maskxy::@3->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #9
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@4 to display_frame_maskxy::@return [phi:display_frame_maskxy::@4->display_frame_maskxy::@return]
+  __b5:
+    // [1903] phi display_frame_maskxy::return#12 = 5 [phi:display_frame_maskxy::@4->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #5
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@5 to display_frame_maskxy::@return [phi:display_frame_maskxy::@5->display_frame_maskxy::@return]
+  __b6:
+    // [1903] phi display_frame_maskxy::return#12 = $a [phi:display_frame_maskxy::@5->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #$a
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@6 to display_frame_maskxy::@return [phi:display_frame_maskxy::@6->display_frame_maskxy::@return]
+  __b7:
+    // [1903] phi display_frame_maskxy::return#12 = $e [phi:display_frame_maskxy::@6->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #$e
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@7 to display_frame_maskxy::@return [phi:display_frame_maskxy::@7->display_frame_maskxy::@return]
+  __b8:
+    // [1903] phi display_frame_maskxy::return#12 = $b [phi:display_frame_maskxy::@7->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #$b
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@8 to display_frame_maskxy::@return [phi:display_frame_maskxy::@8->display_frame_maskxy::@return]
+  __b9:
+    // [1903] phi display_frame_maskxy::return#12 = 7 [phi:display_frame_maskxy::@8->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #7
+    sta return
+    rts
+    // [1903] phi from display_frame_maskxy::@9 to display_frame_maskxy::@return [phi:display_frame_maskxy::@9->display_frame_maskxy::@return]
+  __b10:
+    // [1903] phi display_frame_maskxy::return#12 = $d [phi:display_frame_maskxy::@9->display_frame_maskxy::@return#0] -- vbum1=vbuc1 
+    lda #$d
+    sta return
+    // display_frame_maskxy::@return
+    // }
+    // [1904] return 
+    rts
+  .segment Data
+    cpeekcxy1_x: .byte 0
+    cpeekcxy1_y: .byte 0
+    c: .byte 0
+    // DR corner.
+    // DL corner.
+    // UR corner.
+    // UL corner.
+    // HL line.
+    // VL line.
+    // VR junction.
+    // VL junction.
+    // HD junction.
+    // HU junction.
+    // HV junction.
+    return: .byte 0
+    .label x = cpeekcxy1_x
+    .label y = cpeekcxy1_y
+}
+.segment Code
+  // display_frame_char
+/**
+ * @brief 
+ * 
+ * @param mask 
+ * @return unsigned char 
+ */
+// __mem() char display_frame_char(__mem() char mask)
+display_frame_char: {
+    // case 0b0110:
+    //             return 0x70;
+    // [1906] if(display_frame_char::mask#10==6) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    lda #6
+    cmp mask
+    beq __b1
+    // display_frame_char::@1
+    // case 0b0011:
+    //             return 0x6E;
+    // [1907] if(display_frame_char::mask#10==3) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // DR corner.
+    lda #3
+    cmp mask
+    beq __b2
+    // display_frame_char::@2
+    // case 0b1100:
+    //             return 0x6D;
+    // [1908] if(display_frame_char::mask#10==$c) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // DL corner.
+    lda #$c
+    cmp mask
+    beq __b3
+    // display_frame_char::@3
+    // case 0b1001:
+    //             return 0x7D;
+    // [1909] if(display_frame_char::mask#10==9) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // UR corner.
+    lda #9
+    cmp mask
+    beq __b4
+    // display_frame_char::@4
+    // case 0b0101:
+    //             return 0x40;
+    // [1910] if(display_frame_char::mask#10==5) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // UL corner.
+    lda #5
+    cmp mask
+    beq __b5
+    // display_frame_char::@5
+    // case 0b1010:
+    //             return 0x5D;
+    // [1911] if(display_frame_char::mask#10==$a) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // HL line.
+    lda #$a
+    cmp mask
+    beq __b6
+    // display_frame_char::@6
+    // case 0b1110:
+    //             return 0x6B;
+    // [1912] if(display_frame_char::mask#10==$e) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // VL line.
+    lda #$e
+    cmp mask
+    beq __b7
+    // display_frame_char::@7
+    // case 0b1011:
+    //             return 0x73;
+    // [1913] if(display_frame_char::mask#10==$b) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // VR junction.
+    lda #$b
+    cmp mask
+    beq __b8
+    // display_frame_char::@8
+    // case 0b0111:
+    //             return 0x72;
+    // [1914] if(display_frame_char::mask#10==7) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // VL junction.
+    lda #7
+    cmp mask
+    beq __b9
+    // display_frame_char::@9
+    // case 0b1101:
+    //             return 0x71;
+    // [1915] if(display_frame_char::mask#10==$d) goto display_frame_char::@return -- vbum1_eq_vbuc1_then_la1 
+    // HD junction.
+    lda #$d
+    cmp mask
+    beq __b10
+    // display_frame_char::@10
+    // case 0b1111:
+    //             return 0x5B;
+    // [1916] if(display_frame_char::mask#10==$f) goto display_frame_char::@11 -- vbum1_eq_vbuc1_then_la1 
+    // HU junction.
+    lda #$f
+    cmp mask
+    beq __b11
+    // [1918] phi from display_frame_char::@10 to display_frame_char::@return [phi:display_frame_char::@10->display_frame_char::@return]
+    // [1918] phi display_frame_char::return#12 = $20 [phi:display_frame_char::@10->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$20
+    sta return
+    rts
+    // [1917] phi from display_frame_char::@10 to display_frame_char::@11 [phi:display_frame_char::@10->display_frame_char::@11]
+    // display_frame_char::@11
+  __b11:
+    // [1918] phi from display_frame_char::@11 to display_frame_char::@return [phi:display_frame_char::@11->display_frame_char::@return]
+    // [1918] phi display_frame_char::return#12 = $5b [phi:display_frame_char::@11->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$5b
+    sta return
+    rts
+    // [1918] phi from display_frame_char to display_frame_char::@return [phi:display_frame_char->display_frame_char::@return]
+  __b1:
+    // [1918] phi display_frame_char::return#12 = $70 [phi:display_frame_char->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$70
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@1 to display_frame_char::@return [phi:display_frame_char::@1->display_frame_char::@return]
+  __b2:
+    // [1918] phi display_frame_char::return#12 = $6e [phi:display_frame_char::@1->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$6e
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@2 to display_frame_char::@return [phi:display_frame_char::@2->display_frame_char::@return]
+  __b3:
+    // [1918] phi display_frame_char::return#12 = $6d [phi:display_frame_char::@2->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$6d
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@3 to display_frame_char::@return [phi:display_frame_char::@3->display_frame_char::@return]
+  __b4:
+    // [1918] phi display_frame_char::return#12 = $7d [phi:display_frame_char::@3->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$7d
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@4 to display_frame_char::@return [phi:display_frame_char::@4->display_frame_char::@return]
+  __b5:
+    // [1918] phi display_frame_char::return#12 = $40 [phi:display_frame_char::@4->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$40
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@5 to display_frame_char::@return [phi:display_frame_char::@5->display_frame_char::@return]
+  __b6:
+    // [1918] phi display_frame_char::return#12 = $5d [phi:display_frame_char::@5->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$5d
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@6 to display_frame_char::@return [phi:display_frame_char::@6->display_frame_char::@return]
+  __b7:
+    // [1918] phi display_frame_char::return#12 = $6b [phi:display_frame_char::@6->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$6b
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@7 to display_frame_char::@return [phi:display_frame_char::@7->display_frame_char::@return]
+  __b8:
+    // [1918] phi display_frame_char::return#12 = $73 [phi:display_frame_char::@7->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$73
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@8 to display_frame_char::@return [phi:display_frame_char::@8->display_frame_char::@return]
+  __b9:
+    // [1918] phi display_frame_char::return#12 = $72 [phi:display_frame_char::@8->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$72
+    sta return
+    rts
+    // [1918] phi from display_frame_char::@9 to display_frame_char::@return [phi:display_frame_char::@9->display_frame_char::@return]
+  __b10:
+    // [1918] phi display_frame_char::return#12 = $71 [phi:display_frame_char::@9->display_frame_char::@return#0] -- vbum1=vbuc1 
+    lda #$71
+    sta return
+    // display_frame_char::@return
+    // }
+    // [1919] return 
+    rts
+  .segment Data
+    .label return = cputcxy.c
+    .label mask = display_frame_maskxy.return
+}
+.segment Code
+  // strlen
+// Computes the length of the string str up to but not including the terminating null character.
+// __mem() unsigned int strlen(__zp($32) char *str)
+strlen: {
+    .label str = $32
+    // [1921] phi from strlen to strlen::@1 [phi:strlen->strlen::@1]
+    // [1921] phi strlen::len#2 = 0 [phi:strlen->strlen::@1#0] -- vwum1=vwuc1 
+    lda #<0
+    sta len
+    sta len+1
+    // [1921] phi strlen::str#6 = strlen::str#8 [phi:strlen->strlen::@1#1] -- register_copy 
+    // strlen::@1
+  __b1:
+    // while(*str)
+    // [1922] if(0!=*strlen::str#6) goto strlen::@2 -- 0_neq__deref_pbuz1_then_la1 
+    ldy #0
+    lda (str),y
+    cmp #0
+    bne __b2
+    // strlen::@return
+    // }
+    // [1923] return 
+    rts
+    // strlen::@2
+  __b2:
+    // len++;
+    // [1924] strlen::len#1 = ++ strlen::len#2 -- vwum1=_inc_vwum1 
+    inc len
+    bne !+
+    inc len+1
+  !:
+    // str++;
+    // [1925] strlen::str#1 = ++ strlen::str#6 -- pbuz1=_inc_pbuz1 
+    inc.z str
+    bne !+
+    inc.z str+1
+  !:
+    // [1921] phi from strlen::@2 to strlen::@1 [phi:strlen::@2->strlen::@1]
+    // [1921] phi strlen::len#2 = strlen::len#1 [phi:strlen::@2->strlen::@1#0] -- register_copy 
+    // [1921] phi strlen::str#6 = strlen::str#1 [phi:strlen::@2->strlen::@1#1] -- register_copy 
+    jmp __b1
+  .segment Data
+    .label return = len
+    len: .word 0
+}
+.segment Code
+  // printf_padding
+// Print a padding char a number of times
+// void printf_padding(__zp($32) void (*putc)(char), __mem() char pad, __mem() char length)
+printf_padding: {
+    .label putc = $32
+    // [1927] phi from printf_padding to printf_padding::@1 [phi:printf_padding->printf_padding::@1]
+    // [1927] phi printf_padding::i#2 = 0 [phi:printf_padding->printf_padding::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta i
+    // printf_padding::@1
+  __b1:
+    // for(char i=0;i<length; i++)
+    // [1928] if(printf_padding::i#2<printf_padding::length#6) goto printf_padding::@2 -- vbum1_lt_vbum2_then_la1 
+    lda i
+    cmp length
+    bcc __b2
+    // printf_padding::@return
+    // }
+    // [1929] return 
+    rts
+    // printf_padding::@2
+  __b2:
+    // putc(pad)
+    // [1930] stackpush(char) = printf_padding::pad#7 -- _stackpushbyte_=vbum1 
+    lda pad
+    pha
+    // [1931] callexecute *printf_padding::putc#7  -- call__deref_pprz1 
+    jsr icall23
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // printf_padding::@3
+    // for(char i=0;i<length; i++)
+    // [1933] printf_padding::i#1 = ++ printf_padding::i#2 -- vbum1=_inc_vbum1 
+    inc i
+    // [1927] phi from printf_padding::@3 to printf_padding::@1 [phi:printf_padding::@3->printf_padding::@1]
+    // [1927] phi printf_padding::i#2 = printf_padding::i#1 [phi:printf_padding::@3->printf_padding::@1#0] -- register_copy 
+    jmp __b1
+    // Outside Flow
+  icall23:
+    jmp (putc)
+  .segment Data
+    i: .byte 0
+    length: .byte 0
+    pad: .byte 0
+}
+.segment Code
+  // display_chip_led
+/**
+ * @brief Print the colored led of a chip figure.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w width
+ * @param tc Fore color
+ * @param bc Back color
+ */
+// void display_chip_led(__mem() char x, char y, __mem() char w, __mem() char tc, char bc)
+display_chip_led: {
+    // textcolor(tc)
+    // [1935] textcolor::color#11 = display_chip_led::tc#3 -- vbum1=vbum2 
+    lda tc
+    sta textcolor.color
+    // [1936] call textcolor
+    // [436] phi from display_chip_led to textcolor [phi:display_chip_led->textcolor]
+    // [436] phi textcolor::color#21 = textcolor::color#11 [phi:display_chip_led->textcolor#0] -- register_copy 
+    jsr textcolor
+    // [1937] phi from display_chip_led to display_chip_led::@3 [phi:display_chip_led->display_chip_led::@3]
+    // display_chip_led::@3
+    // bgcolor(bc)
+    // [1938] call bgcolor
+    // [441] phi from display_chip_led::@3 to bgcolor [phi:display_chip_led::@3->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_chip_led::@3->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // [1939] phi from display_chip_led::@3 display_chip_led::@5 to display_chip_led::@1 [phi:display_chip_led::@3/display_chip_led::@5->display_chip_led::@1]
+    // [1939] phi display_chip_led::w#4 = display_chip_led::w#7 [phi:display_chip_led::@3/display_chip_led::@5->display_chip_led::@1#0] -- register_copy 
+    // [1939] phi display_chip_led::x#4 = display_chip_led::x#7 [phi:display_chip_led::@3/display_chip_led::@5->display_chip_led::@1#1] -- register_copy 
+    // display_chip_led::@1
+  __b1:
+    // cputcxy(x, y, 0x6F)
+    // [1940] cputcxy::x#12 = display_chip_led::x#4 -- vbum1=vbum2 
+    lda x
+    sta cputcxy.x
+    // [1941] call cputcxy
+    // [1358] phi from display_chip_led::@1 to cputcxy [phi:display_chip_led::@1->cputcxy]
+    // [1358] phi cputcxy::c#16 = $6f [phi:display_chip_led::@1->cputcxy#0] -- vbum1=vbuc1 
+    lda #$6f
+    sta cputcxy.c
+    // [1358] phi cputcxy::y#16 = 3 [phi:display_chip_led::@1->cputcxy#1] -- vbum1=vbuc1 
+    lda #3
+    sta cputcxy.y
+    // [1358] phi cputcxy::x#16 = cputcxy::x#12 [phi:display_chip_led::@1->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // display_chip_led::@4
+    // cputcxy(x, y+1, 0x77)
+    // [1942] cputcxy::x#13 = display_chip_led::x#4 -- vbum1=vbum2 
+    lda x
+    sta cputcxy.x
+    // [1943] call cputcxy
+    // [1358] phi from display_chip_led::@4 to cputcxy [phi:display_chip_led::@4->cputcxy]
+    // [1358] phi cputcxy::c#16 = $77 [phi:display_chip_led::@4->cputcxy#0] -- vbum1=vbuc1 
+    lda #$77
+    sta cputcxy.c
+    // [1358] phi cputcxy::y#16 = 3+1 [phi:display_chip_led::@4->cputcxy#1] -- vbum1=vbuc1 
+    lda #3+1
+    sta cputcxy.y
+    // [1358] phi cputcxy::x#16 = cputcxy::x#13 [phi:display_chip_led::@4->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // display_chip_led::@5
+    // x++;
+    // [1944] display_chip_led::x#0 = ++ display_chip_led::x#4 -- vbum1=_inc_vbum1 
+    inc x
+    // while(--w)
+    // [1945] display_chip_led::w#0 = -- display_chip_led::w#4 -- vbum1=_dec_vbum1 
+    dec w
+    // [1946] if(0!=display_chip_led::w#0) goto display_chip_led::@1 -- 0_neq_vbum1_then_la1 
+    lda w
+    bne __b1
+    // [1947] phi from display_chip_led::@5 to display_chip_led::@2 [phi:display_chip_led::@5->display_chip_led::@2]
+    // display_chip_led::@2
+    // textcolor(WHITE)
+    // [1948] call textcolor
+    // [436] phi from display_chip_led::@2 to textcolor [phi:display_chip_led::@2->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_chip_led::@2->textcolor#0] -- vbum1=vbuc1 
+    lda #WHITE
+    sta textcolor.color
+    jsr textcolor
+    // [1949] phi from display_chip_led::@2 to display_chip_led::@6 [phi:display_chip_led::@2->display_chip_led::@6]
+    // display_chip_led::@6
+    // bgcolor(BLUE)
+    // [1950] call bgcolor
+    // [441] phi from display_chip_led::@6 to bgcolor [phi:display_chip_led::@6->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_chip_led::@6->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // display_chip_led::@return
+    // }
+    // [1951] return 
+    rts
+  .segment Data
+    x: .byte 0
+    w: .byte 0
+    tc: .byte 0
+}
+.segment Code
+  // display_chip_line
+/**
+ * @brief Print one line of a chip figure.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w Width
+ * @param c Fore color
+ */
+// void display_chip_line(__mem() char x, __mem() char y, __mem() char w, __mem() char c)
+display_chip_line: {
+    // gotoxy(x, y)
+    // [1953] gotoxy::x#10 = display_chip_line::x#16 -- vbum1=vbum2 
+    lda x
+    sta gotoxy.x
+    // [1954] gotoxy::y#10 = display_chip_line::y#16 -- vbum1=vbum2 
+    lda y
+    sta gotoxy.y
+    // [1955] call gotoxy
+    // [454] phi from display_chip_line to gotoxy [phi:display_chip_line->gotoxy]
+    // [454] phi gotoxy::y#27 = gotoxy::y#10 [phi:display_chip_line->gotoxy#0] -- register_copy 
+    // [454] phi gotoxy::x#27 = gotoxy::x#10 [phi:display_chip_line->gotoxy#1] -- register_copy 
+    jsr gotoxy
+    // [1956] phi from display_chip_line to display_chip_line::@4 [phi:display_chip_line->display_chip_line::@4]
+    // display_chip_line::@4
+    // textcolor(GREY)
+    // [1957] call textcolor
+    // [436] phi from display_chip_line::@4 to textcolor [phi:display_chip_line::@4->textcolor]
+    // [436] phi textcolor::color#21 = GREY [phi:display_chip_line::@4->textcolor#0] -- vbum1=vbuc1 
+    lda #GREY
+    sta textcolor.color
+    jsr textcolor
+    // [1958] phi from display_chip_line::@4 to display_chip_line::@5 [phi:display_chip_line::@4->display_chip_line::@5]
+    // display_chip_line::@5
+    // bgcolor(BLUE)
+    // [1959] call bgcolor
+    // [441] phi from display_chip_line::@5 to bgcolor [phi:display_chip_line::@5->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_chip_line::@5->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // display_chip_line::@6
+    // cputc(VERA_CHR_UR)
+    // [1960] stackpush(char) = $7c -- _stackpushbyte_=vbuc1 
+    lda #$7c
+    pha
+    // [1961] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // textcolor(WHITE)
+    // [1963] call textcolor
+    // [436] phi from display_chip_line::@6 to textcolor [phi:display_chip_line::@6->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_chip_line::@6->textcolor#0] -- vbum1=vbuc1 
+    lda #WHITE
+    sta textcolor.color
+    jsr textcolor
+    // [1964] phi from display_chip_line::@6 to display_chip_line::@7 [phi:display_chip_line::@6->display_chip_line::@7]
+    // display_chip_line::@7
+    // bgcolor(BLACK)
+    // [1965] call bgcolor
+    // [441] phi from display_chip_line::@7 to bgcolor [phi:display_chip_line::@7->bgcolor]
+    // [441] phi bgcolor::color#15 = BLACK [phi:display_chip_line::@7->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLACK
+    sta bgcolor.color
+    jsr bgcolor
+    // [1966] phi from display_chip_line::@7 to display_chip_line::@1 [phi:display_chip_line::@7->display_chip_line::@1]
+    // [1966] phi display_chip_line::i#2 = 0 [phi:display_chip_line::@7->display_chip_line::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta i
+    // display_chip_line::@1
+  __b1:
+    // for(char i=0; i<w; i++)
+    // [1967] if(display_chip_line::i#2<display_chip_line::w#10) goto display_chip_line::@2 -- vbum1_lt_vbum2_then_la1 
+    lda i
+    cmp w
+    bcc __b2
+    // [1968] phi from display_chip_line::@1 to display_chip_line::@3 [phi:display_chip_line::@1->display_chip_line::@3]
+    // display_chip_line::@3
+    // textcolor(GREY)
+    // [1969] call textcolor
+    // [436] phi from display_chip_line::@3 to textcolor [phi:display_chip_line::@3->textcolor]
+    // [436] phi textcolor::color#21 = GREY [phi:display_chip_line::@3->textcolor#0] -- vbum1=vbuc1 
+    lda #GREY
+    sta textcolor.color
+    jsr textcolor
+    // [1970] phi from display_chip_line::@3 to display_chip_line::@8 [phi:display_chip_line::@3->display_chip_line::@8]
+    // display_chip_line::@8
+    // bgcolor(BLUE)
+    // [1971] call bgcolor
+    // [441] phi from display_chip_line::@8 to bgcolor [phi:display_chip_line::@8->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_chip_line::@8->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // display_chip_line::@9
+    // cputc(VERA_CHR_UL)
+    // [1972] stackpush(char) = $7e -- _stackpushbyte_=vbuc1 
+    lda #$7e
+    pha
+    // [1973] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // textcolor(WHITE)
+    // [1975] call textcolor
+    // [436] phi from display_chip_line::@9 to textcolor [phi:display_chip_line::@9->textcolor]
+    // [436] phi textcolor::color#21 = WHITE [phi:display_chip_line::@9->textcolor#0] -- vbum1=vbuc1 
+    lda #WHITE
+    sta textcolor.color
+    jsr textcolor
+    // [1976] phi from display_chip_line::@9 to display_chip_line::@10 [phi:display_chip_line::@9->display_chip_line::@10]
+    // display_chip_line::@10
+    // bgcolor(BLACK)
+    // [1977] call bgcolor
+    // [441] phi from display_chip_line::@10 to bgcolor [phi:display_chip_line::@10->bgcolor]
+    // [441] phi bgcolor::color#15 = BLACK [phi:display_chip_line::@10->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLACK
+    sta bgcolor.color
+    jsr bgcolor
+    // display_chip_line::@11
+    // cputcxy(x+2, y, c)
+    // [1978] cputcxy::x#11 = display_chip_line::x#16 + 2 -- vbum1=vbum2_plus_2 
+    lda x
+    clc
+    adc #2
+    sta cputcxy.x
+    // [1979] cputcxy::y#11 = display_chip_line::y#16 -- vbum1=vbum2 
+    lda y
+    sta cputcxy.y
+    // [1980] cputcxy::c#11 = display_chip_line::c#15 -- vbum1=vbum2 
+    lda c
+    sta cputcxy.c
+    // [1981] call cputcxy
+    // [1358] phi from display_chip_line::@11 to cputcxy [phi:display_chip_line::@11->cputcxy]
+    // [1358] phi cputcxy::c#16 = cputcxy::c#11 [phi:display_chip_line::@11->cputcxy#0] -- register_copy 
+    // [1358] phi cputcxy::y#16 = cputcxy::y#11 [phi:display_chip_line::@11->cputcxy#1] -- register_copy 
+    // [1358] phi cputcxy::x#16 = cputcxy::x#11 [phi:display_chip_line::@11->cputcxy#2] -- register_copy 
+    jsr cputcxy
+    // display_chip_line::@return
+    // }
+    // [1982] return 
+    rts
+    // display_chip_line::@2
+  __b2:
+    // cputc(VERA_CHR_SPACE)
+    // [1983] stackpush(char) = $20 -- _stackpushbyte_=vbuc1 
+    lda #$20
+    pha
+    // [1984] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // for(char i=0; i<w; i++)
+    // [1986] display_chip_line::i#1 = ++ display_chip_line::i#2 -- vbum1=_inc_vbum1 
+    inc i
+    // [1966] phi from display_chip_line::@2 to display_chip_line::@1 [phi:display_chip_line::@2->display_chip_line::@1]
+    // [1966] phi display_chip_line::i#2 = display_chip_line::i#1 [phi:display_chip_line::@2->display_chip_line::@1#0] -- register_copy 
+    jmp __b1
+  .segment Data
+    i: .byte 0
+    x: .byte 0
+    w: .byte 0
+    c: .byte 0
+    y: .byte 0
+}
+.segment Code
+  // display_chip_end
+/**
+ * @brief Print last line of a chip figure.
+ * 
+ * @param x Start X
+ * @param y Start Y
+ * @param w Width
+ */
+// void display_chip_end(__mem() char x, char y, __mem() char w)
+display_chip_end: {
+    // gotoxy(x, y)
+    // [1987] gotoxy::x#11 = display_chip_end::x#0 -- vbum1=vbum2 
+    lda x
+    sta gotoxy.x
+    // [1988] call gotoxy
+    // [454] phi from display_chip_end to gotoxy [phi:display_chip_end->gotoxy]
+    // [454] phi gotoxy::y#27 = display_print_chip::y#21 [phi:display_chip_end->gotoxy#0] -- vbum1=vbuc1 
+    lda #display_print_chip.y
+    sta gotoxy.y
+    // [454] phi gotoxy::x#27 = gotoxy::x#11 [phi:display_chip_end->gotoxy#1] -- register_copy 
+    jsr gotoxy
+    // [1989] phi from display_chip_end to display_chip_end::@4 [phi:display_chip_end->display_chip_end::@4]
+    // display_chip_end::@4
+    // textcolor(GREY)
+    // [1990] call textcolor
+    // [436] phi from display_chip_end::@4 to textcolor [phi:display_chip_end::@4->textcolor]
+    // [436] phi textcolor::color#21 = GREY [phi:display_chip_end::@4->textcolor#0] -- vbum1=vbuc1 
+    lda #GREY
+    sta textcolor.color
+    jsr textcolor
+    // [1991] phi from display_chip_end::@4 to display_chip_end::@5 [phi:display_chip_end::@4->display_chip_end::@5]
+    // display_chip_end::@5
+    // bgcolor(BLUE)
+    // [1992] call bgcolor
+    // [441] phi from display_chip_end::@5 to bgcolor [phi:display_chip_end::@5->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_chip_end::@5->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // display_chip_end::@6
+    // cputc(VERA_CHR_UR)
+    // [1993] stackpush(char) = $7c -- _stackpushbyte_=vbuc1 
+    lda #$7c
+    pha
+    // [1994] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // textcolor(BLUE)
+    // [1996] call textcolor
+    // [436] phi from display_chip_end::@6 to textcolor [phi:display_chip_end::@6->textcolor]
+    // [436] phi textcolor::color#21 = BLUE [phi:display_chip_end::@6->textcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta textcolor.color
+    jsr textcolor
+    // [1997] phi from display_chip_end::@6 to display_chip_end::@7 [phi:display_chip_end::@6->display_chip_end::@7]
+    // display_chip_end::@7
+    // bgcolor(BLACK)
+    // [1998] call bgcolor
+    // [441] phi from display_chip_end::@7 to bgcolor [phi:display_chip_end::@7->bgcolor]
+    // [441] phi bgcolor::color#15 = BLACK [phi:display_chip_end::@7->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLACK
+    sta bgcolor.color
+    jsr bgcolor
+    // [1999] phi from display_chip_end::@7 to display_chip_end::@1 [phi:display_chip_end::@7->display_chip_end::@1]
+    // [1999] phi display_chip_end::i#2 = 0 [phi:display_chip_end::@7->display_chip_end::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta i
+    // display_chip_end::@1
+  __b1:
+    // for(char i=0; i<w; i++)
+    // [2000] if(display_chip_end::i#2<display_chip_end::w#0) goto display_chip_end::@2 -- vbum1_lt_vbum2_then_la1 
+    lda i
+    cmp w
+    bcc __b2
+    // [2001] phi from display_chip_end::@1 to display_chip_end::@3 [phi:display_chip_end::@1->display_chip_end::@3]
+    // display_chip_end::@3
+    // textcolor(GREY)
+    // [2002] call textcolor
+    // [436] phi from display_chip_end::@3 to textcolor [phi:display_chip_end::@3->textcolor]
+    // [436] phi textcolor::color#21 = GREY [phi:display_chip_end::@3->textcolor#0] -- vbum1=vbuc1 
+    lda #GREY
+    sta textcolor.color
+    jsr textcolor
+    // [2003] phi from display_chip_end::@3 to display_chip_end::@8 [phi:display_chip_end::@3->display_chip_end::@8]
+    // display_chip_end::@8
+    // bgcolor(BLUE)
+    // [2004] call bgcolor
+    // [441] phi from display_chip_end::@8 to bgcolor [phi:display_chip_end::@8->bgcolor]
+    // [441] phi bgcolor::color#15 = BLUE [phi:display_chip_end::@8->bgcolor#0] -- vbum1=vbuc1 
+    lda #BLUE
+    sta bgcolor.color
+    jsr bgcolor
+    // display_chip_end::@9
+    // cputc(VERA_CHR_UL)
+    // [2005] stackpush(char) = $7e -- _stackpushbyte_=vbuc1 
+    lda #$7e
+    pha
+    // [2006] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // display_chip_end::@return
+    // }
+    // [2008] return 
+    rts
+    // display_chip_end::@2
+  __b2:
+    // cputc(VERA_CHR_HL)
+    // [2009] stackpush(char) = $62 -- _stackpushbyte_=vbuc1 
+    lda #$62
+    pha
+    // [2010] callexecute cputc  -- call_vprc1 
+    jsr cputc
+    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+    pla
+    // for(char i=0; i<w; i++)
+    // [2012] display_chip_end::i#1 = ++ display_chip_end::i#2 -- vbum1=_inc_vbum1 
+    inc i
+    // [1999] phi from display_chip_end::@2 to display_chip_end::@1 [phi:display_chip_end::@2->display_chip_end::@1]
+    // [1999] phi display_chip_end::i#2 = display_chip_end::i#1 [phi:display_chip_end::@2->display_chip_end::@1#0] -- register_copy 
+    jmp __b1
+  .segment Data
+    i: .byte 0
+    .label x = display_print_chip.x
+    w: .byte 0
+}
+.segment Code
+  // utoa
+// Converts unsigned number value to a string representing it in RADIX format.
+// If the leading digits are zero they are not included in the string.
+// - value : The number to be converted to RADIX
+// - buffer : receives the string representing the number and zero-termination.
+// - radix : The radix to convert the number to (from the enum RADIX)
+// void utoa(__mem() unsigned int value, __zp($34) char *buffer, __mem() char radix)
+utoa: {
+    .label utoa__4 = $36
+    .label utoa__10 = $39
+    .label utoa__11 = $41
+    .label buffer = $34
+    .label digit_values = $46
+    // if(radix==DECIMAL)
+    // [2013] if(utoa::radix#0==DECIMAL) goto utoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #DECIMAL
+    cmp radix
+    beq __b2
+    // utoa::@2
+    // if(radix==HEXADECIMAL)
+    // [2014] if(utoa::radix#0==HEXADECIMAL) goto utoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #HEXADECIMAL
+    cmp radix
+    beq __b3
+    // utoa::@3
+    // if(radix==OCTAL)
+    // [2015] if(utoa::radix#0==OCTAL) goto utoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #OCTAL
+    cmp radix
+    beq __b4
+    // utoa::@4
+    // if(radix==BINARY)
+    // [2016] if(utoa::radix#0==BINARY) goto utoa::@1 -- vbum1_eq_vbuc1_then_la1 
+    lda #BINARY
+    cmp radix
+    beq __b5
+    // utoa::@5
+    // *buffer++ = 'e'
+    // [2017] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS) = 'e' -- _deref_pbuc1=vbuc2 
+    // Unknown radix
+    lda #'e'
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    // *buffer++ = 'r'
+    // [2018] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+1) = 'r' -- _deref_pbuc1=vbuc2 
+    lda #'r'
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+1
+    // [2019] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+2) = 'r' -- _deref_pbuc1=vbuc2 
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+2
+    // *buffer = 0
+    // [2020] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+3) = 0 -- _deref_pbuc1=vbuc2 
+    lda #0
+    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+3
+    // utoa::@return
+    // }
+    // [2021] return 
+    rts
+    // [2022] phi from utoa to utoa::@1 [phi:utoa->utoa::@1]
+  __b2:
+    // [2022] phi utoa::digit_values#8 = RADIX_DECIMAL_VALUES [phi:utoa->utoa::@1#0] -- pwuz1=pwuc1 
+    lda #<RADIX_DECIMAL_VALUES
+    sta.z digit_values
+    lda #>RADIX_DECIMAL_VALUES
+    sta.z digit_values+1
+    // [2022] phi utoa::max_digits#7 = 5 [phi:utoa->utoa::@1#1] -- vbum1=vbuc1 
+    lda #5
+    sta max_digits
+    jmp __b1
+    // [2022] phi from utoa::@2 to utoa::@1 [phi:utoa::@2->utoa::@1]
+  __b3:
+    // [2022] phi utoa::digit_values#8 = RADIX_HEXADECIMAL_VALUES [phi:utoa::@2->utoa::@1#0] -- pwuz1=pwuc1 
+    lda #<RADIX_HEXADECIMAL_VALUES
+    sta.z digit_values
+    lda #>RADIX_HEXADECIMAL_VALUES
+    sta.z digit_values+1
+    // [2022] phi utoa::max_digits#7 = 4 [phi:utoa::@2->utoa::@1#1] -- vbum1=vbuc1 
+    lda #4
+    sta max_digits
+    jmp __b1
+    // [2022] phi from utoa::@3 to utoa::@1 [phi:utoa::@3->utoa::@1]
+  __b4:
+    // [2022] phi utoa::digit_values#8 = RADIX_OCTAL_VALUES [phi:utoa::@3->utoa::@1#0] -- pwuz1=pwuc1 
+    lda #<RADIX_OCTAL_VALUES
+    sta.z digit_values
+    lda #>RADIX_OCTAL_VALUES
+    sta.z digit_values+1
+    // [2022] phi utoa::max_digits#7 = 6 [phi:utoa::@3->utoa::@1#1] -- vbum1=vbuc1 
+    lda #6
+    sta max_digits
+    jmp __b1
+    // [2022] phi from utoa::@4 to utoa::@1 [phi:utoa::@4->utoa::@1]
+  __b5:
+    // [2022] phi utoa::digit_values#8 = RADIX_BINARY_VALUES [phi:utoa::@4->utoa::@1#0] -- pwuz1=pwuc1 
+    lda #<RADIX_BINARY_VALUES
+    sta.z digit_values
+    lda #>RADIX_BINARY_VALUES
+    sta.z digit_values+1
+    // [2022] phi utoa::max_digits#7 = $10 [phi:utoa::@4->utoa::@1#1] -- vbum1=vbuc1 
+    lda #$10
+    sta max_digits
+    // utoa::@1
+  __b1:
+    // [2023] phi from utoa::@1 to utoa::@6 [phi:utoa::@1->utoa::@6]
+    // [2023] phi utoa::buffer#11 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:utoa::@1->utoa::@6#0] -- pbuz1=pbuc1 
+    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z buffer
+    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
+    sta.z buffer+1
+    // [2023] phi utoa::started#2 = 0 [phi:utoa::@1->utoa::@6#1] -- vbum1=vbuc1 
+    lda #0
+    sta started
+    // [2023] phi utoa::value#2 = utoa::value#1 [phi:utoa::@1->utoa::@6#2] -- register_copy 
+    // [2023] phi utoa::digit#2 = 0 [phi:utoa::@1->utoa::@6#3] -- vbum1=vbuc1 
+    sta digit
+    // utoa::@6
+  __b6:
+    // max_digits-1
+    // [2024] utoa::$4 = utoa::max_digits#7 - 1 -- vbuz1=vbum2_minus_1 
+    ldx max_digits
+    dex
+    stx.z utoa__4
+    // for( char digit=0; digit<max_digits-1; digit++ )
+    // [2025] if(utoa::digit#2<utoa::$4) goto utoa::@7 -- vbum1_lt_vbuz2_then_la1 
+    lda digit
+    cmp.z utoa__4
+    bcc __b7
+    // utoa::@8
+    // *buffer++ = DIGITS[(char)value]
+    // [2026] utoa::$11 = (char)utoa::value#2 -- vbuz1=_byte_vwum2 
+    lda value
+    sta.z utoa__11
+    // [2027] *utoa::buffer#11 = DIGITS[utoa::$11] -- _deref_pbuz1=pbuc1_derefidx_vbuz2 
+    tay
+    lda DIGITS,y
+    ldy #0
+    sta (buffer),y
+    // *buffer++ = DIGITS[(char)value];
+    // [2028] utoa::buffer#3 = ++ utoa::buffer#11 -- pbuz1=_inc_pbuz1 
+    inc.z buffer
+    bne !+
+    inc.z buffer+1
+  !:
+    // *buffer = 0
+    // [2029] *utoa::buffer#3 = 0 -- _deref_pbuz1=vbuc1 
+    lda #0
+    tay
+    sta (buffer),y
+    rts
+    // utoa::@7
+  __b7:
+    // unsigned int digit_value = digit_values[digit]
+    // [2030] utoa::$10 = utoa::digit#2 << 1 -- vbuz1=vbum2_rol_1 
+    lda digit
+    asl
+    sta.z utoa__10
+    // [2031] utoa::digit_value#0 = utoa::digit_values#8[utoa::$10] -- vwum1=pwuz2_derefidx_vbuz3 
+    tay
+    lda (digit_values),y
+    sta digit_value
+    iny
+    lda (digit_values),y
+    sta digit_value+1
+    // if (started || value >= digit_value)
+    // [2032] if(0!=utoa::started#2) goto utoa::@10 -- 0_neq_vbum1_then_la1 
+    lda started
+    bne __b10
+    // utoa::@12
+    // [2033] if(utoa::value#2>=utoa::digit_value#0) goto utoa::@10 -- vwum1_ge_vwum2_then_la1 
+    lda digit_value+1
+    cmp value+1
+    bne !+
+    lda digit_value
+    cmp value
+    beq __b10
+  !:
+    bcc __b10
+    // [2034] phi from utoa::@12 to utoa::@9 [phi:utoa::@12->utoa::@9]
+    // [2034] phi utoa::buffer#14 = utoa::buffer#11 [phi:utoa::@12->utoa::@9#0] -- register_copy 
+    // [2034] phi utoa::started#4 = utoa::started#2 [phi:utoa::@12->utoa::@9#1] -- register_copy 
+    // [2034] phi utoa::value#6 = utoa::value#2 [phi:utoa::@12->utoa::@9#2] -- register_copy 
+    // utoa::@9
+  __b9:
+    // for( char digit=0; digit<max_digits-1; digit++ )
+    // [2035] utoa::digit#1 = ++ utoa::digit#2 -- vbum1=_inc_vbum1 
+    inc digit
+    // [2023] phi from utoa::@9 to utoa::@6 [phi:utoa::@9->utoa::@6]
+    // [2023] phi utoa::buffer#11 = utoa::buffer#14 [phi:utoa::@9->utoa::@6#0] -- register_copy 
+    // [2023] phi utoa::started#2 = utoa::started#4 [phi:utoa::@9->utoa::@6#1] -- register_copy 
+    // [2023] phi utoa::value#2 = utoa::value#6 [phi:utoa::@9->utoa::@6#2] -- register_copy 
+    // [2023] phi utoa::digit#2 = utoa::digit#1 [phi:utoa::@9->utoa::@6#3] -- register_copy 
+    jmp __b6
+    // utoa::@10
+  __b10:
+    // utoa_append(buffer++, value, digit_value)
+    // [2036] utoa_append::buffer#0 = utoa::buffer#11 -- pbuz1=pbuz2 
+    lda.z buffer
+    sta.z utoa_append.buffer
+    lda.z buffer+1
+    sta.z utoa_append.buffer+1
+    // [2037] utoa_append::value#0 = utoa::value#2
+    // [2038] utoa_append::sub#0 = utoa::digit_value#0
+    // [2039] call utoa_append
+    // [2345] phi from utoa::@10 to utoa_append [phi:utoa::@10->utoa_append]
+    jsr utoa_append
+    // utoa_append(buffer++, value, digit_value)
+    // [2040] utoa_append::return#0 = utoa_append::value#2
+    // utoa::@11
+    // value = utoa_append(buffer++, value, digit_value)
+    // [2041] utoa::value#0 = utoa_append::return#0
+    // value = utoa_append(buffer++, value, digit_value);
+    // [2042] utoa::buffer#4 = ++ utoa::buffer#11 -- pbuz1=_inc_pbuz1 
+    inc.z buffer
+    bne !+
+    inc.z buffer+1
+  !:
+    // [2034] phi from utoa::@11 to utoa::@9 [phi:utoa::@11->utoa::@9]
+    // [2034] phi utoa::buffer#14 = utoa::buffer#4 [phi:utoa::@11->utoa::@9#0] -- register_copy 
+    // [2034] phi utoa::started#4 = 1 [phi:utoa::@11->utoa::@9#1] -- vbum1=vbuc1 
+    lda #1
+    sta started
+    // [2034] phi utoa::value#6 = utoa::value#0 [phi:utoa::@11->utoa::@9#2] -- register_copy 
+    jmp __b9
+  .segment Data
+    digit_value: .word 0
+    digit: .byte 0
+    .label value = printf_uint.uvalue
+    .label radix = printf_uint.format_radix
+    started: .byte 0
+    max_digits: .byte 0
+}
+.segment Code
   // spi_get_jedec
 spi_get_jedec: {
     // spi_fast()
-    // [1205] call spi_fast
+    // [2044] call spi_fast
     /* 
 ; Returns
 ; .X = Vendor ID
@@ -7185,1753 +13055,1631 @@ spi_get_jedec: {
 .endproc
  */
     jsr spi_fast
-    // [1206] phi from spi_get_jedec to spi_get_jedec::@1 [phi:spi_get_jedec->spi_get_jedec::@1]
+    // [2045] phi from spi_get_jedec to spi_get_jedec::@1 [phi:spi_get_jedec->spi_get_jedec::@1]
     // spi_get_jedec::@1
     // spi_select()
-    // [1207] call spi_select
-    // [1484] phi from spi_get_jedec::@1 to spi_select [phi:spi_get_jedec::@1->spi_select]
+    // [2046] call spi_select
+    // [2354] phi from spi_get_jedec::@1 to spi_select [phi:spi_get_jedec::@1->spi_select]
     jsr spi_select
     // spi_get_jedec::@2
     // spi_write(0x9F)
-    // [1208] spi_write::data = $9f -- vbum1=vbuc1 
+    // [2047] spi_write::data = $9f -- vbum1=vbuc1 
     lda #$9f
     sta spi_write.data
-    // [1209] call spi_write
+    // [2048] call spi_write
     jsr spi_write
-    // [1210] phi from spi_get_jedec::@2 to spi_get_jedec::@3 [phi:spi_get_jedec::@2->spi_get_jedec::@3]
+    // [2049] phi from spi_get_jedec::@2 to spi_get_jedec::@3 [phi:spi_get_jedec::@2->spi_get_jedec::@3]
     // spi_get_jedec::@3
     // spi_read()
-    // [1211] call spi_read
+    // [2050] call spi_read
     jsr spi_read
-    // [1212] spi_read::return#0 = spi_read::return#4 -- vbum1=vbum2 
+    // [2051] spi_read::return#0 = spi_read::return#5 -- vbum1=vbum2 
     lda spi_read.return_2
     sta spi_read.return
-    // [1213] phi from spi_get_jedec::@3 to spi_get_jedec::@4 [phi:spi_get_jedec::@3->spi_get_jedec::@4]
+    // [2052] phi from spi_get_jedec::@3 to spi_get_jedec::@4 [phi:spi_get_jedec::@3->spi_get_jedec::@4]
     // spi_get_jedec::@4
     // spi_read()
-    // [1214] call spi_read
+    // [2053] call spi_read
     jsr spi_read
-    // [1215] spi_read::return#1 = spi_read::return#4 -- vbum1=vbum2 
+    // [2054] spi_read::return#1 = spi_read::return#5 -- vbum1=vbum2 
     lda spi_read.return_2
     sta spi_read.return_1
-    // [1216] phi from spi_get_jedec::@4 to spi_get_jedec::@5 [phi:spi_get_jedec::@4->spi_get_jedec::@5]
+    // [2055] phi from spi_get_jedec::@4 to spi_get_jedec::@5 [phi:spi_get_jedec::@4->spi_get_jedec::@5]
     // spi_get_jedec::@5
     // spi_read()
-    // [1217] call spi_read
+    // [2056] call spi_read
     jsr spi_read
-    // [1218] spi_read::return#2 = spi_read::return#4
+    // [2057] spi_read::return#10 = spi_read::return#5 -- vbum1=vbum2 
+    lda spi_read.return_2
+    sta spi_read.return_3
     // spi_get_jedec::@return
     // }
-    // [1219] return 
+    // [2058] return 
     rts
 }
-  // uctoa
+  // fopen
+/**
+ * @brief Load a file to banked ram located between address 0xA000 and 0xBFFF incrementing the banks.
+ *
+ * @param channel Input channel.
+ * @param device Input device.
+ * @param secondary Secondary channel.
+ * @param filename Name of the file to be loaded.
+ * @return
+ *  - 0x0000: Something is wrong! Kernal Error Code (https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf)
+ *  - other: OK! The last pointer between 0xA000 and 0xBFFF is returned. Note that the last pointer is indicating the first free byte.
+ */
+// __zp($34) struct $2 * fopen(__zp($50) const char *path, const char *mode)
+fopen: {
+    .label fopen__4 = $61
+    .label fopen__9 = $41
+    .label fopen__11 = $78
+    .label fopen__15 = $39
+    .label fopen__16 = $5c
+    .label fopen__26 = $5e
+    .label fopen__28 = $65
+    .label fopen__30 = $34
+    .label cbm_k_setnam1_filename = $7d
+    .label cbm_k_setnam1_fopen__0 = $3d
+    .label stream = $34
+    .label pathtoken = $6e
+    .label path = $50
+    .label return = $34
+    // unsigned char sp = __stdio_filecount
+    // [2059] fopen::sp#0 = __stdio_filecount#105 -- vbum1=vbum2 
+    lda __stdio_filecount
+    sta sp
+    // (unsigned int)sp | 0x8000
+    // [2060] fopen::$30 = (unsigned int)fopen::sp#0 -- vwuz1=_word_vbum2 
+    sta.z fopen__30
+    lda #0
+    sta.z fopen__30+1
+    // [2061] fopen::stream#0 = fopen::$30 | $8000 -- vwuz1=vwuz1_bor_vwuc1 
+    lda.z stream
+    ora #<$8000
+    sta.z stream
+    lda.z stream+1
+    ora #>$8000
+    sta.z stream+1
+    // char pathpos = sp * __STDIO_FILECOUNT
+    // [2062] fopen::pathpos#0 = fopen::sp#0 << 1 -- vbum1=vbum2_rol_1 
+    lda sp
+    asl
+    sta pathpos
+    // __logical = 0
+    // [2063] ((char *)&__stdio_file+$40)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    lda #0
+    ldy sp
+    sta __stdio_file+$40,y
+    // __device = 0
+    // [2064] ((char *)&__stdio_file+$42)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$42,y
+    // __channel = 0
+    // [2065] ((char *)&__stdio_file+$44)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$44,y
+    // [2066] fopen::pathpos#21 = fopen::pathpos#0 -- vbum1=vbum2 
+    lda pathpos
+    sta pathpos_1
+    // [2067] phi from fopen to fopen::@8 [phi:fopen->fopen::@8]
+    // [2067] phi fopen::num#10 = 0 [phi:fopen->fopen::@8#0] -- vbum1=vbuc1 
+    lda #0
+    sta num
+    // [2067] phi fopen::pathpos#10 = fopen::pathpos#21 [phi:fopen->fopen::@8#1] -- register_copy 
+    // [2067] phi fopen::path#13 = vera_read::path [phi:fopen->fopen::@8#2] -- pbuz1=pbuc1 
+    lda #<vera_read.path
+    sta.z path
+    lda #>vera_read.path
+    sta.z path+1
+    // [2067] phi fopen::pathstep#10 = 0 [phi:fopen->fopen::@8#3] -- vbum1=vbuc1 
+    lda #0
+    sta pathstep
+    // [2067] phi fopen::pathtoken#10 = vera_read::path [phi:fopen->fopen::@8#4] -- pbuz1=pbuc1 
+    lda #<vera_read.path
+    sta.z pathtoken
+    lda #>vera_read.path
+    sta.z pathtoken+1
+  // Iterate while path is not \0.
+    // [2067] phi from fopen::@22 to fopen::@8 [phi:fopen::@22->fopen::@8]
+    // [2067] phi fopen::num#10 = fopen::num#13 [phi:fopen::@22->fopen::@8#0] -- register_copy 
+    // [2067] phi fopen::pathpos#10 = fopen::pathpos#7 [phi:fopen::@22->fopen::@8#1] -- register_copy 
+    // [2067] phi fopen::path#13 = fopen::path#10 [phi:fopen::@22->fopen::@8#2] -- register_copy 
+    // [2067] phi fopen::pathstep#10 = fopen::pathstep#11 [phi:fopen::@22->fopen::@8#3] -- register_copy 
+    // [2067] phi fopen::pathtoken#10 = fopen::pathtoken#1 [phi:fopen::@22->fopen::@8#4] -- register_copy 
+    // fopen::@8
+  __b8:
+    // if (*pathtoken == ',' || *pathtoken == '\0')
+    // [2068] if(*fopen::pathtoken#10==',') goto fopen::@9 -- _deref_pbuz1_eq_vbuc1_then_la1 
+    lda #','
+    ldy #0
+    cmp (pathtoken),y
+    bne !__b9+
+    jmp __b9
+  !__b9:
+    // fopen::@33
+    // [2069] if(*fopen::pathtoken#10=='@') goto fopen::@9 -- _deref_pbuz1_eq_vbuc1_then_la1 
+    lda #'@'
+    cmp (pathtoken),y
+    bne !__b9+
+    jmp __b9
+  !__b9:
+    // fopen::@23
+    // if (pathstep == 0)
+    // [2070] if(fopen::pathstep#10!=0) goto fopen::@10 -- vbum1_neq_0_then_la1 
+    lda pathstep
+    bne __b10
+    // fopen::@24
+    // __stdio_file.filename[pathpos] = *pathtoken
+    // [2071] ((char *)&__stdio_file)[fopen::pathpos#10] = *fopen::pathtoken#10 -- pbuc1_derefidx_vbum1=_deref_pbuz2 
+    lda (pathtoken),y
+    ldy pathpos_1
+    sta __stdio_file,y
+    // pathpos++;
+    // [2072] fopen::pathpos#1 = ++ fopen::pathpos#10 -- vbum1=_inc_vbum1 
+    inc pathpos_1
+    // [2073] phi from fopen::@12 fopen::@23 fopen::@24 to fopen::@10 [phi:fopen::@12/fopen::@23/fopen::@24->fopen::@10]
+    // [2073] phi fopen::num#13 = fopen::num#15 [phi:fopen::@12/fopen::@23/fopen::@24->fopen::@10#0] -- register_copy 
+    // [2073] phi fopen::pathpos#7 = fopen::pathpos#10 [phi:fopen::@12/fopen::@23/fopen::@24->fopen::@10#1] -- register_copy 
+    // [2073] phi fopen::path#10 = fopen::path#12 [phi:fopen::@12/fopen::@23/fopen::@24->fopen::@10#2] -- register_copy 
+    // [2073] phi fopen::pathstep#11 = fopen::pathstep#1 [phi:fopen::@12/fopen::@23/fopen::@24->fopen::@10#3] -- register_copy 
+    // fopen::@10
+  __b10:
+    // pathtoken++;
+    // [2074] fopen::pathtoken#1 = ++ fopen::pathtoken#10 -- pbuz1=_inc_pbuz1 
+    inc.z pathtoken
+    bne !+
+    inc.z pathtoken+1
+  !:
+    // fopen::@22
+    // pathtoken - 1
+    // [2075] fopen::$28 = fopen::pathtoken#1 - 1 -- pbuz1=pbuz2_minus_1 
+    lda.z pathtoken
+    sec
+    sbc #1
+    sta.z fopen__28
+    lda.z pathtoken+1
+    sbc #0
+    sta.z fopen__28+1
+    // while (*(pathtoken - 1))
+    // [2076] if(0!=*fopen::$28) goto fopen::@8 -- 0_neq__deref_pbuz1_then_la1 
+    ldy #0
+    lda (fopen__28),y
+    cmp #0
+    bne __b8
+    // fopen::@26
+    // __status = 0
+    // [2077] ((char *)&__stdio_file+$46)[fopen::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    tya
+    ldy sp
+    sta __stdio_file+$46,y
+    // if(!__logical)
+    // [2078] if(0!=((char *)&__stdio_file+$40)[fopen::sp#0]) goto fopen::@1 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$40,y
+    cmp #0
+    bne __b1
+    // fopen::@27
+    // __stdio_filecount+1
+    // [2079] fopen::$4 = __stdio_filecount#105 + 1 -- vbuz1=vbum2_plus_1 
+    lda __stdio_filecount
+    inc
+    sta.z fopen__4
+    // __logical = __stdio_filecount+1
+    // [2080] ((char *)&__stdio_file+$40)[fopen::sp#0] = fopen::$4 -- pbuc1_derefidx_vbum1=vbuz2 
+    sta __stdio_file+$40,y
+    // fopen::@1
+  __b1:
+    // if(!__device)
+    // [2081] if(0!=((char *)&__stdio_file+$42)[fopen::sp#0]) goto fopen::@2 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
+    ldy sp
+    lda __stdio_file+$42,y
+    cmp #0
+    bne __b2
+    // fopen::@5
+    // __device = 8
+    // [2082] ((char *)&__stdio_file+$42)[fopen::sp#0] = 8 -- pbuc1_derefidx_vbum1=vbuc2 
+    lda #8
+    sta __stdio_file+$42,y
+    // fopen::@2
+  __b2:
+    // if(!__channel)
+    // [2083] if(0!=((char *)&__stdio_file+$44)[fopen::sp#0]) goto fopen::@3 -- 0_neq_pbuc1_derefidx_vbum1_then_la1 
+    ldy sp
+    lda __stdio_file+$44,y
+    cmp #0
+    bne __b3
+    // fopen::@6
+    // __stdio_filecount+2
+    // [2084] fopen::$9 = __stdio_filecount#105 + 2 -- vbuz1=vbum2_plus_2 
+    lda __stdio_filecount
+    clc
+    adc #2
+    sta.z fopen__9
+    // __channel = __stdio_filecount+2
+    // [2085] ((char *)&__stdio_file+$44)[fopen::sp#0] = fopen::$9 -- pbuc1_derefidx_vbum1=vbuz2 
+    sta __stdio_file+$44,y
+    // fopen::@3
+  __b3:
+    // __filename
+    // [2086] fopen::$11 = (char *)&__stdio_file + fopen::pathpos#0 -- pbuz1=pbuc1_plus_vbum2 
+    lda pathpos
+    clc
+    adc #<__stdio_file
+    sta.z fopen__11
+    lda #>__stdio_file
+    adc #0
+    sta.z fopen__11+1
+    // cbm_k_setnam(__filename)
+    // [2087] fopen::cbm_k_setnam1_filename = fopen::$11 -- pbuz1=pbuz2 
+    lda.z fopen__11
+    sta.z cbm_k_setnam1_filename
+    lda.z fopen__11+1
+    sta.z cbm_k_setnam1_filename+1
+    // fopen::cbm_k_setnam1
+    // strlen(filename)
+    // [2088] strlen::str#4 = fopen::cbm_k_setnam1_filename -- pbuz1=pbuz2 
+    lda.z cbm_k_setnam1_filename
+    sta.z strlen.str
+    lda.z cbm_k_setnam1_filename+1
+    sta.z strlen.str+1
+    // [2089] call strlen
+    // [1920] phi from fopen::cbm_k_setnam1 to strlen [phi:fopen::cbm_k_setnam1->strlen]
+    // [1920] phi strlen::str#8 = strlen::str#4 [phi:fopen::cbm_k_setnam1->strlen#0] -- register_copy 
+    jsr strlen
+    // strlen(filename)
+    // [2090] strlen::return#11 = strlen::len#2
+    // fopen::@31
+    // [2091] fopen::cbm_k_setnam1_$0 = strlen::return#11 -- vwuz1=vwum2 
+    lda strlen.return
+    sta.z cbm_k_setnam1_fopen__0
+    lda strlen.return+1
+    sta.z cbm_k_setnam1_fopen__0+1
+    // char filename_len = (char)strlen(filename)
+    // [2092] fopen::cbm_k_setnam1_filename_len = (char)fopen::cbm_k_setnam1_$0 -- vbum1=_byte_vwuz2 
+    lda.z cbm_k_setnam1_fopen__0
+    sta cbm_k_setnam1_filename_len
+    // asm
+    // asm { ldafilename_len ldxfilename ldyfilename+1 jsrCBM_SETNAM  }
+    ldx cbm_k_setnam1_filename
+    ldy cbm_k_setnam1_filename+1
+    jsr CBM_SETNAM
+    // fopen::@28
+    // cbm_k_setlfs(__logical, __device, __channel)
+    // [2094] cbm_k_setlfs::channel = ((char *)&__stdio_file+$40)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    ldy sp
+    lda __stdio_file+$40,y
+    sta cbm_k_setlfs.channel
+    // [2095] cbm_k_setlfs::device = ((char *)&__stdio_file+$42)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    lda __stdio_file+$42,y
+    sta cbm_k_setlfs.device
+    // [2096] cbm_k_setlfs::command = ((char *)&__stdio_file+$44)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    lda __stdio_file+$44,y
+    sta cbm_k_setlfs.command
+    // [2097] call cbm_k_setlfs
+    jsr cbm_k_setlfs
+    // fopen::cbm_k_open1
+    // asm
+    // asm { jsrCBM_OPEN  }
+    jsr CBM_OPEN
+    // fopen::cbm_k_readst1
+    // char status
+    // [2099] fopen::cbm_k_readst1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_readst1_status
+    // asm
+    // asm { jsrCBM_READST stastatus  }
+    jsr CBM_READST
+    sta cbm_k_readst1_status
+    // return status;
+    // [2101] fopen::cbm_k_readst1_return#0 = fopen::cbm_k_readst1_status -- vbum1=vbum2 
+    sta cbm_k_readst1_return
+    // fopen::cbm_k_readst1_@return
+    // }
+    // [2102] fopen::cbm_k_readst1_return#1 = fopen::cbm_k_readst1_return#0
+    // fopen::@29
+    // cbm_k_readst()
+    // [2103] fopen::$15 = fopen::cbm_k_readst1_return#1 -- vbuz1=vbum2 
+    sta.z fopen__15
+    // __status = cbm_k_readst()
+    // [2104] ((char *)&__stdio_file+$46)[fopen::sp#0] = fopen::$15 -- pbuc1_derefidx_vbum1=vbuz2 
+    ldy sp
+    sta __stdio_file+$46,y
+    // ferror(stream)
+    // [2105] ferror::stream#0 = (struct $2 *)fopen::stream#0
+    // [2106] call ferror
+    jsr ferror
+    // [2107] ferror::return#0 = ferror::return#1
+    // fopen::@32
+    // [2108] fopen::$16 = ferror::return#0 -- vwsz1=vwsm2 
+    lda ferror.return
+    sta.z fopen__16
+    lda ferror.return+1
+    sta.z fopen__16+1
+    // if (ferror(stream))
+    // [2109] if(0==fopen::$16) goto fopen::@4 -- 0_eq_vwsz1_then_la1 
+    lda.z fopen__16
+    ora.z fopen__16+1
+    beq __b4
+    // fopen::@7
+    // cbm_k_close(__logical)
+    // [2110] fopen::cbm_k_close1_channel = ((char *)&__stdio_file+$40)[fopen::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    ldy sp
+    lda __stdio_file+$40,y
+    sta cbm_k_close1_channel
+    // fopen::cbm_k_close1
+    // asm
+    // asm { ldachannel jsrCBM_CLOSE  }
+    jsr CBM_CLOSE
+    // [2112] phi from fopen::cbm_k_close1 to fopen::@return [phi:fopen::cbm_k_close1->fopen::@return]
+    // [2112] phi __stdio_filecount#1 = __stdio_filecount#105 [phi:fopen::cbm_k_close1->fopen::@return#0] -- register_copy 
+    // [2112] phi fopen::return#2 = 0 [phi:fopen::cbm_k_close1->fopen::@return#1] -- pssz1=vbuc1 
+    lda #<0
+    sta.z return
+    sta.z return+1
+    // fopen::@return
+    // }
+    // [2113] return 
+    rts
+    // fopen::@4
+  __b4:
+    // __stdio_filecount++;
+    // [2114] __stdio_filecount#0 = ++ __stdio_filecount#105 -- vbum1=_inc_vbum1 
+    inc __stdio_filecount
+    // [2115] fopen::return#6 = (struct $2 *)fopen::stream#0
+    // [2112] phi from fopen::@4 to fopen::@return [phi:fopen::@4->fopen::@return]
+    // [2112] phi __stdio_filecount#1 = __stdio_filecount#0 [phi:fopen::@4->fopen::@return#0] -- register_copy 
+    // [2112] phi fopen::return#2 = fopen::return#6 [phi:fopen::@4->fopen::@return#1] -- register_copy 
+    rts
+    // fopen::@9
+  __b9:
+    // if (pathstep > 0)
+    // [2116] if(fopen::pathstep#10>0) goto fopen::@11 -- vbum1_gt_0_then_la1 
+    lda pathstep
+    bne __b11
+    // fopen::@25
+    // __stdio_file.filename[pathpos] = '\0'
+    // [2117] ((char *)&__stdio_file)[fopen::pathpos#10] = '@' -- pbuc1_derefidx_vbum1=vbuc2 
+    lda #'@'
+    ldy pathpos_1
+    sta __stdio_file,y
+    // path = pathtoken + 1
+    // [2118] fopen::path#0 = fopen::pathtoken#10 + 1 -- pbuz1=pbuz2_plus_1 
+    clc
+    lda.z pathtoken
+    adc #1
+    sta.z path
+    lda.z pathtoken+1
+    adc #0
+    sta.z path+1
+    // [2119] phi from fopen::@16 fopen::@17 fopen::@18 fopen::@19 fopen::@25 to fopen::@12 [phi:fopen::@16/fopen::@17/fopen::@18/fopen::@19/fopen::@25->fopen::@12]
+    // [2119] phi fopen::num#15 = fopen::num#2 [phi:fopen::@16/fopen::@17/fopen::@18/fopen::@19/fopen::@25->fopen::@12#0] -- register_copy 
+    // [2119] phi fopen::path#12 = fopen::path#15 [phi:fopen::@16/fopen::@17/fopen::@18/fopen::@19/fopen::@25->fopen::@12#1] -- register_copy 
+    // fopen::@12
+  __b12:
+    // pathstep++;
+    // [2120] fopen::pathstep#1 = ++ fopen::pathstep#10 -- vbum1=_inc_vbum1 
+    inc pathstep
+    jmp __b10
+    // fopen::@11
+  __b11:
+    // char pathcmp = *path
+    // [2121] fopen::pathcmp#0 = *fopen::path#13 -- vbum1=_deref_pbuz2 
+    ldy #0
+    lda (path),y
+    sta pathcmp
+    // case 'D':
+    // [2122] if(fopen::pathcmp#0=='D') goto fopen::@13 -- vbum1_eq_vbuc1_then_la1 
+    lda #'D'
+    cmp pathcmp
+    beq __b13
+    // fopen::@20
+    // case 'L':
+    // [2123] if(fopen::pathcmp#0=='L') goto fopen::@13 -- vbum1_eq_vbuc1_then_la1 
+    lda #'L'
+    cmp pathcmp
+    beq __b13
+    // fopen::@21
+    // case 'C':
+    //                     num = (char)atoi(path + 1);
+    //                     path = pathtoken + 1;
+    // [2124] if(fopen::pathcmp#0=='C') goto fopen::@13 -- vbum1_eq_vbuc1_then_la1 
+    lda #'C'
+    cmp pathcmp
+    beq __b13
+    // [2125] phi from fopen::@21 fopen::@30 to fopen::@14 [phi:fopen::@21/fopen::@30->fopen::@14]
+    // [2125] phi fopen::path#15 = fopen::path#13 [phi:fopen::@21/fopen::@30->fopen::@14#0] -- register_copy 
+    // [2125] phi fopen::num#2 = fopen::num#10 [phi:fopen::@21/fopen::@30->fopen::@14#1] -- register_copy 
+    // fopen::@14
+  __b14:
+    // case 'L':
+    //                     __logical = num;
+    //                     break;
+    // [2126] if(fopen::pathcmp#0=='L') goto fopen::@17 -- vbum1_eq_vbuc1_then_la1 
+    lda #'L'
+    cmp pathcmp
+    beq __b17
+    // fopen::@15
+    // case 'D':
+    //                     __device = num;
+    //                     break;
+    // [2127] if(fopen::pathcmp#0=='D') goto fopen::@18 -- vbum1_eq_vbuc1_then_la1 
+    lda #'D'
+    cmp pathcmp
+    beq __b18
+    // fopen::@16
+    // case 'C':
+    //                     __channel = num;
+    //                     break;
+    // [2128] if(fopen::pathcmp#0!='C') goto fopen::@12 -- vbum1_neq_vbuc1_then_la1 
+    lda #'C'
+    cmp pathcmp
+    bne __b12
+    // fopen::@19
+    // __channel = num
+    // [2129] ((char *)&__stdio_file+$44)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
+    lda num
+    ldy sp
+    sta __stdio_file+$44,y
+    jmp __b12
+    // fopen::@18
+  __b18:
+    // __device = num
+    // [2130] ((char *)&__stdio_file+$42)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
+    lda num
+    ldy sp
+    sta __stdio_file+$42,y
+    jmp __b12
+    // fopen::@17
+  __b17:
+    // __logical = num
+    // [2131] ((char *)&__stdio_file+$40)[fopen::sp#0] = fopen::num#2 -- pbuc1_derefidx_vbum1=vbum2 
+    lda num
+    ldy sp
+    sta __stdio_file+$40,y
+    jmp __b12
+    // fopen::@13
+  __b13:
+    // atoi(path + 1)
+    // [2132] atoi::str#0 = fopen::path#13 + 1 -- pbuz1=pbuz1_plus_1 
+    inc.z atoi.str
+    bne !+
+    inc.z atoi.str+1
+  !:
+    // [2133] call atoi
+    // [2412] phi from fopen::@13 to atoi [phi:fopen::@13->atoi]
+    // [2412] phi atoi::str#2 = atoi::str#0 [phi:fopen::@13->atoi#0] -- register_copy 
+    jsr atoi
+    // atoi(path + 1)
+    // [2134] atoi::return#3 = atoi::return#2
+    // fopen::@30
+    // [2135] fopen::$26 = atoi::return#3 -- vwsz1=vwsm2 
+    lda atoi.return
+    sta.z fopen__26
+    lda atoi.return+1
+    sta.z fopen__26+1
+    // num = (char)atoi(path + 1)
+    // [2136] fopen::num#1 = (char)fopen::$26 -- vbum1=_byte_vwsz2 
+    lda.z fopen__26
+    sta num
+    // path = pathtoken + 1
+    // [2137] fopen::path#1 = fopen::pathtoken#10 + 1 -- pbuz1=pbuz2_plus_1 
+    clc
+    lda.z pathtoken
+    adc #1
+    sta.z path
+    lda.z pathtoken+1
+    adc #0
+    sta.z path+1
+    jmp __b14
+  .segment Data
+    cbm_k_setnam1_filename_len: .byte 0
+    cbm_k_readst1_status: .byte 0
+    cbm_k_close1_channel: .byte 0
+    sp: .byte 0
+    pathpos: .byte 0
+    pathpos_1: .byte 0
+    pathcmp: .byte 0
+    // Parse path
+    pathstep: .byte 0
+    num: .byte 0
+    cbm_k_readst1_return: .byte 0
+}
+.segment Code
+  // fclose
+/**
+ * @brief Close a file.
+ *
+ * @param fp The FILE pointer.
+ * @return
+ *  - 0x0000: Something is wrong! Kernal Error Code (https://commodore.ca/manuals/pdfs/commodore_error_messages.pdf)
+ *  - other: OK! The last pointer between 0xA000 and 0xBFFF is returned. Note that the last pointer is indicating the first free byte.
+ */
+// int fclose(__zp($70) struct $2 *stream)
+fclose: {
+    .label fclose__1 = $61
+    .label fclose__4 = $41
+    .label fclose__6 = $39
+    .label stream = $70
+    // unsigned char sp = (unsigned char)stream
+    // [2138] fclose::sp#0 = (char)fclose::stream#0 -- vbum1=_byte_pssz2 
+    lda.z stream
+    sta sp
+    // cbm_k_chkin(__logical)
+    // [2139] fclose::cbm_k_chkin1_channel = ((char *)&__stdio_file+$40)[fclose::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    tay
+    lda __stdio_file+$40,y
+    sta cbm_k_chkin1_channel
+    // fclose::cbm_k_chkin1
+    // char status
+    // [2140] fclose::cbm_k_chkin1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_chkin1_status
+    // asm
+    // asm { ldxchannel jsrCBM_CHKIN stastatus  }
+    ldx cbm_k_chkin1_channel
+    jsr CBM_CHKIN
+    sta cbm_k_chkin1_status
+    // fclose::cbm_k_readst1
+    // char status
+    // [2142] fclose::cbm_k_readst1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_readst1_status
+    // asm
+    // asm { jsrCBM_READST stastatus  }
+    jsr CBM_READST
+    sta cbm_k_readst1_status
+    // return status;
+    // [2144] fclose::cbm_k_readst1_return#0 = fclose::cbm_k_readst1_status -- vbum1=vbum2 
+    sta cbm_k_readst1_return
+    // fclose::cbm_k_readst1_@return
+    // }
+    // [2145] fclose::cbm_k_readst1_return#1 = fclose::cbm_k_readst1_return#0
+    // fclose::@3
+    // cbm_k_readst()
+    // [2146] fclose::$1 = fclose::cbm_k_readst1_return#1 -- vbuz1=vbum2 
+    sta.z fclose__1
+    // __status = cbm_k_readst()
+    // [2147] ((char *)&__stdio_file+$46)[fclose::sp#0] = fclose::$1 -- pbuc1_derefidx_vbum1=vbuz2 
+    ldy sp
+    sta __stdio_file+$46,y
+    // if (__status)
+    // [2148] if(0==((char *)&__stdio_file+$46)[fclose::sp#0]) goto fclose::@1 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$46,y
+    cmp #0
+    beq __b1
+    // [2149] phi from fclose::@2 fclose::@3 fclose::@4 to fclose::@return [phi:fclose::@2/fclose::@3/fclose::@4->fclose::@return]
+    // [2149] phi __stdio_filecount#2 = __stdio_filecount#3 [phi:fclose::@2/fclose::@3/fclose::@4->fclose::@return#0] -- register_copy 
+    // fclose::@return
+    // }
+    // [2150] return 
+    rts
+    // fclose::@1
+  __b1:
+    // cbm_k_close(__logical)
+    // [2151] fclose::cbm_k_close1_channel = ((char *)&__stdio_file+$40)[fclose::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    ldy sp
+    lda __stdio_file+$40,y
+    sta cbm_k_close1_channel
+    // fclose::cbm_k_close1
+    // asm
+    // asm { ldachannel jsrCBM_CLOSE  }
+    jsr CBM_CLOSE
+    // fclose::cbm_k_readst2
+    // char status
+    // [2153] fclose::cbm_k_readst2_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_readst2_status
+    // asm
+    // asm { jsrCBM_READST stastatus  }
+    jsr CBM_READST
+    sta cbm_k_readst2_status
+    // return status;
+    // [2155] fclose::cbm_k_readst2_return#0 = fclose::cbm_k_readst2_status -- vbum1=vbum2 
+    sta cbm_k_readst2_return
+    // fclose::cbm_k_readst2_@return
+    // }
+    // [2156] fclose::cbm_k_readst2_return#1 = fclose::cbm_k_readst2_return#0
+    // fclose::@4
+    // cbm_k_readst()
+    // [2157] fclose::$4 = fclose::cbm_k_readst2_return#1 -- vbuz1=vbum2 
+    sta.z fclose__4
+    // __status = cbm_k_readst()
+    // [2158] ((char *)&__stdio_file+$46)[fclose::sp#0] = fclose::$4 -- pbuc1_derefidx_vbum1=vbuz2 
+    ldy sp
+    sta __stdio_file+$46,y
+    // if (__status)
+    // [2159] if(0==((char *)&__stdio_file+$46)[fclose::sp#0]) goto fclose::@2 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$46,y
+    cmp #0
+    beq __b2
+    rts
+    // fclose::@2
+  __b2:
+    // __logical = 0
+    // [2160] ((char *)&__stdio_file+$40)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    lda #0
+    ldy sp
+    sta __stdio_file+$40,y
+    // __device = 0
+    // [2161] ((char *)&__stdio_file+$42)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$42,y
+    // __channel = 0
+    // [2162] ((char *)&__stdio_file+$44)[fclose::sp#0] = 0 -- pbuc1_derefidx_vbum1=vbuc2 
+    sta __stdio_file+$44,y
+    // __filename
+    // [2163] fclose::$6 = fclose::sp#0 << 1 -- vbuz1=vbum2_rol_1 
+    tya
+    asl
+    sta.z fclose__6
+    // *__filename = '\0'
+    // [2164] ((char *)&__stdio_file)[fclose::$6] = '@' -- pbuc1_derefidx_vbuz1=vbuc2 
+    lda #'@'
+    ldy.z fclose__6
+    sta __stdio_file,y
+    // __stdio_filecount--;
+    // [2165] __stdio_filecount#3 = -- __stdio_filecount#1 -- vbum1=_dec_vbum1 
+    dec __stdio_filecount
+    rts
+  .segment Data
+    cbm_k_chkin1_channel: .byte 0
+    cbm_k_chkin1_status: .byte 0
+    cbm_k_readst1_status: .byte 0
+    cbm_k_close1_channel: .byte 0
+    cbm_k_readst2_status: .byte 0
+    sp: .byte 0
+    cbm_k_readst1_return: .byte 0
+    cbm_k_readst2_return: .byte 0
+}
+.segment Code
+  // fgets
+/**
+ * @brief Load a file to ram or (banked ram located between address 0xA000 and 0xBFFF), incrementing the banks.
+ * This function uses the new CX16 macptr kernal API at address $FF44.
+ *
+ * @param sptr The pointer between 0xA000 and 0xBFFF in banked ram.
+ * @param size The amount of bytes to be read.
+ * @param filename Name of the file to be loaded.
+ * @return ptr the pointer advanced to the point where the stream ends.
+ */
+// __mem() unsigned int fgets(__zp($4a) char *ptr, unsigned int size, __zp($70) struct $2 *stream)
+fgets: {
+    .label fgets__1 = $52
+    .label fgets__8 = $36
+    .label fgets__9 = $4c
+    .label fgets__13 = $39
+    .label ptr = $4a
+    .label stream = $70
+    // unsigned char sp = (unsigned char)stream
+    // [2166] fgets::sp#0 = (char)fgets::stream#0 -- vbum1=_byte_pssz2 
+    lda.z stream
+    sta sp
+    // cbm_k_chkin(__logical)
+    // [2167] fgets::cbm_k_chkin1_channel = ((char *)&__stdio_file+$40)[fgets::sp#0] -- vbum1=pbuc1_derefidx_vbum2 
+    tay
+    lda __stdio_file+$40,y
+    sta cbm_k_chkin1_channel
+    // fgets::cbm_k_chkin1
+    // char status
+    // [2168] fgets::cbm_k_chkin1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_chkin1_status
+    // asm
+    // asm { ldxchannel jsrCBM_CHKIN stastatus  }
+    ldx cbm_k_chkin1_channel
+    jsr CBM_CHKIN
+    sta cbm_k_chkin1_status
+    // fgets::cbm_k_readst1
+    // char status
+    // [2170] fgets::cbm_k_readst1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_readst1_status
+    // asm
+    // asm { jsrCBM_READST stastatus  }
+    jsr CBM_READST
+    sta cbm_k_readst1_status
+    // return status;
+    // [2172] fgets::cbm_k_readst1_return#0 = fgets::cbm_k_readst1_status -- vbum1=vbum2 
+    sta cbm_k_readst1_return
+    // fgets::cbm_k_readst1_@return
+    // }
+    // [2173] fgets::cbm_k_readst1_return#1 = fgets::cbm_k_readst1_return#0
+    // fgets::@9
+    // cbm_k_readst()
+    // [2174] fgets::$1 = fgets::cbm_k_readst1_return#1 -- vbuz1=vbum2 
+    sta.z fgets__1
+    // __status = cbm_k_readst()
+    // [2175] ((char *)&__stdio_file+$46)[fgets::sp#0] = fgets::$1 -- pbuc1_derefidx_vbum1=vbuz2 
+    ldy sp
+    sta __stdio_file+$46,y
+    // if (__status)
+    // [2176] if(0==((char *)&__stdio_file+$46)[fgets::sp#0]) goto fgets::@1 -- 0_eq_pbuc1_derefidx_vbum1_then_la1 
+    lda __stdio_file+$46,y
+    cmp #0
+    beq __b8
+    // [2177] phi from fgets::@10 fgets::@3 fgets::@9 to fgets::@return [phi:fgets::@10/fgets::@3/fgets::@9->fgets::@return]
+  __b1:
+    // [2177] phi fgets::return#1 = 0 [phi:fgets::@10/fgets::@3/fgets::@9->fgets::@return#0] -- vwum1=vbuc1 
+    lda #<0
+    sta return
+    sta return+1
+    // fgets::@return
+    // }
+    // [2178] return 
+    rts
+    // [2179] phi from fgets::@13 to fgets::@1 [phi:fgets::@13->fgets::@1]
+    // [2179] phi fgets::read#10 = fgets::read#1 [phi:fgets::@13->fgets::@1#0] -- register_copy 
+    // [2179] phi fgets::remaining#11 = fgets::remaining#1 [phi:fgets::@13->fgets::@1#1] -- register_copy 
+    // [2179] phi fgets::ptr#10 = fgets::ptr#12 [phi:fgets::@13->fgets::@1#2] -- register_copy 
+    // [2179] phi from fgets::@9 to fgets::@1 [phi:fgets::@9->fgets::@1]
+  __b8:
+    // [2179] phi fgets::read#10 = 0 [phi:fgets::@9->fgets::@1#0] -- vwum1=vwuc1 
+    lda #<0
+    sta read
+    sta read+1
+    // [2179] phi fgets::remaining#11 = VERA_PROGRESS_CELL [phi:fgets::@9->fgets::@1#1] -- vwum1=vbuc1 
+    lda #<VERA_PROGRESS_CELL
+    sta remaining
+    lda #>VERA_PROGRESS_CELL
+    sta remaining+1
+    // [2179] phi fgets::ptr#10 = fgets::ptr#2 [phi:fgets::@9->fgets::@1#2] -- register_copy 
+    // fgets::@1
+    // fgets::@6
+  __b6:
+    // if (remaining >= 512)
+    // [2180] if(fgets::remaining#11>=$200) goto fgets::@2 -- vwum1_ge_vwuc1_then_la1 
+    lda remaining+1
+    cmp #>$200
+    bcc !+
+    beq !__b2+
+    jmp __b2
+  !__b2:
+    lda remaining
+    cmp #<$200
+    bcc !__b2+
+    jmp __b2
+  !__b2:
+  !:
+    // fgets::@7
+    // cx16_k_macptr(remaining, ptr)
+    // [2181] cx16_k_macptr::bytes = fgets::remaining#11 -- vbum1=vwum2 
+    lda remaining
+    sta cx16_k_macptr.bytes
+    // [2182] cx16_k_macptr::buffer = (void *)fgets::ptr#10 -- pvoz1=pvoz2 
+    lda.z ptr
+    sta.z cx16_k_macptr.buffer
+    lda.z ptr+1
+    sta.z cx16_k_macptr.buffer+1
+    // [2183] call cx16_k_macptr
+    jsr cx16_k_macptr
+    // [2184] cx16_k_macptr::return#4 = cx16_k_macptr::return#1
+    // fgets::@12
+  __b12:
+    // bytes = cx16_k_macptr(remaining, ptr)
+    // [2185] fgets::bytes#3 = cx16_k_macptr::return#4
+    // [2186] phi from fgets::@11 fgets::@12 to fgets::cbm_k_readst2 [phi:fgets::@11/fgets::@12->fgets::cbm_k_readst2]
+    // [2186] phi fgets::bytes#10 = fgets::bytes#2 [phi:fgets::@11/fgets::@12->fgets::cbm_k_readst2#0] -- register_copy 
+    // fgets::cbm_k_readst2
+    // char status
+    // [2187] fgets::cbm_k_readst2_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_readst2_status
+    // asm
+    // asm { jsrCBM_READST stastatus  }
+    jsr CBM_READST
+    sta cbm_k_readst2_status
+    // return status;
+    // [2189] fgets::cbm_k_readst2_return#0 = fgets::cbm_k_readst2_status -- vbum1=vbum2 
+    sta cbm_k_readst2_return
+    // fgets::cbm_k_readst2_@return
+    // }
+    // [2190] fgets::cbm_k_readst2_return#1 = fgets::cbm_k_readst2_return#0
+    // fgets::@10
+    // cbm_k_readst()
+    // [2191] fgets::$8 = fgets::cbm_k_readst2_return#1 -- vbuz1=vbum2 
+    sta.z fgets__8
+    // __status = cbm_k_readst()
+    // [2192] ((char *)&__stdio_file+$46)[fgets::sp#0] = fgets::$8 -- pbuc1_derefidx_vbum1=vbuz2 
+    ldy sp
+    sta __stdio_file+$46,y
+    // __status & 0xBF
+    // [2193] fgets::$9 = ((char *)&__stdio_file+$46)[fgets::sp#0] & $bf -- vbuz1=pbuc1_derefidx_vbum2_band_vbuc2 
+    lda #$bf
+    and __stdio_file+$46,y
+    sta.z fgets__9
+    // if (__status & 0xBF)
+    // [2194] if(0==fgets::$9) goto fgets::@3 -- 0_eq_vbuz1_then_la1 
+    beq __b3
+    jmp __b1
+    // fgets::@3
+  __b3:
+    // if (bytes == 0xFFFF)
+    // [2195] if(fgets::bytes#10!=$ffff) goto fgets::@4 -- vwum1_neq_vwuc1_then_la1 
+    lda bytes+1
+    cmp #>$ffff
+    bne __b4
+    lda bytes
+    cmp #<$ffff
+    bne __b4
+    jmp __b1
+    // fgets::@4
+  __b4:
+    // read += bytes
+    // [2196] fgets::read#1 = fgets::read#10 + fgets::bytes#10 -- vwum1=vwum1_plus_vwum2 
+    clc
+    lda read
+    adc bytes
+    sta read
+    lda read+1
+    adc bytes+1
+    sta read+1
+    // ptr += bytes
+    // [2197] fgets::ptr#0 = fgets::ptr#10 + fgets::bytes#10 -- pbuz1=pbuz1_plus_vwum2 
+    clc
+    lda.z ptr
+    adc bytes
+    sta.z ptr
+    lda.z ptr+1
+    adc bytes+1
+    sta.z ptr+1
+    // BYTE1(ptr)
+    // [2198] fgets::$13 = byte1  fgets::ptr#0 -- vbuz1=_byte1_pbuz2 
+    sta.z fgets__13
+    // if (BYTE1(ptr) == 0xC0)
+    // [2199] if(fgets::$13!=$c0) goto fgets::@5 -- vbuz1_neq_vbuc1_then_la1 
+    lda #$c0
+    cmp.z fgets__13
+    bne __b5
+    // fgets::@8
+    // ptr -= 0x2000
+    // [2200] fgets::ptr#1 = fgets::ptr#0 - $2000 -- pbuz1=pbuz1_minus_vwuc1 
+    lda.z ptr
+    sec
+    sbc #<$2000
+    sta.z ptr
+    lda.z ptr+1
+    sbc #>$2000
+    sta.z ptr+1
+    // [2201] phi from fgets::@4 fgets::@8 to fgets::@5 [phi:fgets::@4/fgets::@8->fgets::@5]
+    // [2201] phi fgets::ptr#12 = fgets::ptr#0 [phi:fgets::@4/fgets::@8->fgets::@5#0] -- register_copy 
+    // fgets::@5
+  __b5:
+    // remaining -= bytes
+    // [2202] fgets::remaining#1 = fgets::remaining#11 - fgets::bytes#10 -- vwum1=vwum1_minus_vwum2 
+    lda remaining
+    sec
+    sbc bytes
+    sta remaining
+    lda remaining+1
+    sbc bytes+1
+    sta remaining+1
+    // while ((__status == 0) && ((size && remaining) || !size))
+    // [2203] if(((char *)&__stdio_file+$46)[fgets::sp#0]==0) goto fgets::@13 -- pbuc1_derefidx_vbum1_eq_0_then_la1 
+    ldy sp
+    lda __stdio_file+$46,y
+    cmp #0
+    beq __b13
+    // [2177] phi from fgets::@13 fgets::@5 to fgets::@return [phi:fgets::@13/fgets::@5->fgets::@return]
+    // [2177] phi fgets::return#1 = fgets::read#1 [phi:fgets::@13/fgets::@5->fgets::@return#0] -- register_copy 
+    rts
+    // fgets::@13
+  __b13:
+    // while ((__status == 0) && ((size && remaining) || !size))
+    // [2204] if(0!=fgets::remaining#1) goto fgets::@1 -- 0_neq_vwum1_then_la1 
+    lda remaining
+    ora remaining+1
+    beq !__b6+
+    jmp __b6
+  !__b6:
+    rts
+    // fgets::@2
+  __b2:
+    // cx16_k_macptr(512, ptr)
+    // [2205] cx16_k_macptr::bytes = $200 -- vbum1=vwuc1 
+    lda #<$200
+    sta cx16_k_macptr.bytes
+    // [2206] cx16_k_macptr::buffer = (void *)fgets::ptr#10 -- pvoz1=pvoz2 
+    lda.z ptr
+    sta.z cx16_k_macptr.buffer
+    lda.z ptr+1
+    sta.z cx16_k_macptr.buffer+1
+    // [2207] call cx16_k_macptr
+    jsr cx16_k_macptr
+    // [2208] cx16_k_macptr::return#3 = cx16_k_macptr::return#1
+    // fgets::@11
+    // bytes = cx16_k_macptr(512, ptr)
+    // [2209] fgets::bytes#2 = cx16_k_macptr::return#3
+    jmp __b12
+  .segment Data
+    cbm_k_chkin1_channel: .byte 0
+    cbm_k_chkin1_status: .byte 0
+    cbm_k_readst1_status: .byte 0
+    cbm_k_readst2_status: .byte 0
+    sp: .byte 0
+    cbm_k_readst1_return: .byte 0
+    .label return = read
+    bytes: .word 0
+    cbm_k_readst2_return: .byte 0
+    read: .word 0
+    remaining: .word 0
+}
+.segment Code
+  // uctoa_append
+// Used to convert a single digit of an unsigned number value to a string representation
+// Counts a single digit up from '0' as long as the value is larger than sub.
+// Each time the digit is increased sub is subtracted from value.
+// - buffer : pointer to the char that receives the digit
+// - value : The value where the digit will be derived from
+// - sub : the value of a '1' in the digit. Subtracted continually while the digit is increased.
+//        (For decimal the subs used are 10000, 1000, 100, 10, 1)
+// returns : the value reduced by sub * digit so that it is less than sub.
+// __mem() char uctoa_append(__zp($44) char *buffer, __mem() char value, __mem() char sub)
+uctoa_append: {
+    .label buffer = $44
+    // [2211] phi from uctoa_append to uctoa_append::@1 [phi:uctoa_append->uctoa_append::@1]
+    // [2211] phi uctoa_append::digit#2 = 0 [phi:uctoa_append->uctoa_append::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta digit
+    // [2211] phi uctoa_append::value#2 = uctoa_append::value#0 [phi:uctoa_append->uctoa_append::@1#1] -- register_copy 
+    // uctoa_append::@1
+  __b1:
+    // while (value >= sub)
+    // [2212] if(uctoa_append::value#2>=uctoa_append::sub#0) goto uctoa_append::@2 -- vbum1_ge_vbum2_then_la1 
+    lda value
+    cmp sub
+    bcs __b2
+    // uctoa_append::@3
+    // *buffer = DIGITS[digit]
+    // [2213] *uctoa_append::buffer#0 = DIGITS[uctoa_append::digit#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
+    ldy digit
+    lda DIGITS,y
+    ldy #0
+    sta (buffer),y
+    // uctoa_append::@return
+    // }
+    // [2214] return 
+    rts
+    // uctoa_append::@2
+  __b2:
+    // digit++;
+    // [2215] uctoa_append::digit#1 = ++ uctoa_append::digit#2 -- vbum1=_inc_vbum1 
+    inc digit
+    // value -= sub
+    // [2216] uctoa_append::value#1 = uctoa_append::value#2 - uctoa_append::sub#0 -- vbum1=vbum1_minus_vbum2 
+    lda value
+    sec
+    sbc sub
+    sta value
+    // [2211] phi from uctoa_append::@2 to uctoa_append::@1 [phi:uctoa_append::@2->uctoa_append::@1]
+    // [2211] phi uctoa_append::digit#2 = uctoa_append::digit#1 [phi:uctoa_append::@2->uctoa_append::@1#0] -- register_copy 
+    // [2211] phi uctoa_append::value#2 = uctoa_append::value#1 [phi:uctoa_append::@2->uctoa_append::@1#1] -- register_copy 
+    jmp __b1
+  .segment Data
+    .label value = printf_uchar.uvalue
+    .label sub = uctoa.digit_value
+    .label return = printf_uchar.uvalue
+    digit: .byte 0
+}
+.segment Code
+  // spi_read_flash
+// void spi_read_flash(unsigned long spi_data)
+spi_read_flash: {
+    // spi_select()
+    // [2218] call spi_select
+  /* 
+; .X [7:0]
+; .Y [15:8]
+; .A [23:16]
+.proc spi_read_flash
+    pha
+
+    jsr spi_select
+    lda #$03
+    jsr spi_write
+    pla
+    jsr spi_write
+    tya
+    jsr spi_write
+    txa
+    jsr spi_write
+
+    rts
+.endproc
+ */
+    // [2354] phi from spi_read_flash to spi_select [phi:spi_read_flash->spi_select]
+    jsr spi_select
+    // spi_read_flash::@1
+    // spi_write(0x03)
+    // [2219] spi_write::data = 3 -- vbum1=vbuc1 
+    lda #3
+    sta spi_write.data
+    // [2220] call spi_write
+    jsr spi_write
+    // spi_read_flash::@2
+    // spi_write(BYTE2(spi_data))
+    // [2221] spi_write::data = 0 -- vbum1=vbuc1 
+    lda #0
+    sta spi_write.data
+    // [2222] call spi_write
+    jsr spi_write
+    // spi_read_flash::@3
+    // spi_write(BYTE1(spi_data))
+    // [2223] spi_write::data = 0 -- vbum1=vbuc1 
+    lda #0
+    sta spi_write.data
+    // [2224] call spi_write
+    jsr spi_write
+    // spi_read_flash::@4
+    // spi_write(BYTE0(spi_data))
+    // [2225] spi_write::data = 0 -- vbum1=vbuc1 
+    lda #0
+    sta spi_write.data
+    // [2226] call spi_write
+    jsr spi_write
+    // spi_read_flash::@return
+    // }
+    // [2227] return 
+    rts
+}
+  // vera_compare
+// __mem() unsigned int vera_compare(__mem() char bank_ram, __zp($58) char *ptr_ram, unsigned int vera_compare_size)
+vera_compare: {
+    .label ptr_ram = $58
+    // vera_compare::bank_set_bram1
+    // BRAM = bank
+    // [2229] BRAM = vera_compare::bank_ram#0 -- vbuz1=vbum2 
+    lda bank_ram
+    sta.z BRAM
+    // [2230] phi from vera_compare::bank_set_bram1 to vera_compare::@1 [phi:vera_compare::bank_set_bram1->vera_compare::@1]
+    // [2230] phi vera_compare::ptr_ram#2 = vera_compare::ptr_ram#1 [phi:vera_compare::bank_set_bram1->vera_compare::@1#0] -- register_copy 
+    // [2230] phi vera_compare::equal_bytes#2 = 0 [phi:vera_compare::bank_set_bram1->vera_compare::@1#1] -- vwum1=vwuc1 
+    lda #<0
+    sta equal_bytes
+    sta equal_bytes+1
+    // [2230] phi vera_compare::compared_bytes#2 = 0 [phi:vera_compare::bank_set_bram1->vera_compare::@1#2] -- vwum1=vwuc1 
+    sta compared_bytes
+    sta compared_bytes+1
+    // vera_compare::@1
+  __b1:
+    // while (compared_bytes < vera_compare_size)
+    // [2231] if(vera_compare::compared_bytes#2<VERA_PROGRESS_CELL) goto vera_compare::@2 -- vwum1_lt_vbuc1_then_la1 
+    lda compared_bytes+1
+    bne !+
+    lda compared_bytes
+    cmp #VERA_PROGRESS_CELL
+    bcc __b2
+  !:
+    // vera_compare::@return
+    // }
+    // [2232] return 
+    rts
+    // [2233] phi from vera_compare::@1 to vera_compare::@2 [phi:vera_compare::@1->vera_compare::@2]
+    // vera_compare::@2
+  __b2:
+    // unsigned char vera_byte = spi_read()
+    // [2234] call spi_read
+    jsr spi_read
+    // [2235] spi_read::return#14 = spi_read::return#5
+    // vera_compare::@5
+    // [2236] vera_compare::vera_byte#0 = spi_read::return#14
+    // if (vera_byte == *ptr_ram)
+    // [2237] if(vera_compare::vera_byte#0!=*vera_compare::ptr_ram#2) goto vera_compare::@3 -- vbum1_neq__deref_pbuz2_then_la1 
+    ldy #0
+    lda (ptr_ram),y
+    cmp vera_byte
+    bne __b3
+    // vera_compare::@4
+    // equal_bytes++;
+    // [2238] vera_compare::equal_bytes#1 = ++ vera_compare::equal_bytes#2 -- vwum1=_inc_vwum1 
+    inc equal_bytes
+    bne !+
+    inc equal_bytes+1
+  !:
+    // [2239] phi from vera_compare::@4 vera_compare::@5 to vera_compare::@3 [phi:vera_compare::@4/vera_compare::@5->vera_compare::@3]
+    // [2239] phi vera_compare::equal_bytes#6 = vera_compare::equal_bytes#1 [phi:vera_compare::@4/vera_compare::@5->vera_compare::@3#0] -- register_copy 
+    // vera_compare::@3
+  __b3:
+    // ptr_ram++;
+    // [2240] vera_compare::ptr_ram#0 = ++ vera_compare::ptr_ram#2 -- pbuz1=_inc_pbuz1 
+    inc.z ptr_ram
+    bne !+
+    inc.z ptr_ram+1
+  !:
+    // compared_bytes++;
+    // [2241] vera_compare::compared_bytes#1 = ++ vera_compare::compared_bytes#2 -- vwum1=_inc_vwum1 
+    inc compared_bytes
+    bne !+
+    inc compared_bytes+1
+  !:
+    // [2230] phi from vera_compare::@3 to vera_compare::@1 [phi:vera_compare::@3->vera_compare::@1]
+    // [2230] phi vera_compare::ptr_ram#2 = vera_compare::ptr_ram#0 [phi:vera_compare::@3->vera_compare::@1#0] -- register_copy 
+    // [2230] phi vera_compare::equal_bytes#2 = vera_compare::equal_bytes#6 [phi:vera_compare::@3->vera_compare::@1#1] -- register_copy 
+    // [2230] phi vera_compare::compared_bytes#2 = vera_compare::compared_bytes#1 [phi:vera_compare::@3->vera_compare::@1#2] -- register_copy 
+    jmp __b1
+  .segment Data
+    .label vera_byte = spi_read.return_2
+    compared_bytes: .word 0
+    /// Holds the amount of bytes actually verified between the VERA and the RAM.
+    equal_bytes: .word 0
+    bank_ram: .byte 0
+    .label return = equal_bytes
+}
+.segment Code
+  // ultoa
 // Converts unsigned number value to a string representing it in RADIX format.
 // If the leading digits are zero they are not included in the string.
 // - value : The number to be converted to RADIX
 // - buffer : receives the string representing the number and zero-termination.
 // - radix : The radix to convert the number to (from the enum RADIX)
-// void uctoa(__mem() char value, __zp($35) char *buffer, __mem() char radix)
-uctoa: {
-    .label uctoa__4 = $40
-    .label buffer = $35
-    .label digit_values = $4e
-    // if(radix==DECIMAL)
-    // [1220] if(uctoa::radix#0==DECIMAL) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
-    lda #DECIMAL
-    cmp radix
-    beq __b2
-    // uctoa::@2
-    // if(radix==HEXADECIMAL)
-    // [1221] if(uctoa::radix#0==HEXADECIMAL) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
-    lda #HEXADECIMAL
-    cmp radix
-    beq __b3
-    // uctoa::@3
-    // if(radix==OCTAL)
-    // [1222] if(uctoa::radix#0==OCTAL) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
-    lda #OCTAL
-    cmp radix
-    beq __b4
-    // uctoa::@4
-    // if(radix==BINARY)
-    // [1223] if(uctoa::radix#0==BINARY) goto uctoa::@1 -- vbum1_eq_vbuc1_then_la1 
-    lda #BINARY
-    cmp radix
-    beq __b5
-    // uctoa::@5
-    // *buffer++ = 'e'
-    // [1224] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS) = 'e' -- _deref_pbuc1=vbuc2 
-    // Unknown radix
-    lda #'e'
-    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    // *buffer++ = 'r'
-    // [1225] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+1) = 'r' -- _deref_pbuc1=vbuc2 
-    lda #'r'
-    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+1
-    // [1226] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+2) = 'r' -- _deref_pbuc1=vbuc2 
-    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+2
-    // *buffer = 0
-    // [1227] *((char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+3) = 0 -- _deref_pbuc1=vbuc2 
-    lda #0
-    sta printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS+3
-    // uctoa::@return
-    // }
-    // [1228] return 
-    rts
-    // [1229] phi from uctoa to uctoa::@1 [phi:uctoa->uctoa::@1]
-  __b2:
-    // [1229] phi uctoa::digit_values#8 = RADIX_DECIMAL_VALUES_CHAR [phi:uctoa->uctoa::@1#0] -- pbuz1=pbuc1 
-    lda #<RADIX_DECIMAL_VALUES_CHAR
-    sta.z digit_values
-    lda #>RADIX_DECIMAL_VALUES_CHAR
-    sta.z digit_values+1
-    // [1229] phi uctoa::max_digits#7 = 3 [phi:uctoa->uctoa::@1#1] -- vbum1=vbuc1 
-    lda #3
-    sta max_digits
-    jmp __b1
-    // [1229] phi from uctoa::@2 to uctoa::@1 [phi:uctoa::@2->uctoa::@1]
-  __b3:
-    // [1229] phi uctoa::digit_values#8 = RADIX_HEXADECIMAL_VALUES_CHAR [phi:uctoa::@2->uctoa::@1#0] -- pbuz1=pbuc1 
-    lda #<RADIX_HEXADECIMAL_VALUES_CHAR
-    sta.z digit_values
-    lda #>RADIX_HEXADECIMAL_VALUES_CHAR
-    sta.z digit_values+1
-    // [1229] phi uctoa::max_digits#7 = 2 [phi:uctoa::@2->uctoa::@1#1] -- vbum1=vbuc1 
-    lda #2
-    sta max_digits
-    jmp __b1
-    // [1229] phi from uctoa::@3 to uctoa::@1 [phi:uctoa::@3->uctoa::@1]
-  __b4:
-    // [1229] phi uctoa::digit_values#8 = RADIX_OCTAL_VALUES_CHAR [phi:uctoa::@3->uctoa::@1#0] -- pbuz1=pbuc1 
-    lda #<RADIX_OCTAL_VALUES_CHAR
-    sta.z digit_values
-    lda #>RADIX_OCTAL_VALUES_CHAR
-    sta.z digit_values+1
-    // [1229] phi uctoa::max_digits#7 = 3 [phi:uctoa::@3->uctoa::@1#1] -- vbum1=vbuc1 
-    lda #3
-    sta max_digits
-    jmp __b1
-    // [1229] phi from uctoa::@4 to uctoa::@1 [phi:uctoa::@4->uctoa::@1]
-  __b5:
-    // [1229] phi uctoa::digit_values#8 = RADIX_BINARY_VALUES_CHAR [phi:uctoa::@4->uctoa::@1#0] -- pbuz1=pbuc1 
-    lda #<RADIX_BINARY_VALUES_CHAR
-    sta.z digit_values
-    lda #>RADIX_BINARY_VALUES_CHAR
-    sta.z digit_values+1
-    // [1229] phi uctoa::max_digits#7 = 8 [phi:uctoa::@4->uctoa::@1#1] -- vbum1=vbuc1 
-    lda #8
-    sta max_digits
-    // uctoa::@1
-  __b1:
-    // [1230] phi from uctoa::@1 to uctoa::@6 [phi:uctoa::@1->uctoa::@6]
-    // [1230] phi uctoa::buffer#11 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:uctoa::@1->uctoa::@6#0] -- pbuz1=pbuc1 
+// void ultoa(__mem() unsigned long value, __zp($37) char *buffer, char radix)
+ultoa: {
+    .label ultoa__10 = $36
+    .label ultoa__11 = $52
+    .label buffer = $37
+    // [2243] phi from ultoa to ultoa::@1 [phi:ultoa->ultoa::@1]
+    // [2243] phi ultoa::buffer#11 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:ultoa->ultoa::@1#0] -- pbuz1=pbuc1 
     lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
     sta.z buffer
     lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
     sta.z buffer+1
-    // [1230] phi uctoa::started#2 = 0 [phi:uctoa::@1->uctoa::@6#1] -- vbum1=vbuc1 
+    // [2243] phi ultoa::started#2 = 0 [phi:ultoa->ultoa::@1#1] -- vbum1=vbuc1 
     lda #0
     sta started
-    // [1230] phi uctoa::value#2 = uctoa::value#1 [phi:uctoa::@1->uctoa::@6#2] -- register_copy 
-    // [1230] phi uctoa::digit#2 = 0 [phi:uctoa::@1->uctoa::@6#3] -- vbum1=vbuc1 
+    // [2243] phi ultoa::value#2 = ultoa::value#1 [phi:ultoa->ultoa::@1#2] -- register_copy 
+    // [2243] phi ultoa::digit#2 = 0 [phi:ultoa->ultoa::@1#3] -- vbum1=vbuc1 
     sta digit
-    // uctoa::@6
-  __b6:
-    // max_digits-1
-    // [1231] uctoa::$4 = uctoa::max_digits#7 - 1 -- vbuz1=vbum2_minus_1 
-    ldx max_digits
-    dex
-    stx.z uctoa__4
+    // ultoa::@1
+  __b1:
     // for( char digit=0; digit<max_digits-1; digit++ )
-    // [1232] if(uctoa::digit#2<uctoa::$4) goto uctoa::@7 -- vbum1_lt_vbuz2_then_la1 
+    // [2244] if(ultoa::digit#2<8-1) goto ultoa::@2 -- vbum1_lt_vbuc1_then_la1 
     lda digit
-    cmp.z uctoa__4
-    bcc __b7
-    // uctoa::@8
+    cmp #8-1
+    bcc __b2
+    // ultoa::@3
     // *buffer++ = DIGITS[(char)value]
-    // [1233] *uctoa::buffer#11 = DIGITS[uctoa::value#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
-    ldy value
+    // [2245] ultoa::$11 = (char)ultoa::value#2 -- vbuz1=_byte_vdum2 
+    lda value
+    sta.z ultoa__11
+    // [2246] *ultoa::buffer#11 = DIGITS[ultoa::$11] -- _deref_pbuz1=pbuc1_derefidx_vbuz2 
+    tay
     lda DIGITS,y
     ldy #0
     sta (buffer),y
     // *buffer++ = DIGITS[(char)value];
-    // [1234] uctoa::buffer#3 = ++ uctoa::buffer#11 -- pbuz1=_inc_pbuz1 
+    // [2247] ultoa::buffer#3 = ++ ultoa::buffer#11 -- pbuz1=_inc_pbuz1 
     inc.z buffer
     bne !+
     inc.z buffer+1
   !:
     // *buffer = 0
-    // [1235] *uctoa::buffer#3 = 0 -- _deref_pbuz1=vbuc1 
+    // [2248] *ultoa::buffer#3 = 0 -- _deref_pbuz1=vbuc1 
     lda #0
     tay
     sta (buffer),y
+    // ultoa::@return
+    // }
+    // [2249] return 
     rts
-    // uctoa::@7
-  __b7:
-    // unsigned char digit_value = digit_values[digit]
-    // [1236] uctoa::digit_value#0 = uctoa::digit_values#8[uctoa::digit#2] -- vbum1=pbuz2_derefidx_vbum3 
-    ldy digit
-    lda (digit_values),y
+    // ultoa::@2
+  __b2:
+    // unsigned long digit_value = digit_values[digit]
+    // [2250] ultoa::$10 = ultoa::digit#2 << 2 -- vbuz1=vbum2_rol_2 
+    lda digit
+    asl
+    asl
+    sta.z ultoa__10
+    // [2251] ultoa::digit_value#0 = RADIX_HEXADECIMAL_VALUES_LONG[ultoa::$10] -- vdum1=pduc1_derefidx_vbuz2 
+    tay
+    lda RADIX_HEXADECIMAL_VALUES_LONG,y
     sta digit_value
+    lda RADIX_HEXADECIMAL_VALUES_LONG+1,y
+    sta digit_value+1
+    lda RADIX_HEXADECIMAL_VALUES_LONG+2,y
+    sta digit_value+2
+    lda RADIX_HEXADECIMAL_VALUES_LONG+3,y
+    sta digit_value+3
     // if (started || value >= digit_value)
-    // [1237] if(0!=uctoa::started#2) goto uctoa::@10 -- 0_neq_vbum1_then_la1 
+    // [2252] if(0!=ultoa::started#2) goto ultoa::@5 -- 0_neq_vbum1_then_la1 
     lda started
-    bne __b10
-    // uctoa::@12
-    // [1238] if(uctoa::value#2>=uctoa::digit_value#0) goto uctoa::@10 -- vbum1_ge_vbum2_then_la1 
+    bne __b5
+    // ultoa::@7
+    // [2253] if(ultoa::value#2>=ultoa::digit_value#0) goto ultoa::@5 -- vdum1_ge_vdum2_then_la1 
+    lda value+3
+    cmp digit_value+3
+    bcc !+
+    bne __b5
+    lda value+2
+    cmp digit_value+2
+    bcc !+
+    bne __b5
+    lda value+1
+    cmp digit_value+1
+    bcc !+
+    bne __b5
     lda value
     cmp digit_value
-    bcs __b10
-    // [1239] phi from uctoa::@12 to uctoa::@9 [phi:uctoa::@12->uctoa::@9]
-    // [1239] phi uctoa::buffer#14 = uctoa::buffer#11 [phi:uctoa::@12->uctoa::@9#0] -- register_copy 
-    // [1239] phi uctoa::started#4 = uctoa::started#2 [phi:uctoa::@12->uctoa::@9#1] -- register_copy 
-    // [1239] phi uctoa::value#6 = uctoa::value#2 [phi:uctoa::@12->uctoa::@9#2] -- register_copy 
-    // uctoa::@9
-  __b9:
+    bcs __b5
+  !:
+    // [2254] phi from ultoa::@7 to ultoa::@4 [phi:ultoa::@7->ultoa::@4]
+    // [2254] phi ultoa::buffer#14 = ultoa::buffer#11 [phi:ultoa::@7->ultoa::@4#0] -- register_copy 
+    // [2254] phi ultoa::started#4 = ultoa::started#2 [phi:ultoa::@7->ultoa::@4#1] -- register_copy 
+    // [2254] phi ultoa::value#6 = ultoa::value#2 [phi:ultoa::@7->ultoa::@4#2] -- register_copy 
+    // ultoa::@4
+  __b4:
     // for( char digit=0; digit<max_digits-1; digit++ )
-    // [1240] uctoa::digit#1 = ++ uctoa::digit#2 -- vbum1=_inc_vbum1 
+    // [2255] ultoa::digit#1 = ++ ultoa::digit#2 -- vbum1=_inc_vbum1 
     inc digit
-    // [1230] phi from uctoa::@9 to uctoa::@6 [phi:uctoa::@9->uctoa::@6]
-    // [1230] phi uctoa::buffer#11 = uctoa::buffer#14 [phi:uctoa::@9->uctoa::@6#0] -- register_copy 
-    // [1230] phi uctoa::started#2 = uctoa::started#4 [phi:uctoa::@9->uctoa::@6#1] -- register_copy 
-    // [1230] phi uctoa::value#2 = uctoa::value#6 [phi:uctoa::@9->uctoa::@6#2] -- register_copy 
-    // [1230] phi uctoa::digit#2 = uctoa::digit#1 [phi:uctoa::@9->uctoa::@6#3] -- register_copy 
-    jmp __b6
-    // uctoa::@10
-  __b10:
-    // uctoa_append(buffer++, value, digit_value)
-    // [1241] uctoa_append::buffer#0 = uctoa::buffer#11 -- pbuz1=pbuz2 
+    // [2243] phi from ultoa::@4 to ultoa::@1 [phi:ultoa::@4->ultoa::@1]
+    // [2243] phi ultoa::buffer#11 = ultoa::buffer#14 [phi:ultoa::@4->ultoa::@1#0] -- register_copy 
+    // [2243] phi ultoa::started#2 = ultoa::started#4 [phi:ultoa::@4->ultoa::@1#1] -- register_copy 
+    // [2243] phi ultoa::value#2 = ultoa::value#6 [phi:ultoa::@4->ultoa::@1#2] -- register_copy 
+    // [2243] phi ultoa::digit#2 = ultoa::digit#1 [phi:ultoa::@4->ultoa::@1#3] -- register_copy 
+    jmp __b1
+    // ultoa::@5
+  __b5:
+    // ultoa_append(buffer++, value, digit_value)
+    // [2256] ultoa_append::buffer#0 = ultoa::buffer#11 -- pbuz1=pbuz2 
     lda.z buffer
-    sta.z uctoa_append.buffer
+    sta.z ultoa_append.buffer
     lda.z buffer+1
-    sta.z uctoa_append.buffer+1
-    // [1242] uctoa_append::value#0 = uctoa::value#2
-    // [1243] uctoa_append::sub#0 = uctoa::digit_value#0
-    // [1244] call uctoa_append
-    // [1495] phi from uctoa::@10 to uctoa_append [phi:uctoa::@10->uctoa_append]
-    jsr uctoa_append
-    // uctoa_append(buffer++, value, digit_value)
-    // [1245] uctoa_append::return#0 = uctoa_append::value#2
-    // uctoa::@11
-    // value = uctoa_append(buffer++, value, digit_value)
-    // [1246] uctoa::value#0 = uctoa_append::return#0
-    // value = uctoa_append(buffer++, value, digit_value);
-    // [1247] uctoa::buffer#4 = ++ uctoa::buffer#11 -- pbuz1=_inc_pbuz1 
+    sta.z ultoa_append.buffer+1
+    // [2257] ultoa_append::value#0 = ultoa::value#2
+    // [2258] ultoa_append::sub#0 = ultoa::digit_value#0
+    // [2259] call ultoa_append
+    // [2433] phi from ultoa::@5 to ultoa_append [phi:ultoa::@5->ultoa_append]
+    jsr ultoa_append
+    // ultoa_append(buffer++, value, digit_value)
+    // [2260] ultoa_append::return#0 = ultoa_append::value#2
+    // ultoa::@6
+    // value = ultoa_append(buffer++, value, digit_value)
+    // [2261] ultoa::value#0 = ultoa_append::return#0
+    // value = ultoa_append(buffer++, value, digit_value);
+    // [2262] ultoa::buffer#4 = ++ ultoa::buffer#11 -- pbuz1=_inc_pbuz1 
     inc.z buffer
     bne !+
     inc.z buffer+1
   !:
-    // [1239] phi from uctoa::@11 to uctoa::@9 [phi:uctoa::@11->uctoa::@9]
-    // [1239] phi uctoa::buffer#14 = uctoa::buffer#4 [phi:uctoa::@11->uctoa::@9#0] -- register_copy 
-    // [1239] phi uctoa::started#4 = 1 [phi:uctoa::@11->uctoa::@9#1] -- vbum1=vbuc1 
+    // [2254] phi from ultoa::@6 to ultoa::@4 [phi:ultoa::@6->ultoa::@4]
+    // [2254] phi ultoa::buffer#14 = ultoa::buffer#4 [phi:ultoa::@6->ultoa::@4#0] -- register_copy 
+    // [2254] phi ultoa::started#4 = 1 [phi:ultoa::@6->ultoa::@4#1] -- vbum1=vbuc1 
     lda #1
     sta started
-    // [1239] phi uctoa::value#6 = uctoa::value#0 [phi:uctoa::@11->uctoa::@9#2] -- register_copy 
-    jmp __b9
-  .segment Data
-    digit_value: .byte 0
-    digit: .byte 0
-    .label value = printf_uchar.uvalue
-    .label radix = printf_uchar.format_radix
-    started: .byte 0
-    max_digits: .byte 0
-}
-.segment Code
-  // printf_number_buffer
-// Print the contents of the number buffer using a specific format.
-// This handles minimum length, zero-filling, and left/right justification from the format
-// void printf_number_buffer(__zp($72) void (*putc)(char), __mem() char buffer_sign, char *buffer_digits, __mem() char format_min_length, __mem() char format_justify_left, char format_sign_always, __mem() char format_zero_padding, __mem() char format_upper_case, char format_radix)
-printf_number_buffer: {
-    .label printf_number_buffer__19 = $63
-    .label putc = $72
-    // if(format.min_length)
-    // [1249] if(0==printf_number_buffer::format_min_length#2) goto printf_number_buffer::@1 -- 0_eq_vbum1_then_la1 
-    lda format_min_length
-    beq __b6
-    // [1250] phi from printf_number_buffer to printf_number_buffer::@6 [phi:printf_number_buffer->printf_number_buffer::@6]
-    // printf_number_buffer::@6
-    // strlen(buffer.digits)
-    // [1251] call strlen
-    // [1368] phi from printf_number_buffer::@6 to strlen [phi:printf_number_buffer::@6->strlen]
-    // [1368] phi strlen::str#6 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:printf_number_buffer::@6->strlen#0] -- pbuz1=pbuc1 
-    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    sta.z strlen.str
-    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    sta.z strlen.str+1
-    jsr strlen
-    // strlen(buffer.digits)
-    // [1252] strlen::return#3 = strlen::len#2
-    // printf_number_buffer::@14
-    // [1253] printf_number_buffer::$19 = strlen::return#3 -- vwuz1=vwum2 
-    lda strlen.return
-    sta.z printf_number_buffer__19
-    lda strlen.return+1
-    sta.z printf_number_buffer__19+1
-    // signed char len = (signed char)strlen(buffer.digits)
-    // [1254] printf_number_buffer::len#0 = (signed char)printf_number_buffer::$19 -- vbsm1=_sbyte_vwuz2 
-    // There is a minimum length - work out the padding
-    lda.z printf_number_buffer__19
-    sta len
-    // if(buffer.sign)
-    // [1255] if(0==printf_number_buffer::buffer_sign#10) goto printf_number_buffer::@13 -- 0_eq_vbum1_then_la1 
-    lda buffer_sign
-    beq __b13
-    // printf_number_buffer::@7
-    // len++;
-    // [1256] printf_number_buffer::len#1 = ++ printf_number_buffer::len#0 -- vbsm1=_inc_vbsm1 
-    inc len
-    // [1257] phi from printf_number_buffer::@14 printf_number_buffer::@7 to printf_number_buffer::@13 [phi:printf_number_buffer::@14/printf_number_buffer::@7->printf_number_buffer::@13]
-    // [1257] phi printf_number_buffer::len#2 = printf_number_buffer::len#0 [phi:printf_number_buffer::@14/printf_number_buffer::@7->printf_number_buffer::@13#0] -- register_copy 
-    // printf_number_buffer::@13
-  __b13:
-    // padding = (signed char)format.min_length - len
-    // [1258] printf_number_buffer::padding#1 = (signed char)printf_number_buffer::format_min_length#2 - printf_number_buffer::len#2 -- vbsm1=vbsm2_minus_vbsm1 
-    lda format_min_length
-    sec
-    sbc padding
-    sta padding
-    // if(padding<0)
-    // [1259] if(printf_number_buffer::padding#1>=0) goto printf_number_buffer::@21 -- vbsm1_ge_0_then_la1 
-    cmp #0
-    bpl __b1
-    // [1261] phi from printf_number_buffer printf_number_buffer::@13 to printf_number_buffer::@1 [phi:printf_number_buffer/printf_number_buffer::@13->printf_number_buffer::@1]
-  __b6:
-    // [1261] phi printf_number_buffer::padding#10 = 0 [phi:printf_number_buffer/printf_number_buffer::@13->printf_number_buffer::@1#0] -- vbsm1=vbsc1 
-    lda #0
-    sta padding
-    // [1260] phi from printf_number_buffer::@13 to printf_number_buffer::@21 [phi:printf_number_buffer::@13->printf_number_buffer::@21]
-    // printf_number_buffer::@21
-    // [1261] phi from printf_number_buffer::@21 to printf_number_buffer::@1 [phi:printf_number_buffer::@21->printf_number_buffer::@1]
-    // [1261] phi printf_number_buffer::padding#10 = printf_number_buffer::padding#1 [phi:printf_number_buffer::@21->printf_number_buffer::@1#0] -- register_copy 
-    // printf_number_buffer::@1
-  __b1:
-    // if(!format.justify_left && !format.zero_padding && padding)
-    // [1262] if(0!=printf_number_buffer::format_justify_left#10) goto printf_number_buffer::@2 -- 0_neq_vbum1_then_la1 
-    lda format_justify_left
-    bne __b2
-    // printf_number_buffer::@17
-    // [1263] if(0!=printf_number_buffer::format_zero_padding#10) goto printf_number_buffer::@2 -- 0_neq_vbum1_then_la1 
-    lda format_zero_padding
-    bne __b2
-    // printf_number_buffer::@16
-    // [1264] if(0!=printf_number_buffer::padding#10) goto printf_number_buffer::@8 -- 0_neq_vbsm1_then_la1 
-    lda padding
-    cmp #0
-    bne __b8
-    jmp __b2
-    // printf_number_buffer::@8
-  __b8:
-    // printf_padding(putc, ' ',(char)padding)
-    // [1265] printf_padding::putc#0 = printf_number_buffer::putc#10 -- pprz1=pprz2 
-    lda.z putc
-    sta.z printf_padding.putc
-    lda.z putc+1
-    sta.z printf_padding.putc+1
-    // [1266] printf_padding::length#0 = (char)printf_number_buffer::padding#10 -- vbum1=vbum2 
-    lda padding
-    sta printf_padding.length
-    // [1267] call printf_padding
-    // [1374] phi from printf_number_buffer::@8 to printf_padding [phi:printf_number_buffer::@8->printf_padding]
-    // [1374] phi printf_padding::putc#7 = printf_padding::putc#0 [phi:printf_number_buffer::@8->printf_padding#0] -- register_copy 
-    // [1374] phi printf_padding::pad#7 = ' ' [phi:printf_number_buffer::@8->printf_padding#1] -- vbum1=vbuc1 
-    lda #' '
-    sta printf_padding.pad
-    // [1374] phi printf_padding::length#6 = printf_padding::length#0 [phi:printf_number_buffer::@8->printf_padding#2] -- register_copy 
-    jsr printf_padding
-    // printf_number_buffer::@2
-  __b2:
-    // if(buffer.sign)
-    // [1268] if(0==printf_number_buffer::buffer_sign#10) goto printf_number_buffer::@3 -- 0_eq_vbum1_then_la1 
-    lda buffer_sign
-    beq __b3
-    // printf_number_buffer::@9
-    // putc(buffer.sign)
-    // [1269] stackpush(char) = printf_number_buffer::buffer_sign#10 -- _stackpushbyte_=vbum1 
-    pha
-    // [1270] callexecute *printf_number_buffer::putc#10  -- call__deref_pprz1 
-    jsr icall7
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // printf_number_buffer::@3
-  __b3:
-    // if(format.zero_padding && padding)
-    // [1272] if(0==printf_number_buffer::format_zero_padding#10) goto printf_number_buffer::@4 -- 0_eq_vbum1_then_la1 
-    lda format_zero_padding
-    beq __b4
-    // printf_number_buffer::@18
-    // [1273] if(0!=printf_number_buffer::padding#10) goto printf_number_buffer::@10 -- 0_neq_vbsm1_then_la1 
-    lda padding
-    cmp #0
-    bne __b10
+    // [2254] phi ultoa::value#6 = ultoa::value#0 [phi:ultoa::@6->ultoa::@4#2] -- register_copy 
     jmp __b4
-    // printf_number_buffer::@10
-  __b10:
-    // printf_padding(putc, '0',(char)padding)
-    // [1274] printf_padding::putc#1 = printf_number_buffer::putc#10 -- pprz1=pprz2 
-    lda.z putc
-    sta.z printf_padding.putc
-    lda.z putc+1
-    sta.z printf_padding.putc+1
-    // [1275] printf_padding::length#1 = (char)printf_number_buffer::padding#10 -- vbum1=vbum2 
-    lda padding
-    sta printf_padding.length
-    // [1276] call printf_padding
-    // [1374] phi from printf_number_buffer::@10 to printf_padding [phi:printf_number_buffer::@10->printf_padding]
-    // [1374] phi printf_padding::putc#7 = printf_padding::putc#1 [phi:printf_number_buffer::@10->printf_padding#0] -- register_copy 
-    // [1374] phi printf_padding::pad#7 = '0' [phi:printf_number_buffer::@10->printf_padding#1] -- vbum1=vbuc1 
-    lda #'0'
-    sta printf_padding.pad
-    // [1374] phi printf_padding::length#6 = printf_padding::length#1 [phi:printf_number_buffer::@10->printf_padding#2] -- register_copy 
-    jsr printf_padding
-    // printf_number_buffer::@4
-  __b4:
-    // if(format.upper_case)
-    // [1277] if(0==printf_number_buffer::format_upper_case#10) goto printf_number_buffer::@5 -- 0_eq_vbum1_then_la1 
-    lda format_upper_case
-    beq __b5
-    // [1278] phi from printf_number_buffer::@4 to printf_number_buffer::@11 [phi:printf_number_buffer::@4->printf_number_buffer::@11]
-    // printf_number_buffer::@11
-    // strupr(buffer.digits)
-    // [1279] call strupr
-    // [1502] phi from printf_number_buffer::@11 to strupr [phi:printf_number_buffer::@11->strupr]
-    jsr strupr
-    // printf_number_buffer::@5
-  __b5:
-    // printf_str(putc, buffer.digits)
-    // [1280] printf_str::putc#0 = printf_number_buffer::putc#10 -- pprz1=pprz2 
-    lda.z putc
-    sta.z printf_str.putc
-    lda.z putc+1
-    sta.z printf_str.putc+1
-    // [1281] call printf_str
-    // [723] phi from printf_number_buffer::@5 to printf_str [phi:printf_number_buffer::@5->printf_str]
-    // [723] phi printf_str::putc#21 = printf_str::putc#0 [phi:printf_number_buffer::@5->printf_str#0] -- register_copy 
-    // [723] phi printf_str::s#21 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:printf_number_buffer::@5->printf_str#1] -- pbuz1=pbuc1 
-    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    sta.z printf_str.s
-    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    sta.z printf_str.s+1
-    jsr printf_str
-    // printf_number_buffer::@15
-    // if(format.justify_left && !format.zero_padding && padding)
-    // [1282] if(0==printf_number_buffer::format_justify_left#10) goto printf_number_buffer::@return -- 0_eq_vbum1_then_la1 
-    lda format_justify_left
-    beq __breturn
-    // printf_number_buffer::@20
-    // [1283] if(0!=printf_number_buffer::format_zero_padding#10) goto printf_number_buffer::@return -- 0_neq_vbum1_then_la1 
-    lda format_zero_padding
-    bne __breturn
-    // printf_number_buffer::@19
-    // [1284] if(0!=printf_number_buffer::padding#10) goto printf_number_buffer::@12 -- 0_neq_vbsm1_then_la1 
-    lda padding
-    cmp #0
-    bne __b12
-    rts
-    // printf_number_buffer::@12
-  __b12:
-    // printf_padding(putc, ' ',(char)padding)
-    // [1285] printf_padding::putc#2 = printf_number_buffer::putc#10 -- pprz1=pprz2 
-    lda.z putc
-    sta.z printf_padding.putc
-    lda.z putc+1
-    sta.z printf_padding.putc+1
-    // [1286] printf_padding::length#2 = (char)printf_number_buffer::padding#10 -- vbum1=vbum2 
-    lda padding
-    sta printf_padding.length
-    // [1287] call printf_padding
-    // [1374] phi from printf_number_buffer::@12 to printf_padding [phi:printf_number_buffer::@12->printf_padding]
-    // [1374] phi printf_padding::putc#7 = printf_padding::putc#2 [phi:printf_number_buffer::@12->printf_padding#0] -- register_copy 
-    // [1374] phi printf_padding::pad#7 = ' ' [phi:printf_number_buffer::@12->printf_padding#1] -- vbum1=vbuc1 
-    lda #' '
-    sta printf_padding.pad
-    // [1374] phi printf_padding::length#6 = printf_padding::length#2 [phi:printf_number_buffer::@12->printf_padding#2] -- register_copy 
-    jsr printf_padding
-    // printf_number_buffer::@return
-  __breturn:
-    // }
-    // [1288] return 
-    rts
-    // Outside Flow
-  icall7:
-    jmp (putc)
   .segment Data
-    buffer_sign: .byte 0
-    .label format_min_length = printf_uchar.format_min_length
-    .label format_zero_padding = printf_uchar.format_zero_padding
-    len: .byte 0
-    .label padding = len
-    format_justify_left: .byte 0
-    format_upper_case: .byte 0
+    digit_value: .dword 0
+    digit: .byte 0
+    .label value = printf_ulong.uvalue
+    started: .byte 0
 }
 .segment Code
-  // cbm_k_getin
-/**
- * @brief Scan a character from keyboard without pressing enter.
- * 
- * @return char The character read.
- */
-cbm_k_getin: {
-    // __mem unsigned char ch
-    // [1289] cbm_k_getin::ch = 0 -- vbum1=vbuc1 
+  // spi_wait_non_busy
+spi_wait_non_busy: {
+    // [2264] phi from spi_wait_non_busy to spi_wait_non_busy::@1 [phi:spi_wait_non_busy->spi_wait_non_busy::@1]
+    // [2264] phi spi_wait_non_busy::y#2 = 0 [phi:spi_wait_non_busy->spi_wait_non_busy::@1#0] -- vbum1=vbuc1 
     lda #0
-    sta ch
-    // asm
-    // asm { jsrCBM_GETIN stach  }
-    jsr CBM_GETIN
-    sta ch
-    // return ch;
-    // [1291] cbm_k_getin::return#0 = cbm_k_getin::ch -- vbum1=vbum2 
+    sta y
+    // spi_wait_non_busy::@1
+    // [2265] phi from spi_wait_non_busy::@1 to spi_wait_non_busy::@2 [phi:spi_wait_non_busy::@1->spi_wait_non_busy::@2]
+    // spi_wait_non_busy::@2
+  __b2:
+    // spi_select()
+    // [2266] call spi_select
+    // [2354] phi from spi_wait_non_busy::@2 to spi_select [phi:spi_wait_non_busy::@2->spi_select]
+    jsr spi_select
+    // spi_wait_non_busy::@5
+    // spi_write(0x05)
+    // [2267] spi_write::data = 5 -- vbum1=vbuc1 
+    lda #5
+    sta spi_write.data
+    // [2268] call spi_write
+    jsr spi_write
+    // [2269] phi from spi_wait_non_busy::@5 to spi_wait_non_busy::@6 [phi:spi_wait_non_busy::@5->spi_wait_non_busy::@6]
+    // spi_wait_non_busy::@6
+    // unsigned char w = spi_read()
+    // [2270] call spi_read
+    jsr spi_read
+    // [2271] spi_read::return#11 = spi_read::return#5
+    // spi_wait_non_busy::@7
+    // [2272] spi_wait_non_busy::w#0 = spi_read::return#11
+    // w &= 1
+    // [2273] spi_wait_non_busy::w#1 = spi_wait_non_busy::w#0 & 1 -- vbum1=vbum1_band_vbuc1 
+    lda #1
+    and w
+    sta w
+    // if(w == 0)
+    // [2274] if(spi_wait_non_busy::w#1==0) goto spi_wait_non_busy::@return -- vbum1_eq_0_then_la1 
+    beq __b1
+    // spi_wait_non_busy::@4
+    // y++;
+    // [2275] spi_wait_non_busy::y#1 = ++ spi_wait_non_busy::y#2 -- vbum1=_inc_vbum1 
+    inc y
+    // if(y == 0)
+    // [2276] if(spi_wait_non_busy::y#1!=0) goto spi_wait_non_busy::@3 -- vbum1_neq_0_then_la1 
+    lda y
+    bne __b3
+    // [2277] phi from spi_wait_non_busy::@4 to spi_wait_non_busy::@return [phi:spi_wait_non_busy::@4->spi_wait_non_busy::@return]
+    // [2277] phi spi_wait_non_busy::return#3 = 1 [phi:spi_wait_non_busy::@4->spi_wait_non_busy::@return#0] -- vbum1=vbuc1 
+    lda #1
     sta return
-    // cbm_k_getin::@return
-    // }
-    // [1292] cbm_k_getin::return#1 = cbm_k_getin::return#0
-    // [1293] return 
     rts
+    // [2277] phi from spi_wait_non_busy::@7 to spi_wait_non_busy::@return [phi:spi_wait_non_busy::@7->spi_wait_non_busy::@return]
+  __b1:
+    // [2277] phi spi_wait_non_busy::return#3 = 0 [phi:spi_wait_non_busy::@7->spi_wait_non_busy::@return#0] -- vbum1=vbuc1 
+    lda #0
+    sta return
+    // spi_wait_non_busy::@return
+    // }
+    // [2278] return 
+    rts
+    // spi_wait_non_busy::@3
+  __b3:
+    // asm
+    // asm { .byte$CB  }
+    // WAI
+    .byte $cb
+    // [2264] phi from spi_wait_non_busy::@3 to spi_wait_non_busy::@1 [phi:spi_wait_non_busy::@3->spi_wait_non_busy::@1]
+    // [2264] phi spi_wait_non_busy::y#2 = spi_wait_non_busy::y#1 [phi:spi_wait_non_busy::@3->spi_wait_non_busy::@1#0] -- register_copy 
+    jmp __b2
   .segment Data
-    ch: .byte 0
+    .label w = spi_read.return_2
+    /** 
+.proc spi_wait_non_busy
+    ldy #0
+top:
+    jsr spi_select
+    lda #$05
+    jsr spi_write
+
+    jsr spi_read
+    and #1
+    bne wait_restart
+    clc
+    rts
+fail:
+    sec
+    rts
+wait_restart:
+    iny
+    beq fail
+    wai    
+    bra top
+.endproc
+ */
+    y: .byte 0
     return: .byte 0
 }
 .segment Code
-  // insertup
-// Insert a new line, and scroll the upper part of the screen up.
-// void insertup(char rows)
-insertup: {
-    .label insertup__0 = $30
-    .label insertup__4 = $29
-    .label insertup__6 = $2a
-    .label insertup__7 = $29
-    // __conio.width+1
-    // [1294] insertup::$0 = *((char *)&__conio+6) + 1 -- vbuz1=_deref_pbuc1_plus_1 
-    lda __conio+6
-    inc
-    sta.z insertup__0
-    // unsigned char width = (__conio.width+1) * 2
-    // [1295] insertup::width#0 = insertup::$0 << 1 -- vbum1=vbuz2_rol_1 
-    // {asm{.byte $db}}
-    asl
-    sta width
-    // [1296] phi from insertup to insertup::@1 [phi:insertup->insertup::@1]
-    // [1296] phi insertup::y#2 = 0 [phi:insertup->insertup::@1#0] -- vbum1=vbuc1 
-    lda #0
-    sta y
-    // insertup::@1
-  __b1:
-    // for(unsigned char y=0; y<__conio.cursor_y; y++)
-    // [1297] if(insertup::y#2<*((char *)&__conio+1)) goto insertup::@2 -- vbum1_lt__deref_pbuc1_then_la1 
-    lda y
-    cmp __conio+1
-    bcc __b2
-    // [1298] phi from insertup::@1 to insertup::@3 [phi:insertup::@1->insertup::@3]
-    // insertup::@3
-    // clearline()
-    // [1299] call clearline
-    jsr clearline
-    // insertup::@return
-    // }
-    // [1300] return 
-    rts
-    // insertup::@2
-  __b2:
-    // y+1
-    // [1301] insertup::$4 = insertup::y#2 + 1 -- vbuz1=vbum2_plus_1 
-    lda y
-    inc
-    sta.z insertup__4
-    // memcpy8_vram_vram(__conio.mapbase_bank, __conio.offsets[y], __conio.mapbase_bank, __conio.offsets[y+1], width)
-    // [1302] insertup::$6 = insertup::y#2 << 1 -- vbuz1=vbum2_rol_1 
-    lda y
-    asl
-    sta.z insertup__6
-    // [1303] insertup::$7 = insertup::$4 << 1 -- vbuz1=vbuz1_rol_1 
-    asl.z insertup__7
-    // [1304] memcpy8_vram_vram::dbank_vram#0 = *((char *)&__conio+5) -- vbum1=_deref_pbuc1 
-    lda __conio+5
-    sta memcpy8_vram_vram.dbank_vram
-    // [1305] memcpy8_vram_vram::doffset_vram#0 = ((unsigned int *)&__conio+$15)[insertup::$6] -- vwum1=pwuc1_derefidx_vbuz2 
-    ldy.z insertup__6
-    lda __conio+$15,y
-    sta memcpy8_vram_vram.doffset_vram
-    lda __conio+$15+1,y
-    sta memcpy8_vram_vram.doffset_vram+1
-    // [1306] memcpy8_vram_vram::sbank_vram#0 = *((char *)&__conio+5) -- vbum1=_deref_pbuc1 
-    lda __conio+5
-    sta memcpy8_vram_vram.sbank_vram
-    // [1307] memcpy8_vram_vram::soffset_vram#0 = ((unsigned int *)&__conio+$15)[insertup::$7] -- vwum1=pwuc1_derefidx_vbuz2 
-    ldy.z insertup__7
-    lda __conio+$15,y
-    sta memcpy8_vram_vram.soffset_vram
-    lda __conio+$15+1,y
-    sta memcpy8_vram_vram.soffset_vram+1
-    // [1308] memcpy8_vram_vram::num8#1 = insertup::width#0 -- vbum1=vbum2 
-    lda width
-    sta memcpy8_vram_vram.num8_1
-    // [1309] call memcpy8_vram_vram
-    jsr memcpy8_vram_vram
-    // insertup::@4
-    // for(unsigned char y=0; y<__conio.cursor_y; y++)
-    // [1310] insertup::y#1 = ++ insertup::y#2 -- vbum1=_inc_vbum1 
-    inc y
-    // [1296] phi from insertup::@4 to insertup::@1 [phi:insertup::@4->insertup::@1]
-    // [1296] phi insertup::y#2 = insertup::y#1 [phi:insertup::@4->insertup::@1#0] -- register_copy 
-    jmp __b1
-  .segment Data
-    width: .byte 0
-    y: .byte 0
-}
-.segment Code
-  // clearline
-clearline: {
-    .label clearline__0 = $24
-    .label clearline__1 = $25
-    .label clearline__2 = $26
-    .label clearline__3 = $23
-    .label c = $22
-    // unsigned int addr = __conio.offsets[__conio.cursor_y]
-    // [1311] clearline::$3 = *((char *)&__conio+1) << 1 -- vbuz1=_deref_pbuc1_rol_1 
-    lda __conio+1
-    asl
-    sta.z clearline__3
-    // [1312] clearline::addr#0 = ((unsigned int *)&__conio+$15)[clearline::$3] -- vwum1=pwuc1_derefidx_vbuz2 
-    tay
-    lda __conio+$15,y
-    sta addr
-    lda __conio+$15+1,y
-    sta addr+1
-    // *VERA_CTRL &= ~VERA_ADDRSEL
-    // [1313] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
-    lda #VERA_ADDRSEL^$ff
-    and VERA_CTRL
-    sta VERA_CTRL
-    // BYTE0(addr)
-    // [1314] clearline::$0 = byte0  clearline::addr#0 -- vbuz1=_byte0_vwum2 
-    lda addr
-    sta.z clearline__0
-    // *VERA_ADDRX_L = BYTE0(addr)
-    // [1315] *VERA_ADDRX_L = clearline::$0 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_L
-    // BYTE1(addr)
-    // [1316] clearline::$1 = byte1  clearline::addr#0 -- vbuz1=_byte1_vwum2 
-    lda addr+1
-    sta.z clearline__1
-    // *VERA_ADDRX_M = BYTE1(addr)
-    // [1317] *VERA_ADDRX_M = clearline::$1 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_M
-    // __conio.mapbase_bank | VERA_INC_1
-    // [1318] clearline::$2 = *((char *)&__conio+5) | VERA_INC_1 -- vbuz1=_deref_pbuc1_bor_vbuc2 
-    lda #VERA_INC_1
-    ora __conio+5
-    sta.z clearline__2
-    // *VERA_ADDRX_H = __conio.mapbase_bank | VERA_INC_1
-    // [1319] *VERA_ADDRX_H = clearline::$2 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_H
-    // register unsigned char c=__conio.width
-    // [1320] clearline::c#0 = *((char *)&__conio+6) -- vbuz1=_deref_pbuc1 
-    lda __conio+6
-    sta.z c
-    // [1321] phi from clearline clearline::@1 to clearline::@1 [phi:clearline/clearline::@1->clearline::@1]
-    // [1321] phi clearline::c#2 = clearline::c#0 [phi:clearline/clearline::@1->clearline::@1#0] -- register_copy 
-    // clearline::@1
-  __b1:
-    // *VERA_DATA0 = ' '
-    // [1322] *VERA_DATA0 = ' ' -- _deref_pbuc1=vbuc2 
-    lda #' '
-    sta VERA_DATA0
-    // *VERA_DATA0 = __conio.color
-    // [1323] *VERA_DATA0 = *((char *)&__conio+$d) -- _deref_pbuc1=_deref_pbuc2 
-    lda __conio+$d
-    sta VERA_DATA0
-    // c--;
-    // [1324] clearline::c#1 = -- clearline::c#2 -- vbuz1=_dec_vbuz1 
-    dec.z c
-    // while(c)
-    // [1325] if(0!=clearline::c#1) goto clearline::@1 -- 0_neq_vbuz1_then_la1 
-    lda.z c
-    bne __b1
-    // clearline::@return
-    // }
-    // [1326] return 
-    rts
-  .segment Data
-    addr: .word 0
-}
-.segment Code
-  // display_frame_maskxy
-/**
- * @brief 
- * 
- * @param x 
- * @param y 
- * @return unsigned char 
- */
-// __zp($51) char display_frame_maskxy(__zp($6a) char x, __zp($5b) char y)
-display_frame_maskxy: {
-    .label cpeekcxy1_cpeekc1_display_frame_maskxy__0 = $58
-    .label cpeekcxy1_cpeekc1_display_frame_maskxy__1 = $4d
-    .label cpeekcxy1_cpeekc1_display_frame_maskxy__2 = $57
-    .label c = $54
-    // DR corner.
-    // DL corner.
-    // UR corner.
-    // UL corner.
-    // HL line.
-    // VL line.
-    // VR junction.
-    // VL junction.
-    // HD junction.
-    // HU junction.
-    // HV junction.
-    .label return = $51
-    .label x = $6a
-    .label y = $5b
-    .label x_1 = $6d
-    .label y_1 = $65
-    .label x_2 = $6f
-    // display_frame_maskxy::cpeekcxy1
-    // gotoxy(x,y)
-    // [1328] gotoxy::x#5 = display_frame_maskxy::cpeekcxy1_x#0 -- vbum1=vbum2 
-    lda cpeekcxy1_x
-    sta gotoxy.x
-    // [1329] gotoxy::y#5 = display_frame_maskxy::cpeekcxy1_y#0 -- vbum1=vbum2 
-    lda cpeekcxy1_y
-    sta gotoxy.y
-    // [1330] call gotoxy
-    // [435] phi from display_frame_maskxy::cpeekcxy1 to gotoxy [phi:display_frame_maskxy::cpeekcxy1->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#5 [phi:display_frame_maskxy::cpeekcxy1->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#5 [phi:display_frame_maskxy::cpeekcxy1->gotoxy#1] -- register_copy 
-    jsr gotoxy
-    // display_frame_maskxy::cpeekcxy1_cpeekc1
-    // *VERA_CTRL &= ~VERA_ADDRSEL
-    // [1331] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
-    lda #VERA_ADDRSEL^$ff
-    and VERA_CTRL
-    sta VERA_CTRL
-    // BYTE0(__conio.offset)
-    // [1332] display_frame_maskxy::cpeekcxy1_cpeekc1_$0 = byte0  *((unsigned int *)&__conio+$13) -- vbuz1=_byte0__deref_pwuc1 
-    lda __conio+$13
-    sta.z cpeekcxy1_cpeekc1_display_frame_maskxy__0
-    // *VERA_ADDRX_L = BYTE0(__conio.offset)
-    // [1333] *VERA_ADDRX_L = display_frame_maskxy::cpeekcxy1_cpeekc1_$0 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_L
-    // BYTE1(__conio.offset)
-    // [1334] display_frame_maskxy::cpeekcxy1_cpeekc1_$1 = byte1  *((unsigned int *)&__conio+$13) -- vbuz1=_byte1__deref_pwuc1 
-    lda __conio+$13+1
-    sta.z cpeekcxy1_cpeekc1_display_frame_maskxy__1
-    // *VERA_ADDRX_M = BYTE1(__conio.offset)
-    // [1335] *VERA_ADDRX_M = display_frame_maskxy::cpeekcxy1_cpeekc1_$1 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_M
-    // __conio.mapbase_bank | VERA_INC_0
-    // [1336] display_frame_maskxy::cpeekcxy1_cpeekc1_$2 = *((char *)&__conio+5) -- vbuz1=_deref_pbuc1 
-    lda __conio+5
-    sta.z cpeekcxy1_cpeekc1_display_frame_maskxy__2
-    // *VERA_ADDRX_H = __conio.mapbase_bank | VERA_INC_0
-    // [1337] *VERA_ADDRX_H = display_frame_maskxy::cpeekcxy1_cpeekc1_$2 -- _deref_pbuc1=vbuz1 
-    sta VERA_ADDRX_H
-    // return *VERA_DATA0;
-    // [1338] display_frame_maskxy::c#0 = *VERA_DATA0 -- vbuz1=_deref_pbuc1 
-    lda VERA_DATA0
-    sta.z c
-    // display_frame_maskxy::@12
-    // case 0x70: // DR corner.
-    //             return 0b0110;
-    // [1339] if(display_frame_maskxy::c#0==$70) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$70
-    cmp.z c
-    beq __b2
-    // display_frame_maskxy::@1
-    // case 0x6E: // DL corner.
-    //             return 0b0011;
-    // [1340] if(display_frame_maskxy::c#0==$6e) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$6e
-    cmp.z c
-    beq __b1
-    // display_frame_maskxy::@2
-    // case 0x6D: // UR corner.
-    //             return 0b1100;
-    // [1341] if(display_frame_maskxy::c#0==$6d) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$6d
-    cmp.z c
-    beq __b3
-    // display_frame_maskxy::@3
-    // case 0x7D: // UL corner.
-    //             return 0b1001;
-    // [1342] if(display_frame_maskxy::c#0==$7d) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$7d
-    cmp.z c
-    beq __b4
-    // display_frame_maskxy::@4
-    // case 0x40: // HL line.
-    //             return 0b0101;
-    // [1343] if(display_frame_maskxy::c#0==$40) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$40
-    cmp.z c
-    beq __b5
-    // display_frame_maskxy::@5
-    // case 0x5D: // VL line.
-    //             return 0b1010;
-    // [1344] if(display_frame_maskxy::c#0==$5d) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$5d
-    cmp.z c
-    beq __b6
-    // display_frame_maskxy::@6
-    // case 0x6B: // VR junction.
-    //             return 0b1110;
-    // [1345] if(display_frame_maskxy::c#0==$6b) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$6b
-    cmp.z c
-    beq __b7
-    // display_frame_maskxy::@7
-    // case 0x73: // VL junction.
-    //             return 0b1011;
-    // [1346] if(display_frame_maskxy::c#0==$73) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$73
-    cmp.z c
-    beq __b8
-    // display_frame_maskxy::@8
-    // case 0x72: // HD junction.
-    //             return 0b0111;
-    // [1347] if(display_frame_maskxy::c#0==$72) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$72
-    cmp.z c
-    beq __b9
-    // display_frame_maskxy::@9
-    // case 0x71: // HU junction.
-    //             return 0b1101;
-    // [1348] if(display_frame_maskxy::c#0==$71) goto display_frame_maskxy::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #$71
-    cmp.z c
-    beq __b10
-    // display_frame_maskxy::@10
-    // case 0x5B: // HV junction.
-    //             return 0b1111;
-    // [1349] if(display_frame_maskxy::c#0==$5b) goto display_frame_maskxy::@11 -- vbuz1_eq_vbuc1_then_la1 
-    lda #$5b
-    cmp.z c
-    beq __b11
-    // [1351] phi from display_frame_maskxy::@10 to display_frame_maskxy::@return [phi:display_frame_maskxy::@10->display_frame_maskxy::@return]
-    // [1351] phi display_frame_maskxy::return#12 = 0 [phi:display_frame_maskxy::@10->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z return
-    rts
-    // [1350] phi from display_frame_maskxy::@10 to display_frame_maskxy::@11 [phi:display_frame_maskxy::@10->display_frame_maskxy::@11]
-    // display_frame_maskxy::@11
-  __b11:
-    // [1351] phi from display_frame_maskxy::@11 to display_frame_maskxy::@return [phi:display_frame_maskxy::@11->display_frame_maskxy::@return]
-    // [1351] phi display_frame_maskxy::return#12 = $f [phi:display_frame_maskxy::@11->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #$f
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@1 to display_frame_maskxy::@return [phi:display_frame_maskxy::@1->display_frame_maskxy::@return]
-  __b1:
-    // [1351] phi display_frame_maskxy::return#12 = 3 [phi:display_frame_maskxy::@1->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #3
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@12 to display_frame_maskxy::@return [phi:display_frame_maskxy::@12->display_frame_maskxy::@return]
-  __b2:
-    // [1351] phi display_frame_maskxy::return#12 = 6 [phi:display_frame_maskxy::@12->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #6
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@2 to display_frame_maskxy::@return [phi:display_frame_maskxy::@2->display_frame_maskxy::@return]
-  __b3:
-    // [1351] phi display_frame_maskxy::return#12 = $c [phi:display_frame_maskxy::@2->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #$c
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@3 to display_frame_maskxy::@return [phi:display_frame_maskxy::@3->display_frame_maskxy::@return]
-  __b4:
-    // [1351] phi display_frame_maskxy::return#12 = 9 [phi:display_frame_maskxy::@3->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #9
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@4 to display_frame_maskxy::@return [phi:display_frame_maskxy::@4->display_frame_maskxy::@return]
-  __b5:
-    // [1351] phi display_frame_maskxy::return#12 = 5 [phi:display_frame_maskxy::@4->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #5
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@5 to display_frame_maskxy::@return [phi:display_frame_maskxy::@5->display_frame_maskxy::@return]
-  __b6:
-    // [1351] phi display_frame_maskxy::return#12 = $a [phi:display_frame_maskxy::@5->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #$a
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@6 to display_frame_maskxy::@return [phi:display_frame_maskxy::@6->display_frame_maskxy::@return]
-  __b7:
-    // [1351] phi display_frame_maskxy::return#12 = $e [phi:display_frame_maskxy::@6->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #$e
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@7 to display_frame_maskxy::@return [phi:display_frame_maskxy::@7->display_frame_maskxy::@return]
-  __b8:
-    // [1351] phi display_frame_maskxy::return#12 = $b [phi:display_frame_maskxy::@7->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #$b
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@8 to display_frame_maskxy::@return [phi:display_frame_maskxy::@8->display_frame_maskxy::@return]
-  __b9:
-    // [1351] phi display_frame_maskxy::return#12 = 7 [phi:display_frame_maskxy::@8->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #7
-    sta.z return
-    rts
-    // [1351] phi from display_frame_maskxy::@9 to display_frame_maskxy::@return [phi:display_frame_maskxy::@9->display_frame_maskxy::@return]
-  __b10:
-    // [1351] phi display_frame_maskxy::return#12 = $d [phi:display_frame_maskxy::@9->display_frame_maskxy::@return#0] -- vbuz1=vbuc1 
-    lda #$d
-    sta.z return
-    // display_frame_maskxy::@return
-    // }
-    // [1352] return 
-    rts
-  .segment Data
-    cpeekcxy1_x: .byte 0
-    cpeekcxy1_y: .byte 0
-}
-.segment Code
-  // display_frame_char
-/**
- * @brief 
- * 
- * @param mask 
- * @return unsigned char 
- */
-// __zp($60) char display_frame_char(__zp($51) char mask)
-display_frame_char: {
-    .label return = $60
-    .label mask = $51
-    // case 0b0110:
-    //             return 0x70;
-    // [1354] if(display_frame_char::mask#10==6) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    lda #6
-    cmp.z mask
-    beq __b1
-    // display_frame_char::@1
-    // case 0b0011:
-    //             return 0x6E;
-    // [1355] if(display_frame_char::mask#10==3) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // DR corner.
-    lda #3
-    cmp.z mask
-    beq __b2
-    // display_frame_char::@2
-    // case 0b1100:
-    //             return 0x6D;
-    // [1356] if(display_frame_char::mask#10==$c) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // DL corner.
-    lda #$c
-    cmp.z mask
-    beq __b3
-    // display_frame_char::@3
-    // case 0b1001:
-    //             return 0x7D;
-    // [1357] if(display_frame_char::mask#10==9) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // UR corner.
-    lda #9
-    cmp.z mask
-    beq __b4
-    // display_frame_char::@4
-    // case 0b0101:
-    //             return 0x40;
-    // [1358] if(display_frame_char::mask#10==5) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // UL corner.
-    lda #5
-    cmp.z mask
-    beq __b5
-    // display_frame_char::@5
-    // case 0b1010:
-    //             return 0x5D;
-    // [1359] if(display_frame_char::mask#10==$a) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // HL line.
-    lda #$a
-    cmp.z mask
-    beq __b6
-    // display_frame_char::@6
-    // case 0b1110:
-    //             return 0x6B;
-    // [1360] if(display_frame_char::mask#10==$e) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // VL line.
-    lda #$e
-    cmp.z mask
-    beq __b7
-    // display_frame_char::@7
-    // case 0b1011:
-    //             return 0x73;
-    // [1361] if(display_frame_char::mask#10==$b) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // VR junction.
-    lda #$b
-    cmp.z mask
-    beq __b8
-    // display_frame_char::@8
-    // case 0b0111:
-    //             return 0x72;
-    // [1362] if(display_frame_char::mask#10==7) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // VL junction.
-    lda #7
-    cmp.z mask
-    beq __b9
-    // display_frame_char::@9
-    // case 0b1101:
-    //             return 0x71;
-    // [1363] if(display_frame_char::mask#10==$d) goto display_frame_char::@return -- vbuz1_eq_vbuc1_then_la1 
-    // HD junction.
-    lda #$d
-    cmp.z mask
-    beq __b10
-    // display_frame_char::@10
-    // case 0b1111:
-    //             return 0x5B;
-    // [1364] if(display_frame_char::mask#10==$f) goto display_frame_char::@11 -- vbuz1_eq_vbuc1_then_la1 
-    // HU junction.
-    lda #$f
-    cmp.z mask
-    beq __b11
-    // [1366] phi from display_frame_char::@10 to display_frame_char::@return [phi:display_frame_char::@10->display_frame_char::@return]
-    // [1366] phi display_frame_char::return#12 = $20 [phi:display_frame_char::@10->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$20
-    sta.z return
-    rts
-    // [1365] phi from display_frame_char::@10 to display_frame_char::@11 [phi:display_frame_char::@10->display_frame_char::@11]
-    // display_frame_char::@11
-  __b11:
-    // [1366] phi from display_frame_char::@11 to display_frame_char::@return [phi:display_frame_char::@11->display_frame_char::@return]
-    // [1366] phi display_frame_char::return#12 = $5b [phi:display_frame_char::@11->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$5b
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char to display_frame_char::@return [phi:display_frame_char->display_frame_char::@return]
-  __b1:
-    // [1366] phi display_frame_char::return#12 = $70 [phi:display_frame_char->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$70
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@1 to display_frame_char::@return [phi:display_frame_char::@1->display_frame_char::@return]
-  __b2:
-    // [1366] phi display_frame_char::return#12 = $6e [phi:display_frame_char::@1->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$6e
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@2 to display_frame_char::@return [phi:display_frame_char::@2->display_frame_char::@return]
-  __b3:
-    // [1366] phi display_frame_char::return#12 = $6d [phi:display_frame_char::@2->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$6d
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@3 to display_frame_char::@return [phi:display_frame_char::@3->display_frame_char::@return]
-  __b4:
-    // [1366] phi display_frame_char::return#12 = $7d [phi:display_frame_char::@3->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$7d
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@4 to display_frame_char::@return [phi:display_frame_char::@4->display_frame_char::@return]
-  __b5:
-    // [1366] phi display_frame_char::return#12 = $40 [phi:display_frame_char::@4->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$40
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@5 to display_frame_char::@return [phi:display_frame_char::@5->display_frame_char::@return]
-  __b6:
-    // [1366] phi display_frame_char::return#12 = $5d [phi:display_frame_char::@5->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$5d
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@6 to display_frame_char::@return [phi:display_frame_char::@6->display_frame_char::@return]
-  __b7:
-    // [1366] phi display_frame_char::return#12 = $6b [phi:display_frame_char::@6->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$6b
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@7 to display_frame_char::@return [phi:display_frame_char::@7->display_frame_char::@return]
-  __b8:
-    // [1366] phi display_frame_char::return#12 = $73 [phi:display_frame_char::@7->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$73
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@8 to display_frame_char::@return [phi:display_frame_char::@8->display_frame_char::@return]
-  __b9:
-    // [1366] phi display_frame_char::return#12 = $72 [phi:display_frame_char::@8->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$72
-    sta.z return
-    rts
-    // [1366] phi from display_frame_char::@9 to display_frame_char::@return [phi:display_frame_char::@9->display_frame_char::@return]
-  __b10:
-    // [1366] phi display_frame_char::return#12 = $71 [phi:display_frame_char::@9->display_frame_char::@return#0] -- vbuz1=vbuc1 
-    lda #$71
-    sta.z return
-    // display_frame_char::@return
-    // }
-    // [1367] return 
-    rts
-}
-  // strlen
-// Computes the length of the string str up to but not including the terminating null character.
-// __mem() unsigned int strlen(__zp($35) char *str)
-strlen: {
-    .label str = $35
-    // [1369] phi from strlen to strlen::@1 [phi:strlen->strlen::@1]
-    // [1369] phi strlen::len#2 = 0 [phi:strlen->strlen::@1#0] -- vwum1=vwuc1 
-    lda #<0
-    sta len
-    sta len+1
-    // [1369] phi strlen::str#4 = strlen::str#6 [phi:strlen->strlen::@1#1] -- register_copy 
-    // strlen::@1
-  __b1:
-    // while(*str)
-    // [1370] if(0!=*strlen::str#4) goto strlen::@2 -- 0_neq__deref_pbuz1_then_la1 
-    ldy #0
-    lda (str),y
-    cmp #0
-    bne __b2
-    // strlen::@return
-    // }
-    // [1371] return 
-    rts
-    // strlen::@2
-  __b2:
-    // len++;
-    // [1372] strlen::len#1 = ++ strlen::len#2 -- vwum1=_inc_vwum1 
-    inc len
-    bne !+
-    inc len+1
-  !:
-    // str++;
-    // [1373] strlen::str#1 = ++ strlen::str#4 -- pbuz1=_inc_pbuz1 
-    inc.z str
-    bne !+
-    inc.z str+1
-  !:
-    // [1369] phi from strlen::@2 to strlen::@1 [phi:strlen::@2->strlen::@1]
-    // [1369] phi strlen::len#2 = strlen::len#1 [phi:strlen::@2->strlen::@1#0] -- register_copy 
-    // [1369] phi strlen::str#4 = strlen::str#1 [phi:strlen::@2->strlen::@1#1] -- register_copy 
-    jmp __b1
-  .segment Data
-    .label return = len
-    len: .word 0
-}
-.segment Code
-  // printf_padding
-// Print a padding char a number of times
-// void printf_padding(__zp($39) void (*putc)(char), __mem() char pad, __mem() char length)
-printf_padding: {
-    .label putc = $39
-    // [1375] phi from printf_padding to printf_padding::@1 [phi:printf_padding->printf_padding::@1]
-    // [1375] phi printf_padding::i#2 = 0 [phi:printf_padding->printf_padding::@1#0] -- vbum1=vbuc1 
-    lda #0
-    sta i
-    // printf_padding::@1
-  __b1:
-    // for(char i=0;i<length; i++)
-    // [1376] if(printf_padding::i#2<printf_padding::length#6) goto printf_padding::@2 -- vbum1_lt_vbum2_then_la1 
-    lda i
-    cmp length
-    bcc __b2
-    // printf_padding::@return
-    // }
-    // [1377] return 
-    rts
-    // printf_padding::@2
-  __b2:
-    // putc(pad)
-    // [1378] stackpush(char) = printf_padding::pad#7 -- _stackpushbyte_=vbum1 
-    lda pad
+  // spi_block_erase
+// void spi_block_erase(__mem() unsigned long data)
+spi_block_erase: {
+    .label spi_block_erase__4 = $4c
+    .label spi_block_erase__6 = $39
+    .label spi_block_erase__8 = $52
+    // spi_select()
+    // [2281] call spi_select
+  /** 
+; .X [7:0]
+; .Y [15:8]
+; .A [23:16]
+.proc spi_block_erase ; 64k
     pha
-    // [1379] callexecute *printf_padding::putc#7  -- call__deref_pprz1 
-    jsr icall8
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
+
+    ; write enable
+    jsr spi_select
+    lda #$06
+    jsr spi_write
+
+    jsr spi_select
+    lda #$d8
+    jsr spi_write
+
     pla
-    // printf_padding::@3
-    // for(char i=0;i<length; i++)
-    // [1381] printf_padding::i#1 = ++ printf_padding::i#2 -- vbum1=_inc_vbum1 
-    inc i
-    // [1375] phi from printf_padding::@3 to printf_padding::@1 [phi:printf_padding::@3->printf_padding::@1]
-    // [1375] phi printf_padding::i#2 = printf_padding::i#1 [phi:printf_padding::@3->printf_padding::@1#0] -- register_copy 
-    jmp __b1
-    // Outside Flow
-  icall8:
-    jmp (putc)
-  .segment Data
-    i: .byte 0
-    .label length = printf_string.format_min_length
-    pad: .byte 0
-}
-.segment Code
-  // display_chip_led
-/**
- * @brief Print the colored led of a chip figure.
- * 
- * @param x Start X
- * @param y Start Y
- * @param w width
- * @param tc Fore color
- * @param bc Back color
- */
-// void display_chip_led(__zp($42) char x, char y, __zp($41) char w, __zp($5b) char tc, char bc)
-display_chip_led: {
-    .label x = $42
-    .label w = $41
-    .label tc = $5b
-    // textcolor(tc)
-    // [1383] textcolor::color#11 = display_chip_led::tc#3 -- vbum1=vbuz2 
-    lda.z tc
-    sta textcolor.color
-    // [1384] call textcolor
-    // [417] phi from display_chip_led to textcolor [phi:display_chip_led->textcolor]
-    // [417] phi textcolor::color#20 = textcolor::color#11 [phi:display_chip_led->textcolor#0] -- register_copy 
-    jsr textcolor
-    // [1385] phi from display_chip_led to display_chip_led::@3 [phi:display_chip_led->display_chip_led::@3]
-    // display_chip_led::@3
-    // bgcolor(bc)
-    // [1386] call bgcolor
-    // [422] phi from display_chip_led::@3 to bgcolor [phi:display_chip_led::@3->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_chip_led::@3->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // [1387] phi from display_chip_led::@3 display_chip_led::@5 to display_chip_led::@1 [phi:display_chip_led::@3/display_chip_led::@5->display_chip_led::@1]
-    // [1387] phi display_chip_led::w#4 = display_chip_led::w#7 [phi:display_chip_led::@3/display_chip_led::@5->display_chip_led::@1#0] -- register_copy 
-    // [1387] phi display_chip_led::x#4 = display_chip_led::x#7 [phi:display_chip_led::@3/display_chip_led::@5->display_chip_led::@1#1] -- register_copy 
-    // display_chip_led::@1
-  __b1:
-    // cputcxy(x, y, 0x6F)
-    // [1388] cputcxy::x#9 = display_chip_led::x#4 -- vbum1=vbuz2 
-    lda.z x
-    sta cputcxy.x
-    // [1389] call cputcxy
-    // [1111] phi from display_chip_led::@1 to cputcxy [phi:display_chip_led::@1->cputcxy]
-    // [1111] phi cputcxy::c#13 = $6f [phi:display_chip_led::@1->cputcxy#0] -- vbum1=vbuc1 
-    lda #$6f
-    sta cputcxy.c
-    // [1111] phi cputcxy::y#13 = 3 [phi:display_chip_led::@1->cputcxy#1] -- vbum1=vbuc1 
-    lda #3
-    sta cputcxy.y
-    // [1111] phi cputcxy::x#13 = cputcxy::x#9 [phi:display_chip_led::@1->cputcxy#2] -- register_copy 
-    jsr cputcxy
-    // display_chip_led::@4
-    // cputcxy(x, y+1, 0x77)
-    // [1390] cputcxy::x#10 = display_chip_led::x#4 -- vbum1=vbuz2 
-    lda.z x
-    sta cputcxy.x
-    // [1391] call cputcxy
-    // [1111] phi from display_chip_led::@4 to cputcxy [phi:display_chip_led::@4->cputcxy]
-    // [1111] phi cputcxy::c#13 = $77 [phi:display_chip_led::@4->cputcxy#0] -- vbum1=vbuc1 
-    lda #$77
-    sta cputcxy.c
-    // [1111] phi cputcxy::y#13 = 3+1 [phi:display_chip_led::@4->cputcxy#1] -- vbum1=vbuc1 
-    lda #3+1
-    sta cputcxy.y
-    // [1111] phi cputcxy::x#13 = cputcxy::x#10 [phi:display_chip_led::@4->cputcxy#2] -- register_copy 
-    jsr cputcxy
-    // display_chip_led::@5
-    // x++;
-    // [1392] display_chip_led::x#0 = ++ display_chip_led::x#4 -- vbuz1=_inc_vbuz1 
-    inc.z x
-    // while(--w)
-    // [1393] display_chip_led::w#0 = -- display_chip_led::w#4 -- vbuz1=_dec_vbuz1 
-    dec.z w
-    // [1394] if(0!=display_chip_led::w#0) goto display_chip_led::@1 -- 0_neq_vbuz1_then_la1 
-    lda.z w
-    bne __b1
-    // [1395] phi from display_chip_led::@5 to display_chip_led::@2 [phi:display_chip_led::@5->display_chip_led::@2]
-    // display_chip_led::@2
-    // textcolor(WHITE)
-    // [1396] call textcolor
-    // [417] phi from display_chip_led::@2 to textcolor [phi:display_chip_led::@2->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_chip_led::@2->textcolor#0] -- vbum1=vbuc1 
-    lda #WHITE
-    sta textcolor.color
-    jsr textcolor
-    // [1397] phi from display_chip_led::@2 to display_chip_led::@6 [phi:display_chip_led::@2->display_chip_led::@6]
-    // display_chip_led::@6
-    // bgcolor(BLUE)
-    // [1398] call bgcolor
-    // [422] phi from display_chip_led::@6 to bgcolor [phi:display_chip_led::@6->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_chip_led::@6->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // display_chip_led::@return
-    // }
-    // [1399] return 
-    rts
-}
-  // display_chip_line
-/**
- * @brief Print one line of a chip figure.
- * 
- * @param x Start X
- * @param y Start Y
- * @param w Width
- * @param c Fore color
- */
-// void display_chip_line(__zp($68) char x, __zp($7a) char y, __zp($50) char w, __zp($5a) char c)
-display_chip_line: {
-    .label i = $3f
-    .label x = $68
-    .label w = $50
-    .label c = $5a
-    .label y = $7a
-    // gotoxy(x, y)
-    // [1401] gotoxy::x#7 = display_chip_line::x#16 -- vbum1=vbuz2 
-    lda.z x
-    sta gotoxy.x
-    // [1402] gotoxy::y#7 = display_chip_line::y#16 -- vbum1=vbuz2 
-    lda.z y
-    sta gotoxy.y
-    // [1403] call gotoxy
-    // [435] phi from display_chip_line to gotoxy [phi:display_chip_line->gotoxy]
-    // [435] phi gotoxy::y#19 = gotoxy::y#7 [phi:display_chip_line->gotoxy#0] -- register_copy 
-    // [435] phi gotoxy::x#19 = gotoxy::x#7 [phi:display_chip_line->gotoxy#1] -- register_copy 
-    jsr gotoxy
-    // [1404] phi from display_chip_line to display_chip_line::@4 [phi:display_chip_line->display_chip_line::@4]
-    // display_chip_line::@4
-    // textcolor(GREY)
-    // [1405] call textcolor
-    // [417] phi from display_chip_line::@4 to textcolor [phi:display_chip_line::@4->textcolor]
-    // [417] phi textcolor::color#20 = GREY [phi:display_chip_line::@4->textcolor#0] -- vbum1=vbuc1 
-    lda #GREY
-    sta textcolor.color
-    jsr textcolor
-    // [1406] phi from display_chip_line::@4 to display_chip_line::@5 [phi:display_chip_line::@4->display_chip_line::@5]
-    // display_chip_line::@5
-    // bgcolor(BLUE)
-    // [1407] call bgcolor
-    // [422] phi from display_chip_line::@5 to bgcolor [phi:display_chip_line::@5->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_chip_line::@5->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // display_chip_line::@6
-    // cputc(VERA_CHR_UR)
-    // [1408] stackpush(char) = $7c -- _stackpushbyte_=vbuc1 
-    lda #$7c
-    pha
-    // [1409] callexecute cputc  -- call_vprc1 
-    jsr cputc
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // textcolor(WHITE)
-    // [1411] call textcolor
-    // [417] phi from display_chip_line::@6 to textcolor [phi:display_chip_line::@6->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_chip_line::@6->textcolor#0] -- vbum1=vbuc1 
-    lda #WHITE
-    sta textcolor.color
-    jsr textcolor
-    // [1412] phi from display_chip_line::@6 to display_chip_line::@7 [phi:display_chip_line::@6->display_chip_line::@7]
-    // display_chip_line::@7
-    // bgcolor(BLACK)
-    // [1413] call bgcolor
-    // [422] phi from display_chip_line::@7 to bgcolor [phi:display_chip_line::@7->bgcolor]
-    // [422] phi bgcolor::color#14 = BLACK [phi:display_chip_line::@7->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLACK
-    sta bgcolor.color
-    jsr bgcolor
-    // [1414] phi from display_chip_line::@7 to display_chip_line::@1 [phi:display_chip_line::@7->display_chip_line::@1]
-    // [1414] phi display_chip_line::i#2 = 0 [phi:display_chip_line::@7->display_chip_line::@1#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z i
-    // display_chip_line::@1
-  __b1:
-    // for(char i=0; i<w; i++)
-    // [1415] if(display_chip_line::i#2<display_chip_line::w#10) goto display_chip_line::@2 -- vbuz1_lt_vbuz2_then_la1 
-    lda.z i
-    cmp.z w
-    bcc __b2
-    // [1416] phi from display_chip_line::@1 to display_chip_line::@3 [phi:display_chip_line::@1->display_chip_line::@3]
-    // display_chip_line::@3
-    // textcolor(GREY)
-    // [1417] call textcolor
-    // [417] phi from display_chip_line::@3 to textcolor [phi:display_chip_line::@3->textcolor]
-    // [417] phi textcolor::color#20 = GREY [phi:display_chip_line::@3->textcolor#0] -- vbum1=vbuc1 
-    lda #GREY
-    sta textcolor.color
-    jsr textcolor
-    // [1418] phi from display_chip_line::@3 to display_chip_line::@8 [phi:display_chip_line::@3->display_chip_line::@8]
-    // display_chip_line::@8
-    // bgcolor(BLUE)
-    // [1419] call bgcolor
-    // [422] phi from display_chip_line::@8 to bgcolor [phi:display_chip_line::@8->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_chip_line::@8->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // display_chip_line::@9
-    // cputc(VERA_CHR_UL)
-    // [1420] stackpush(char) = $7e -- _stackpushbyte_=vbuc1 
-    lda #$7e
-    pha
-    // [1421] callexecute cputc  -- call_vprc1 
-    jsr cputc
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // textcolor(WHITE)
-    // [1423] call textcolor
-    // [417] phi from display_chip_line::@9 to textcolor [phi:display_chip_line::@9->textcolor]
-    // [417] phi textcolor::color#20 = WHITE [phi:display_chip_line::@9->textcolor#0] -- vbum1=vbuc1 
-    lda #WHITE
-    sta textcolor.color
-    jsr textcolor
-    // [1424] phi from display_chip_line::@9 to display_chip_line::@10 [phi:display_chip_line::@9->display_chip_line::@10]
-    // display_chip_line::@10
-    // bgcolor(BLACK)
-    // [1425] call bgcolor
-    // [422] phi from display_chip_line::@10 to bgcolor [phi:display_chip_line::@10->bgcolor]
-    // [422] phi bgcolor::color#14 = BLACK [phi:display_chip_line::@10->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLACK
-    sta bgcolor.color
-    jsr bgcolor
-    // display_chip_line::@11
-    // cputcxy(x+2, y, c)
-    // [1426] cputcxy::x#8 = display_chip_line::x#16 + 2 -- vbum1=vbuz2_plus_2 
-    lda.z x
-    clc
-    adc #2
-    sta cputcxy.x
-    // [1427] cputcxy::y#8 = display_chip_line::y#16 -- vbum1=vbuz2 
-    lda.z y
-    sta cputcxy.y
-    // [1428] cputcxy::c#8 = display_chip_line::c#15 -- vbum1=vbuz2 
-    lda.z c
-    sta cputcxy.c
-    // [1429] call cputcxy
-    // [1111] phi from display_chip_line::@11 to cputcxy [phi:display_chip_line::@11->cputcxy]
-    // [1111] phi cputcxy::c#13 = cputcxy::c#8 [phi:display_chip_line::@11->cputcxy#0] -- register_copy 
-    // [1111] phi cputcxy::y#13 = cputcxy::y#8 [phi:display_chip_line::@11->cputcxy#1] -- register_copy 
-    // [1111] phi cputcxy::x#13 = cputcxy::x#8 [phi:display_chip_line::@11->cputcxy#2] -- register_copy 
-    jsr cputcxy
-    // display_chip_line::@return
-    // }
-    // [1430] return 
-    rts
-    // display_chip_line::@2
-  __b2:
-    // cputc(VERA_CHR_SPACE)
-    // [1431] stackpush(char) = $20 -- _stackpushbyte_=vbuc1 
-    lda #$20
-    pha
-    // [1432] callexecute cputc  -- call_vprc1 
-    jsr cputc
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // for(char i=0; i<w; i++)
-    // [1434] display_chip_line::i#1 = ++ display_chip_line::i#2 -- vbuz1=_inc_vbuz1 
-    inc.z i
-    // [1414] phi from display_chip_line::@2 to display_chip_line::@1 [phi:display_chip_line::@2->display_chip_line::@1]
-    // [1414] phi display_chip_line::i#2 = display_chip_line::i#1 [phi:display_chip_line::@2->display_chip_line::@1#0] -- register_copy 
-    jmp __b1
-}
-  // display_chip_end
-/**
- * @brief Print last line of a chip figure.
- * 
- * @param x Start X
- * @param y Start Y
- * @param w Width
- */
-// void display_chip_end(__zp($69) char x, char y, __zp($4d) char w)
-display_chip_end: {
-    .label i = $3e
-    .label x = $69
-    .label w = $4d
-    // gotoxy(x, y)
-    // [1435] gotoxy::x#8 = display_chip_end::x#0 -- vbum1=vbuz2 
-    lda.z x
-    sta gotoxy.x
-    // [1436] call gotoxy
-    // [435] phi from display_chip_end to gotoxy [phi:display_chip_end->gotoxy]
-    // [435] phi gotoxy::y#19 = display_print_chip::y#21 [phi:display_chip_end->gotoxy#0] -- vbum1=vbuc1 
-    lda #display_print_chip.y
-    sta gotoxy.y
-    // [435] phi gotoxy::x#19 = gotoxy::x#8 [phi:display_chip_end->gotoxy#1] -- register_copy 
-    jsr gotoxy
-    // [1437] phi from display_chip_end to display_chip_end::@4 [phi:display_chip_end->display_chip_end::@4]
-    // display_chip_end::@4
-    // textcolor(GREY)
-    // [1438] call textcolor
-    // [417] phi from display_chip_end::@4 to textcolor [phi:display_chip_end::@4->textcolor]
-    // [417] phi textcolor::color#20 = GREY [phi:display_chip_end::@4->textcolor#0] -- vbum1=vbuc1 
-    lda #GREY
-    sta textcolor.color
-    jsr textcolor
-    // [1439] phi from display_chip_end::@4 to display_chip_end::@5 [phi:display_chip_end::@4->display_chip_end::@5]
-    // display_chip_end::@5
-    // bgcolor(BLUE)
-    // [1440] call bgcolor
-    // [422] phi from display_chip_end::@5 to bgcolor [phi:display_chip_end::@5->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_chip_end::@5->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // display_chip_end::@6
-    // cputc(VERA_CHR_UR)
-    // [1441] stackpush(char) = $7c -- _stackpushbyte_=vbuc1 
-    lda #$7c
-    pha
-    // [1442] callexecute cputc  -- call_vprc1 
-    jsr cputc
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // textcolor(BLUE)
-    // [1444] call textcolor
-    // [417] phi from display_chip_end::@6 to textcolor [phi:display_chip_end::@6->textcolor]
-    // [417] phi textcolor::color#20 = BLUE [phi:display_chip_end::@6->textcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta textcolor.color
-    jsr textcolor
-    // [1445] phi from display_chip_end::@6 to display_chip_end::@7 [phi:display_chip_end::@6->display_chip_end::@7]
-    // display_chip_end::@7
-    // bgcolor(BLACK)
-    // [1446] call bgcolor
-    // [422] phi from display_chip_end::@7 to bgcolor [phi:display_chip_end::@7->bgcolor]
-    // [422] phi bgcolor::color#14 = BLACK [phi:display_chip_end::@7->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLACK
-    sta bgcolor.color
-    jsr bgcolor
-    // [1447] phi from display_chip_end::@7 to display_chip_end::@1 [phi:display_chip_end::@7->display_chip_end::@1]
-    // [1447] phi display_chip_end::i#2 = 0 [phi:display_chip_end::@7->display_chip_end::@1#0] -- vbuz1=vbuc1 
-    lda #0
-    sta.z i
-    // display_chip_end::@1
-  __b1:
-    // for(char i=0; i<w; i++)
-    // [1448] if(display_chip_end::i#2<display_chip_end::w#0) goto display_chip_end::@2 -- vbuz1_lt_vbuz2_then_la1 
-    lda.z i
-    cmp.z w
-    bcc __b2
-    // [1449] phi from display_chip_end::@1 to display_chip_end::@3 [phi:display_chip_end::@1->display_chip_end::@3]
-    // display_chip_end::@3
-    // textcolor(GREY)
-    // [1450] call textcolor
-    // [417] phi from display_chip_end::@3 to textcolor [phi:display_chip_end::@3->textcolor]
-    // [417] phi textcolor::color#20 = GREY [phi:display_chip_end::@3->textcolor#0] -- vbum1=vbuc1 
-    lda #GREY
-    sta textcolor.color
-    jsr textcolor
-    // [1451] phi from display_chip_end::@3 to display_chip_end::@8 [phi:display_chip_end::@3->display_chip_end::@8]
-    // display_chip_end::@8
-    // bgcolor(BLUE)
-    // [1452] call bgcolor
-    // [422] phi from display_chip_end::@8 to bgcolor [phi:display_chip_end::@8->bgcolor]
-    // [422] phi bgcolor::color#14 = BLUE [phi:display_chip_end::@8->bgcolor#0] -- vbum1=vbuc1 
-    lda #BLUE
-    sta bgcolor.color
-    jsr bgcolor
-    // display_chip_end::@9
-    // cputc(VERA_CHR_UL)
-    // [1453] stackpush(char) = $7e -- _stackpushbyte_=vbuc1 
-    lda #$7e
-    pha
-    // [1454] callexecute cputc  -- call_vprc1 
-    jsr cputc
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // display_chip_end::@return
-    // }
-    // [1456] return 
-    rts
-    // display_chip_end::@2
-  __b2:
-    // cputc(VERA_CHR_HL)
-    // [1457] stackpush(char) = $62 -- _stackpushbyte_=vbuc1 
-    lda #$62
-    pha
-    // [1458] callexecute cputc  -- call_vprc1 
-    jsr cputc
-    // sideeffect stackpullpadding(1) -- _stackpullpadding_1 
-    pla
-    // for(char i=0; i<w; i++)
-    // [1460] display_chip_end::i#1 = ++ display_chip_end::i#2 -- vbuz1=_inc_vbuz1 
-    inc.z i
-    // [1447] phi from display_chip_end::@2 to display_chip_end::@1 [phi:display_chip_end::@2->display_chip_end::@1]
-    // [1447] phi display_chip_end::i#2 = display_chip_end::i#1 [phi:display_chip_end::@2->display_chip_end::@1#0] -- register_copy 
-    jmp __b1
-}
-  // utoa
-// Converts unsigned number value to a string representing it in RADIX format.
-// If the leading digits are zero they are not included in the string.
-// - value : The number to be converted to RADIX
-// - buffer : receives the string representing the number and zero-termination.
-// - radix : The radix to convert the number to (from the enum RADIX)
-// void utoa(__mem() unsigned int value, __zp($52) char *buffer, char radix)
-utoa: {
-    .const max_digits = 5
-    .label utoa__10 = $54
-    .label utoa__11 = $57
-    .label buffer = $52
-    // [1462] phi from utoa to utoa::@1 [phi:utoa->utoa::@1]
-    // [1462] phi utoa::buffer#11 = (char *)&printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS [phi:utoa->utoa::@1#0] -- pbuz1=pbuc1 
-    lda #<printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    sta.z buffer
-    lda #>printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    sta.z buffer+1
-    // [1462] phi utoa::started#2 = 0 [phi:utoa->utoa::@1#1] -- vbum1=vbuc1 
-    lda #0
-    sta started
-    // [1462] phi utoa::value#2 = smc_bootloader [phi:utoa->utoa::@1#2] -- vwum1=vwuc1 
-    lda #<smc_bootloader
-    sta value
-    lda #>smc_bootloader
-    sta value+1
-    // [1462] phi utoa::digit#2 = 0 [phi:utoa->utoa::@1#3] -- vbum1=vbuc1 
-    lda #0
-    sta digit
-    // utoa::@1
-  __b1:
-    // for( char digit=0; digit<max_digits-1; digit++ )
-    // [1463] if(utoa::digit#2<utoa::max_digits#1-1) goto utoa::@2 -- vbum1_lt_vbuc1_then_la1 
-    lda digit
-    cmp #max_digits-1
-    bcc __b2
-    // utoa::@3
-    // *buffer++ = DIGITS[(char)value]
-    // [1464] utoa::$11 = (char)utoa::value#2 -- vbuz1=_byte_vwum2 
-    lda value
-    sta.z utoa__11
-    // [1465] *utoa::buffer#11 = DIGITS[utoa::$11] -- _deref_pbuz1=pbuc1_derefidx_vbuz2 
-    tay
-    lda DIGITS,y
-    ldy #0
-    sta (buffer),y
-    // *buffer++ = DIGITS[(char)value];
-    // [1466] utoa::buffer#3 = ++ utoa::buffer#11 -- pbuz1=_inc_pbuz1 
-    inc.z buffer
-    bne !+
-    inc.z buffer+1
-  !:
-    // *buffer = 0
-    // [1467] *utoa::buffer#3 = 0 -- _deref_pbuz1=vbuc1 
-    lda #0
-    tay
-    sta (buffer),y
-    // utoa::@return
-    // }
-    // [1468] return 
-    rts
-    // utoa::@2
-  __b2:
-    // unsigned int digit_value = digit_values[digit]
-    // [1469] utoa::$10 = utoa::digit#2 << 1 -- vbuz1=vbum2_rol_1 
-    lda digit
-    asl
-    sta.z utoa__10
-    // [1470] utoa::digit_value#0 = RADIX_DECIMAL_VALUES[utoa::$10] -- vwum1=pwuc1_derefidx_vbuz2 
-    tay
-    lda RADIX_DECIMAL_VALUES,y
-    sta digit_value
-    lda RADIX_DECIMAL_VALUES+1,y
-    sta digit_value+1
-    // if (started || value >= digit_value)
-    // [1471] if(0!=utoa::started#2) goto utoa::@5 -- 0_neq_vbum1_then_la1 
-    lda started
-    bne __b5
-    // utoa::@7
-    // [1472] if(utoa::value#2>=utoa::digit_value#0) goto utoa::@5 -- vwum1_ge_vwum2_then_la1 
-    lda digit_value+1
-    cmp value+1
-    bne !+
-    lda digit_value
-    cmp value
-    beq __b5
-  !:
-    bcc __b5
-    // [1473] phi from utoa::@7 to utoa::@4 [phi:utoa::@7->utoa::@4]
-    // [1473] phi utoa::buffer#14 = utoa::buffer#11 [phi:utoa::@7->utoa::@4#0] -- register_copy 
-    // [1473] phi utoa::started#4 = utoa::started#2 [phi:utoa::@7->utoa::@4#1] -- register_copy 
-    // [1473] phi utoa::value#6 = utoa::value#2 [phi:utoa::@7->utoa::@4#2] -- register_copy 
-    // utoa::@4
-  __b4:
-    // for( char digit=0; digit<max_digits-1; digit++ )
-    // [1474] utoa::digit#1 = ++ utoa::digit#2 -- vbum1=_inc_vbum1 
-    inc digit
-    // [1462] phi from utoa::@4 to utoa::@1 [phi:utoa::@4->utoa::@1]
-    // [1462] phi utoa::buffer#11 = utoa::buffer#14 [phi:utoa::@4->utoa::@1#0] -- register_copy 
-    // [1462] phi utoa::started#2 = utoa::started#4 [phi:utoa::@4->utoa::@1#1] -- register_copy 
-    // [1462] phi utoa::value#2 = utoa::value#6 [phi:utoa::@4->utoa::@1#2] -- register_copy 
-    // [1462] phi utoa::digit#2 = utoa::digit#1 [phi:utoa::@4->utoa::@1#3] -- register_copy 
-    jmp __b1
-    // utoa::@5
-  __b5:
-    // utoa_append(buffer++, value, digit_value)
-    // [1475] utoa_append::buffer#0 = utoa::buffer#11 -- pbuz1=pbuz2 
-    lda.z buffer
-    sta.z utoa_append.buffer
-    lda.z buffer+1
-    sta.z utoa_append.buffer+1
-    // [1476] utoa_append::value#0 = utoa::value#2
-    // [1477] utoa_append::sub#0 = utoa::digit_value#0
-    // [1478] call utoa_append
-    // [1532] phi from utoa::@5 to utoa_append [phi:utoa::@5->utoa_append]
-    jsr utoa_append
-    // utoa_append(buffer++, value, digit_value)
-    // [1479] utoa_append::return#0 = utoa_append::value#2
-    // utoa::@6
-    // value = utoa_append(buffer++, value, digit_value)
-    // [1480] utoa::value#0 = utoa_append::return#0
-    // value = utoa_append(buffer++, value, digit_value);
-    // [1481] utoa::buffer#4 = ++ utoa::buffer#11 -- pbuz1=_inc_pbuz1 
-    inc.z buffer
-    bne !+
-    inc.z buffer+1
-  !:
-    // [1473] phi from utoa::@6 to utoa::@4 [phi:utoa::@6->utoa::@4]
-    // [1473] phi utoa::buffer#14 = utoa::buffer#4 [phi:utoa::@6->utoa::@4#0] -- register_copy 
-    // [1473] phi utoa::started#4 = 1 [phi:utoa::@6->utoa::@4#1] -- vbum1=vbuc1 
-    lda #1
-    sta started
-    // [1473] phi utoa::value#6 = utoa::value#0 [phi:utoa::@6->utoa::@4#2] -- register_copy 
-    jmp __b4
-  .segment Data
-    digit_value: .word 0
-    digit: .byte 0
-    value: .word 0
-    started: .byte 0
-}
-.segment Code
-  // spi_fast
-spi_fast: {
-    // asm
-    // asm { ldavera_reg_SPICtrl and#%11111101 stavera_reg_SPICtrl  }
-    /*
-.proc spi_fast
-    lda Vera::Reg::SPICtrl
-    and #%11111101
-    sta Vera::Reg::SPICtrl
-	rts
-.endproc
-*/
-    lda vera_reg_SPICtrl
-    and #$fd
-    sta vera_reg_SPICtrl
-    // spi_fast::@return
-    // }
-    // [1483] return 
-    rts
-}
-  // spi_select
-spi_select: {
-    // spi_deselect()
-    // [1485] call spi_deselect
-    /*
-.proc spi_select
+    jsr spi_write
+    tya
+    jsr spi_write
+    txa
+    jsr spi_write
+
     jsr spi_deselect
 
-    lda Vera::Reg::SPICtrl
-    ora #$01
-    sta Vera::Reg::SPICtrl
+    rts
+.endproc
+ */
+    // [2354] phi from spi_block_erase to spi_select [phi:spi_block_erase->spi_select]
+    jsr spi_select
+    // spi_block_erase::@1
+    // spi_write(0x06)
+    // [2282] spi_write::data = 6 -- vbum1=vbuc1 
+    lda #6
+    sta spi_write.data
+    // [2283] call spi_write
+    jsr spi_write
+    // [2284] phi from spi_block_erase::@1 to spi_block_erase::@2 [phi:spi_block_erase::@1->spi_block_erase::@2]
+    // spi_block_erase::@2
+    // spi_select()
+    // [2285] call spi_select
+    // [2354] phi from spi_block_erase::@2 to spi_select [phi:spi_block_erase::@2->spi_select]
+    jsr spi_select
+    // spi_block_erase::@3
+    // spi_write(0xD8)
+    // [2286] spi_write::data = $d8 -- vbum1=vbuc1 
+    lda #$d8
+    sta spi_write.data
+    // [2287] call spi_write
+    jsr spi_write
+    // spi_block_erase::@4
+    // BYTE2(data)
+    // [2288] spi_block_erase::$4 = byte2  spi_block_erase::data#0 -- vbuz1=_byte2_vdum2 
+    lda data+2
+    sta.z spi_block_erase__4
+    // spi_write(BYTE2(data))
+    // [2289] spi_write::data = spi_block_erase::$4 -- vbum1=vbuz2 
+    sta spi_write.data
+    // [2290] call spi_write
+    jsr spi_write
+    // spi_block_erase::@5
+    // BYTE1(data)
+    // [2291] spi_block_erase::$6 = byte1  spi_block_erase::data#0 -- vbuz1=_byte1_vdum2 
+    lda data+1
+    sta.z spi_block_erase__6
+    // spi_write(BYTE1(data))
+    // [2292] spi_write::data = spi_block_erase::$6 -- vbum1=vbuz2 
+    sta spi_write.data
+    // [2293] call spi_write
+    jsr spi_write
+    // spi_block_erase::@6
+    // BYTE0(data)
+    // [2294] spi_block_erase::$8 = byte0  spi_block_erase::data#0 -- vbuz1=_byte0_vdum2 
+    lda data
+    sta.z spi_block_erase__8
+    // spi_write(BYTE0(data))
+    // [2295] spi_write::data = spi_block_erase::$8 -- vbum1=vbuz2 
+    sta spi_write.data
+    // [2296] call spi_write
+    jsr spi_write
+    // [2297] phi from spi_block_erase::@6 to spi_block_erase::@7 [phi:spi_block_erase::@6->spi_block_erase::@7]
+    // spi_block_erase::@7
+    // spi_deselect()
+    // [2298] call spi_deselect
+    jsr spi_deselect
+    // spi_block_erase::@return
+    // }
+    // [2299] return 
+    rts
+  .segment Data
+    data: .dword 0
+}
+.segment Code
+  // spi_read
+spi_read: {
+    // unsigned char SPIData
+    // [2300] spi_read::SPIData = 0 -- vbum1=vbuc1 
+    /*
+    .proc spi_read
+	stz Vera::Reg::SPIData
+@1:	bit Vera::Reg::SPICtrl
+	bmi @1
+    lda Vera::Reg::SPIData
 	rts
 .endproc
 */
-    jsr spi_deselect
-    // spi_select::@1
-    // *vera_reg_SPICtrl |= 1
-    // [1486] *vera_reg_SPICtrl = *vera_reg_SPICtrl | 1 -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
-    lda #1
-    ora vera_reg_SPICtrl
-    sta vera_reg_SPICtrl
-    // spi_select::@return
+    lda #0
+    sta SPIData
+    // asm
+    // asm { stzvera_reg_SPIData !: bitvera_reg_SPICtrl bmi!- ldavera_reg_SPIData staSPIData  }
+    stz vera_reg_SPIData
+  !:
+    bit vera_reg_SPICtrl
+    bmi !-
+    lda vera_reg_SPIData
+    sta SPIData
+    // return SPIData;
+    // [2302] spi_read::return#4 = spi_read::SPIData -- vbum1=vbum2 
+    sta return_2
+    // spi_read::@return
     // }
-    // [1487] return 
+    // [2303] spi_read::return#5 = spi_read::return#4
+    // [2304] return 
     rts
+  .segment Data
+    SPIData: .byte 0
+    return: .byte 0
+    return_1: .byte 0
+    return_2: .byte 0
+    return_3: .byte 0
 }
+.segment Code
+  // spi_write_page_begin
+// void spi_write_page_begin(__mem() unsigned long data)
+spi_write_page_begin: {
+    .label spi_write_page_begin__4 = $52
+    .label spi_write_page_begin__6 = $36
+    .label spi_write_page_begin__8 = $4c
+    // spi_select()
+    // [2306] call spi_select
+  /** 
+; .X [7:0]
+; .Y [15:8]
+; .A [23:16]
+.proc spi_write_page_begin
+    pha
+
+    ; write enable
+    jsr spi_select
+    lda #$06
+    jsr spi_write
+
+    jsr spi_select
+    lda #$02
+    jsr spi_write
+    pla
+    jsr spi_write
+    tya
+    jsr spi_write
+    txa
+    jsr spi_write
+
+    rts
+.endproc
+ */
+    // [2354] phi from spi_write_page_begin to spi_select [phi:spi_write_page_begin->spi_select]
+    jsr spi_select
+    // spi_write_page_begin::@1
+    // spi_write(0x06)
+    // [2307] spi_write::data = 6 -- vbum1=vbuc1 
+    lda #6
+    sta spi_write.data
+    // [2308] call spi_write
+    jsr spi_write
+    // [2309] phi from spi_write_page_begin::@1 to spi_write_page_begin::@2 [phi:spi_write_page_begin::@1->spi_write_page_begin::@2]
+    // spi_write_page_begin::@2
+    // spi_select()
+    // [2310] call spi_select
+    // [2354] phi from spi_write_page_begin::@2 to spi_select [phi:spi_write_page_begin::@2->spi_select]
+    jsr spi_select
+    // spi_write_page_begin::@3
+    // spi_write(0x02)
+    // [2311] spi_write::data = 2 -- vbum1=vbuc1 
+    lda #2
+    sta spi_write.data
+    // [2312] call spi_write
+    jsr spi_write
+    // spi_write_page_begin::@4
+    // BYTE2(data)
+    // [2313] spi_write_page_begin::$4 = byte2  spi_write_page_begin::data#0 -- vbuz1=_byte2_vdum2 
+    lda data+2
+    sta.z spi_write_page_begin__4
+    // spi_write(BYTE2(data))
+    // [2314] spi_write::data = spi_write_page_begin::$4 -- vbum1=vbuz2 
+    sta spi_write.data
+    // [2315] call spi_write
+    jsr spi_write
+    // spi_write_page_begin::@5
+    // BYTE1(data)
+    // [2316] spi_write_page_begin::$6 = byte1  spi_write_page_begin::data#0 -- vbuz1=_byte1_vdum2 
+    lda data+1
+    sta.z spi_write_page_begin__6
+    // spi_write(BYTE1(data))
+    // [2317] spi_write::data = spi_write_page_begin::$6 -- vbum1=vbuz2 
+    sta spi_write.data
+    // [2318] call spi_write
+    jsr spi_write
+    // spi_write_page_begin::@6
+    // BYTE0(data)
+    // [2319] spi_write_page_begin::$8 = byte0  spi_write_page_begin::data#0 -- vbuz1=_byte0_vdum2 
+    lda data
+    sta.z spi_write_page_begin__8
+    // spi_write(BYTE0(data))
+    // [2320] spi_write::data = spi_write_page_begin::$8 -- vbum1=vbuz2 
+    sta spi_write.data
+    // [2321] call spi_write
+    jsr spi_write
+    // spi_write_page_begin::@return
+    // }
+    // [2322] return 
+    rts
+  .segment Data
+    data: .dword 0
+}
+.segment Code
   // spi_write
 /**
  * @brief 
@@ -8957,160 +14705,12 @@ spi_write: {
     bmi !-
     // spi_write::@return
     // }
-    // [1489] return 
+    // [2324] return 
     rts
   .segment Data
     data: .byte 0
 }
 .segment Code
-  // spi_read
-spi_read: {
-    // unsigned char SPIData
-    // [1490] spi_read::SPIData = 0 -- vbum1=vbuc1 
-    /*
-    .proc spi_read
-	stz Vera::Reg::SPIData
-@1:	bit Vera::Reg::SPICtrl
-	bmi @1
-    lda Vera::Reg::SPIData
-	rts
-.endproc
-*/
-    lda #0
-    sta SPIData
-    // asm
-    // asm { stzvera_reg_SPIData !: bitvera_reg_SPICtrl bmi!- ldavera_reg_SPIData staSPIData  }
-    stz vera_reg_SPIData
-  !:
-    bit vera_reg_SPICtrl
-    bmi !-
-    lda vera_reg_SPIData
-    sta SPIData
-    // return SPIData;
-    // [1492] spi_read::return#3 = spi_read::SPIData -- vbum1=vbum2 
-    sta return_2
-    // spi_read::@return
-    // }
-    // [1493] spi_read::return#4 = spi_read::return#3
-    // [1494] return 
-    rts
-  .segment Data
-    SPIData: .byte 0
-    return: .byte 0
-    return_1: .byte 0
-    return_2: .byte 0
-}
-.segment Code
-  // uctoa_append
-// Used to convert a single digit of an unsigned number value to a string representation
-// Counts a single digit up from '0' as long as the value is larger than sub.
-// Each time the digit is increased sub is subtracted from value.
-// - buffer : pointer to the char that receives the digit
-// - value : The value where the digit will be derived from
-// - sub : the value of a '1' in the digit. Subtracted continually while the digit is increased.
-//        (For decimal the subs used are 10000, 1000, 100, 10, 1)
-// returns : the value reduced by sub * digit so that it is less than sub.
-// __mem() char uctoa_append(__zp($43) char *buffer, __mem() char value, __mem() char sub)
-uctoa_append: {
-    .label buffer = $43
-    // [1496] phi from uctoa_append to uctoa_append::@1 [phi:uctoa_append->uctoa_append::@1]
-    // [1496] phi uctoa_append::digit#2 = 0 [phi:uctoa_append->uctoa_append::@1#0] -- vbum1=vbuc1 
-    lda #0
-    sta digit
-    // [1496] phi uctoa_append::value#2 = uctoa_append::value#0 [phi:uctoa_append->uctoa_append::@1#1] -- register_copy 
-    // uctoa_append::@1
-  __b1:
-    // while (value >= sub)
-    // [1497] if(uctoa_append::value#2>=uctoa_append::sub#0) goto uctoa_append::@2 -- vbum1_ge_vbum2_then_la1 
-    lda value
-    cmp sub
-    bcs __b2
-    // uctoa_append::@3
-    // *buffer = DIGITS[digit]
-    // [1498] *uctoa_append::buffer#0 = DIGITS[uctoa_append::digit#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
-    ldy digit
-    lda DIGITS,y
-    ldy #0
-    sta (buffer),y
-    // uctoa_append::@return
-    // }
-    // [1499] return 
-    rts
-    // uctoa_append::@2
-  __b2:
-    // digit++;
-    // [1500] uctoa_append::digit#1 = ++ uctoa_append::digit#2 -- vbum1=_inc_vbum1 
-    inc digit
-    // value -= sub
-    // [1501] uctoa_append::value#1 = uctoa_append::value#2 - uctoa_append::sub#0 -- vbum1=vbum1_minus_vbum2 
-    lda value
-    sec
-    sbc sub
-    sta value
-    // [1496] phi from uctoa_append::@2 to uctoa_append::@1 [phi:uctoa_append::@2->uctoa_append::@1]
-    // [1496] phi uctoa_append::digit#2 = uctoa_append::digit#1 [phi:uctoa_append::@2->uctoa_append::@1#0] -- register_copy 
-    // [1496] phi uctoa_append::value#2 = uctoa_append::value#1 [phi:uctoa_append::@2->uctoa_append::@1#1] -- register_copy 
-    jmp __b1
-  .segment Data
-    .label value = printf_uchar.uvalue
-    .label sub = uctoa.digit_value
-    .label return = printf_uchar.uvalue
-    digit: .byte 0
-}
-.segment Code
-  // strupr
-// Converts a string to uppercase.
-// char * strupr(char *str)
-strupr: {
-    .label str = printf_buffer+OFFSET_STRUCT_PRINTF_BUFFER_NUMBER_DIGITS
-    .label strupr__0 = $3b
-    .label src = $39
-    // [1503] phi from strupr to strupr::@1 [phi:strupr->strupr::@1]
-    // [1503] phi strupr::src#2 = strupr::str#0 [phi:strupr->strupr::@1#0] -- pbuz1=pbuc1 
-    lda #<str
-    sta.z src
-    lda #>str
-    sta.z src+1
-    // strupr::@1
-  __b1:
-    // while(*src)
-    // [1504] if(0!=*strupr::src#2) goto strupr::@2 -- 0_neq__deref_pbuz1_then_la1 
-    ldy #0
-    lda (src),y
-    cmp #0
-    bne __b2
-    // strupr::@return
-    // }
-    // [1505] return 
-    rts
-    // strupr::@2
-  __b2:
-    // toupper(*src)
-    // [1506] toupper::ch#0 = *strupr::src#2 -- vbum1=_deref_pbuz2 
-    ldy #0
-    lda (src),y
-    sta toupper.ch
-    // [1507] call toupper
-    jsr toupper
-    // [1508] toupper::return#3 = toupper::return#2
-    // strupr::@3
-    // [1509] strupr::$0 = toupper::return#3 -- vbuz1=vbum2 
-    lda toupper.return
-    sta.z strupr__0
-    // *src = toupper(*src)
-    // [1510] *strupr::src#2 = strupr::$0 -- _deref_pbuz1=vbuz2 
-    ldy #0
-    sta (src),y
-    // src++;
-    // [1511] strupr::src#1 = ++ strupr::src#2 -- pbuz1=_inc_pbuz1 
-    inc.z src
-    bne !+
-    inc.z src+1
-  !:
-    // [1503] phi from strupr::@3 to strupr::@1 [phi:strupr::@3->strupr::@1]
-    // [1503] phi strupr::src#2 = strupr::src#1 [phi:strupr::@3->strupr::@1#0] -- register_copy 
-    jmp __b1
-}
   // memcpy8_vram_vram
 /**
  * @brief Copy a block of memory in VRAM from a source to a target destination.
@@ -9134,83 +14734,83 @@ memcpy8_vram_vram: {
     .label memcpy8_vram_vram__4 = $27
     .label memcpy8_vram_vram__5 = $28
     // *VERA_CTRL &= ~VERA_ADDRSEL
-    // [1512] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+    // [2325] *VERA_CTRL = *VERA_CTRL & ~VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
     lda #VERA_ADDRSEL^$ff
     and VERA_CTRL
     sta VERA_CTRL
     // BYTE0(soffset_vram)
-    // [1513] memcpy8_vram_vram::$0 = byte0  memcpy8_vram_vram::soffset_vram#0 -- vbuz1=_byte0_vwum2 
+    // [2326] memcpy8_vram_vram::$0 = byte0  memcpy8_vram_vram::soffset_vram#0 -- vbuz1=_byte0_vwum2 
     lda soffset_vram
     sta.z memcpy8_vram_vram__0
     // *VERA_ADDRX_L = BYTE0(soffset_vram)
-    // [1514] *VERA_ADDRX_L = memcpy8_vram_vram::$0 -- _deref_pbuc1=vbuz1 
+    // [2327] *VERA_ADDRX_L = memcpy8_vram_vram::$0 -- _deref_pbuc1=vbuz1 
     sta VERA_ADDRX_L
     // BYTE1(soffset_vram)
-    // [1515] memcpy8_vram_vram::$1 = byte1  memcpy8_vram_vram::soffset_vram#0 -- vbuz1=_byte1_vwum2 
+    // [2328] memcpy8_vram_vram::$1 = byte1  memcpy8_vram_vram::soffset_vram#0 -- vbuz1=_byte1_vwum2 
     lda soffset_vram+1
     sta.z memcpy8_vram_vram__1
     // *VERA_ADDRX_M = BYTE1(soffset_vram)
-    // [1516] *VERA_ADDRX_M = memcpy8_vram_vram::$1 -- _deref_pbuc1=vbuz1 
+    // [2329] *VERA_ADDRX_M = memcpy8_vram_vram::$1 -- _deref_pbuc1=vbuz1 
     sta VERA_ADDRX_M
     // sbank_vram | VERA_INC_1
-    // [1517] memcpy8_vram_vram::$2 = memcpy8_vram_vram::sbank_vram#0 | VERA_INC_1 -- vbuz1=vbum2_bor_vbuc1 
+    // [2330] memcpy8_vram_vram::$2 = memcpy8_vram_vram::sbank_vram#0 | VERA_INC_1 -- vbuz1=vbum2_bor_vbuc1 
     lda #VERA_INC_1
     ora sbank_vram
     sta.z memcpy8_vram_vram__2
     // *VERA_ADDRX_H = sbank_vram | VERA_INC_1
-    // [1518] *VERA_ADDRX_H = memcpy8_vram_vram::$2 -- _deref_pbuc1=vbuz1 
+    // [2331] *VERA_ADDRX_H = memcpy8_vram_vram::$2 -- _deref_pbuc1=vbuz1 
     sta VERA_ADDRX_H
     // *VERA_CTRL |= VERA_ADDRSEL
-    // [1519] *VERA_CTRL = *VERA_CTRL | VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    // [2332] *VERA_CTRL = *VERA_CTRL | VERA_ADDRSEL -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
     lda #VERA_ADDRSEL
     ora VERA_CTRL
     sta VERA_CTRL
     // BYTE0(doffset_vram)
-    // [1520] memcpy8_vram_vram::$3 = byte0  memcpy8_vram_vram::doffset_vram#0 -- vbuz1=_byte0_vwum2 
+    // [2333] memcpy8_vram_vram::$3 = byte0  memcpy8_vram_vram::doffset_vram#0 -- vbuz1=_byte0_vwum2 
     lda doffset_vram
     sta.z memcpy8_vram_vram__3
     // *VERA_ADDRX_L = BYTE0(doffset_vram)
-    // [1521] *VERA_ADDRX_L = memcpy8_vram_vram::$3 -- _deref_pbuc1=vbuz1 
+    // [2334] *VERA_ADDRX_L = memcpy8_vram_vram::$3 -- _deref_pbuc1=vbuz1 
     sta VERA_ADDRX_L
     // BYTE1(doffset_vram)
-    // [1522] memcpy8_vram_vram::$4 = byte1  memcpy8_vram_vram::doffset_vram#0 -- vbuz1=_byte1_vwum2 
+    // [2335] memcpy8_vram_vram::$4 = byte1  memcpy8_vram_vram::doffset_vram#0 -- vbuz1=_byte1_vwum2 
     lda doffset_vram+1
     sta.z memcpy8_vram_vram__4
     // *VERA_ADDRX_M = BYTE1(doffset_vram)
-    // [1523] *VERA_ADDRX_M = memcpy8_vram_vram::$4 -- _deref_pbuc1=vbuz1 
+    // [2336] *VERA_ADDRX_M = memcpy8_vram_vram::$4 -- _deref_pbuc1=vbuz1 
     sta VERA_ADDRX_M
     // dbank_vram | VERA_INC_1
-    // [1524] memcpy8_vram_vram::$5 = memcpy8_vram_vram::dbank_vram#0 | VERA_INC_1 -- vbuz1=vbum2_bor_vbuc1 
+    // [2337] memcpy8_vram_vram::$5 = memcpy8_vram_vram::dbank_vram#0 | VERA_INC_1 -- vbuz1=vbum2_bor_vbuc1 
     lda #VERA_INC_1
     ora dbank_vram
     sta.z memcpy8_vram_vram__5
     // *VERA_ADDRX_H = dbank_vram | VERA_INC_1
-    // [1525] *VERA_ADDRX_H = memcpy8_vram_vram::$5 -- _deref_pbuc1=vbuz1 
+    // [2338] *VERA_ADDRX_H = memcpy8_vram_vram::$5 -- _deref_pbuc1=vbuz1 
     sta VERA_ADDRX_H
-    // [1526] phi from memcpy8_vram_vram memcpy8_vram_vram::@2 to memcpy8_vram_vram::@1 [phi:memcpy8_vram_vram/memcpy8_vram_vram::@2->memcpy8_vram_vram::@1]
+    // [2339] phi from memcpy8_vram_vram memcpy8_vram_vram::@2 to memcpy8_vram_vram::@1 [phi:memcpy8_vram_vram/memcpy8_vram_vram::@2->memcpy8_vram_vram::@1]
   __b1:
-    // [1526] phi memcpy8_vram_vram::num8#2 = memcpy8_vram_vram::num8#1 [phi:memcpy8_vram_vram/memcpy8_vram_vram::@2->memcpy8_vram_vram::@1#0] -- register_copy 
+    // [2339] phi memcpy8_vram_vram::num8#2 = memcpy8_vram_vram::num8#1 [phi:memcpy8_vram_vram/memcpy8_vram_vram::@2->memcpy8_vram_vram::@1#0] -- register_copy 
   // the size is only a byte, this is the fastest loop!
     // memcpy8_vram_vram::@1
     // while (num8--)
-    // [1527] memcpy8_vram_vram::num8#0 = -- memcpy8_vram_vram::num8#2 -- vbum1=_dec_vbum2 
+    // [2340] memcpy8_vram_vram::num8#0 = -- memcpy8_vram_vram::num8#2 -- vbum1=_dec_vbum2 
     ldy num8_1
     dey
     sty num8
-    // [1528] if(0!=memcpy8_vram_vram::num8#2) goto memcpy8_vram_vram::@2 -- 0_neq_vbum1_then_la1 
+    // [2341] if(0!=memcpy8_vram_vram::num8#2) goto memcpy8_vram_vram::@2 -- 0_neq_vbum1_then_la1 
     lda num8_1
     bne __b2
     // memcpy8_vram_vram::@return
     // }
-    // [1529] return 
+    // [2342] return 
     rts
     // memcpy8_vram_vram::@2
   __b2:
     // *VERA_DATA1 = *VERA_DATA0
-    // [1530] *VERA_DATA1 = *VERA_DATA0 -- _deref_pbuc1=_deref_pbuc2 
+    // [2343] *VERA_DATA1 = *VERA_DATA0 -- _deref_pbuc1=_deref_pbuc2 
     lda VERA_DATA0
     sta VERA_DATA1
-    // [1531] memcpy8_vram_vram::num8#6 = memcpy8_vram_vram::num8#0 -- vbum1=vbum2 
+    // [2344] memcpy8_vram_vram::num8#6 = memcpy8_vram_vram::num8#0 -- vbum1=vbum2 
     lda num8
     sta num8_1
     jmp __b1
@@ -9232,18 +14832,18 @@ memcpy8_vram_vram: {
 // - sub : the value of a '1' in the digit. Subtracted continually while the digit is increased.
 //        (For decimal the subs used are 10000, 1000, 100, 10, 1)
 // returns : the value reduced by sub * digit so that it is less than sub.
-// __mem() unsigned int utoa_append(__zp($5d) char *buffer, __mem() unsigned int value, __mem() unsigned int sub)
+// __mem() unsigned int utoa_append(__zp($3b) char *buffer, __mem() unsigned int value, __mem() unsigned int sub)
 utoa_append: {
-    .label buffer = $5d
-    // [1533] phi from utoa_append to utoa_append::@1 [phi:utoa_append->utoa_append::@1]
-    // [1533] phi utoa_append::digit#2 = 0 [phi:utoa_append->utoa_append::@1#0] -- vbum1=vbuc1 
+    .label buffer = $3b
+    // [2346] phi from utoa_append to utoa_append::@1 [phi:utoa_append->utoa_append::@1]
+    // [2346] phi utoa_append::digit#2 = 0 [phi:utoa_append->utoa_append::@1#0] -- vbum1=vbuc1 
     lda #0
     sta digit
-    // [1533] phi utoa_append::value#2 = utoa_append::value#0 [phi:utoa_append->utoa_append::@1#1] -- register_copy 
+    // [2346] phi utoa_append::value#2 = utoa_append::value#0 [phi:utoa_append->utoa_append::@1#1] -- register_copy 
     // utoa_append::@1
   __b1:
     // while (value >= sub)
-    // [1534] if(utoa_append::value#2>=utoa_append::sub#0) goto utoa_append::@2 -- vwum1_ge_vwum2_then_la1 
+    // [2347] if(utoa_append::value#2>=utoa_append::sub#0) goto utoa_append::@2 -- vwum1_ge_vwum2_then_la1 
     lda sub+1
     cmp value+1
     bne !+
@@ -9254,22 +14854,22 @@ utoa_append: {
     bcc __b2
     // utoa_append::@3
     // *buffer = DIGITS[digit]
-    // [1535] *utoa_append::buffer#0 = DIGITS[utoa_append::digit#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
+    // [2348] *utoa_append::buffer#0 = DIGITS[utoa_append::digit#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
     ldy digit
     lda DIGITS,y
     ldy #0
     sta (buffer),y
     // utoa_append::@return
     // }
-    // [1536] return 
+    // [2349] return 
     rts
     // utoa_append::@2
   __b2:
     // digit++;
-    // [1537] utoa_append::digit#1 = ++ utoa_append::digit#2 -- vbum1=_inc_vbum1 
+    // [2350] utoa_append::digit#1 = ++ utoa_append::digit#2 -- vbum1=_inc_vbum1 
     inc digit
     // value -= sub
-    // [1538] utoa_append::value#1 = utoa_append::value#2 - utoa_append::sub#0 -- vwum1=vwum1_minus_vwum2 
+    // [2351] utoa_append::value#1 = utoa_append::value#2 - utoa_append::sub#0 -- vwum1=vwum1_minus_vwum2 
     lda value
     sec
     sbc sub
@@ -9277,77 +14877,729 @@ utoa_append: {
     lda value+1
     sbc sub+1
     sta value+1
-    // [1533] phi from utoa_append::@2 to utoa_append::@1 [phi:utoa_append::@2->utoa_append::@1]
-    // [1533] phi utoa_append::digit#2 = utoa_append::digit#1 [phi:utoa_append::@2->utoa_append::@1#0] -- register_copy 
-    // [1533] phi utoa_append::value#2 = utoa_append::value#1 [phi:utoa_append::@2->utoa_append::@1#1] -- register_copy 
+    // [2346] phi from utoa_append::@2 to utoa_append::@1 [phi:utoa_append::@2->utoa_append::@1]
+    // [2346] phi utoa_append::digit#2 = utoa_append::digit#1 [phi:utoa_append::@2->utoa_append::@1#0] -- register_copy 
+    // [2346] phi utoa_append::value#2 = utoa_append::value#1 [phi:utoa_append::@2->utoa_append::@1#1] -- register_copy 
     jmp __b1
   .segment Data
-    .label value = utoa.value
+    .label value = printf_uint.uvalue
     .label sub = utoa.digit_value
-    .label return = utoa.value
+    .label return = printf_uint.uvalue
     digit: .byte 0
 }
 .segment Code
-  // spi_deselect
-spi_deselect: {
-    // *vera_reg_SPICtrl &= 0xfe
-    // [1539] *vera_reg_SPICtrl = *vera_reg_SPICtrl & $fe -- _deref_pbuc1=_deref_pbuc1_band_vbuc2 
+  // spi_fast
+spi_fast: {
+    // asm
+    // asm { ldavera_reg_SPICtrl and#%11111101 stavera_reg_SPICtrl  }
     /*
-.proc spi_deselect
+.proc spi_fast
     lda Vera::Reg::SPICtrl
-    and #$fe
+    and #%11111101
     sta Vera::Reg::SPICtrl
-    jsr spi_read
 	rts
 .endproc
 */
-    lda #$fe
-    and vera_reg_SPICtrl
+    lda vera_reg_SPICtrl
+    and #$fd
     sta vera_reg_SPICtrl
-    // unsigned char value = spi_read()
-    // [1540] call spi_read
-    jsr spi_read
-    // spi_deselect::@return
+    // spi_fast::@return
     // }
-    // [1541] return 
+    // [2353] return 
     rts
 }
-  // toupper
-// Convert lowercase alphabet to uppercase
-// Returns uppercase equivalent to c, if such value exists, else c remains unchanged
-// __mem() char toupper(__mem() char ch)
-toupper: {
-    // if(ch>='a' && ch<='z')
-    // [1542] if(toupper::ch#0<'a') goto toupper::@return -- vbum1_lt_vbuc1_then_la1 
-    lda ch
-    cmp #'a'
-    bcc __breturn
-    // toupper::@2
-    // [1543] if(toupper::ch#0<='z') goto toupper::@1 -- vbum1_le_vbuc1_then_la1 
-    lda #'z'
-    cmp ch
-    bcs __b1
-    // [1545] phi from toupper toupper::@1 toupper::@2 to toupper::@return [phi:toupper/toupper::@1/toupper::@2->toupper::@return]
-    // [1545] phi toupper::return#2 = toupper::ch#0 [phi:toupper/toupper::@1/toupper::@2->toupper::@return#0] -- register_copy 
-    rts
-    // toupper::@1
-  __b1:
-    // return ch + ('A'-'a');
-    // [1544] toupper::return#0 = toupper::ch#0 + 'A'-'a' -- vbum1=vbum1_plus_vbuc1 
-    lda #'A'-'a'
-    clc
-    adc return
-    sta return
-    // toupper::@return
-  __breturn:
+  // spi_select
+spi_select: {
+    // spi_deselect()
+    // [2355] call spi_deselect
+    /*
+.proc spi_select
+    jsr spi_deselect
+
+    lda Vera::Reg::SPICtrl
+    ora #$01
+    sta Vera::Reg::SPICtrl
+	rts
+.endproc
+*/
+    jsr spi_deselect
+    // spi_select::@1
+    // *vera_reg_SPICtrl |= 1
+    // [2356] *vera_reg_SPICtrl = *vera_reg_SPICtrl | 1 -- _deref_pbuc1=_deref_pbuc1_bor_vbuc2 
+    lda #1
+    ora vera_reg_SPICtrl
+    sta vera_reg_SPICtrl
+    // spi_select::@return
     // }
-    // [1546] return 
+    // [2357] return 
+    rts
+}
+  // cbm_k_setlfs
+/**
+ * @brief Sets the logical file channel.
+ *
+ * @param channel the logical file number.
+ * @param device the device number.
+ * @param command the command.
+ */
+// void cbm_k_setlfs(__mem() volatile char channel, __mem() volatile char device, __mem() volatile char command)
+cbm_k_setlfs: {
+    // asm
+    // asm { ldxdevice ldachannel ldycommand jsrCBM_SETLFS  }
+    ldx device
+    lda channel
+    ldy command
+    jsr CBM_SETLFS
+    // cbm_k_setlfs::@return
+    // }
+    // [2359] return 
     rts
   .segment Data
-    return: .byte 0
-    .label ch = return
+    channel: .byte 0
+    device: .byte 0
+    command: .byte 0
+}
+.segment Code
+  // ferror
+/**
+ * @brief POSIX equivalent of ferror for the CBM C language.
+ * This routine reads from secondary 15 the error message from the device!
+ * The result is an error string, including the error code, message, track, sector.
+ * The error string can be a maximum of 32 characters.
+ *
+ * @param stream FILE* stream.
+ * @return int Contains a non-zero value if there is an error.
+ */
+// __mem() int ferror(__zp($34) struct $2 *stream)
+ferror: {
+    .label ferror__6 = $36
+    .label ferror__15 = $4c
+    .label cbm_k_setnam1_filename = $76
+    .label cbm_k_setnam1_ferror__0 = $5a
+    .label stream = $34
+    .label errno_len = $60
+    // unsigned char sp = (unsigned char)stream
+    // [2360] ferror::sp#0 = (char)ferror::stream#0 -- vbum1=_byte_pssz2 
+    lda.z stream
+    sta sp
+    // cbm_k_setlfs(15, 8, 15)
+    // [2361] cbm_k_setlfs::channel = $f -- vbum1=vbuc1 
+    lda #$f
+    sta cbm_k_setlfs.channel
+    // [2362] cbm_k_setlfs::device = 8 -- vbum1=vbuc1 
+    lda #8
+    sta cbm_k_setlfs.device
+    // [2363] cbm_k_setlfs::command = $f -- vbum1=vbuc1 
+    lda #$f
+    sta cbm_k_setlfs.command
+    // [2364] call cbm_k_setlfs
+    jsr cbm_k_setlfs
+    // ferror::@11
+    // cbm_k_setnam("")
+    // [2365] ferror::cbm_k_setnam1_filename = ferror::$18 -- pbuz1=pbuc1 
+    lda #<ferror__18
+    sta.z cbm_k_setnam1_filename
+    lda #>ferror__18
+    sta.z cbm_k_setnam1_filename+1
+    // ferror::cbm_k_setnam1
+    // strlen(filename)
+    // [2366] strlen::str#5 = ferror::cbm_k_setnam1_filename -- pbuz1=pbuz2 
+    lda.z cbm_k_setnam1_filename
+    sta.z strlen.str
+    lda.z cbm_k_setnam1_filename+1
+    sta.z strlen.str+1
+    // [2367] call strlen
+    // [1920] phi from ferror::cbm_k_setnam1 to strlen [phi:ferror::cbm_k_setnam1->strlen]
+    // [1920] phi strlen::str#8 = strlen::str#5 [phi:ferror::cbm_k_setnam1->strlen#0] -- register_copy 
+    jsr strlen
+    // strlen(filename)
+    // [2368] strlen::return#12 = strlen::len#2
+    // ferror::@12
+    // [2369] ferror::cbm_k_setnam1_$0 = strlen::return#12 -- vwuz1=vwum2 
+    lda strlen.return
+    sta.z cbm_k_setnam1_ferror__0
+    lda strlen.return+1
+    sta.z cbm_k_setnam1_ferror__0+1
+    // char filename_len = (char)strlen(filename)
+    // [2370] ferror::cbm_k_setnam1_filename_len = (char)ferror::cbm_k_setnam1_$0 -- vbum1=_byte_vwuz2 
+    lda.z cbm_k_setnam1_ferror__0
+    sta cbm_k_setnam1_filename_len
+    // asm
+    // asm { ldafilename_len ldxfilename ldyfilename+1 jsrCBM_SETNAM  }
+    ldx cbm_k_setnam1_filename
+    ldy cbm_k_setnam1_filename+1
+    jsr CBM_SETNAM
+    // ferror::cbm_k_open1
+    // asm { jsrCBM_OPEN  }
+    jsr CBM_OPEN
+    // ferror::@6
+    // cbm_k_chkin(15)
+    // [2373] ferror::cbm_k_chkin1_channel = $f -- vbum1=vbuc1 
+    lda #$f
+    sta cbm_k_chkin1_channel
+    // ferror::cbm_k_chkin1
+    // char status
+    // [2374] ferror::cbm_k_chkin1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_chkin1_status
+    // asm
+    // asm { ldxchannel jsrCBM_CHKIN stastatus  }
+    ldx cbm_k_chkin1_channel
+    jsr CBM_CHKIN
+    sta cbm_k_chkin1_status
+    // ferror::cbm_k_chrin1
+    // char ch
+    // [2376] ferror::cbm_k_chrin1_ch = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_chrin1_ch
+    // asm
+    // asm { jsrCBM_CHRIN stach  }
+    jsr CBM_CHRIN
+    sta cbm_k_chrin1_ch
+    // return ch;
+    // [2378] ferror::cbm_k_chrin1_return#0 = ferror::cbm_k_chrin1_ch -- vbum1=vbum2 
+    sta cbm_k_chrin1_return
+    // ferror::cbm_k_chrin1_@return
+    // }
+    // [2379] ferror::cbm_k_chrin1_return#1 = ferror::cbm_k_chrin1_return#0
+    // ferror::@7
+    // char ch = cbm_k_chrin()
+    // [2380] ferror::ch#0 = ferror::cbm_k_chrin1_return#1
+    // [2381] phi from ferror::@7 to ferror::cbm_k_readst1 [phi:ferror::@7->ferror::cbm_k_readst1]
+    // [2381] phi __errno#18 = __errno#117 [phi:ferror::@7->ferror::cbm_k_readst1#0] -- register_copy 
+    // [2381] phi ferror::errno_len#10 = 0 [phi:ferror::@7->ferror::cbm_k_readst1#1] -- vbuz1=vbuc1 
+    lda #0
+    sta.z errno_len
+    // [2381] phi ferror::ch#10 = ferror::ch#0 [phi:ferror::@7->ferror::cbm_k_readst1#2] -- register_copy 
+    // [2381] phi ferror::errno_parsed#2 = 0 [phi:ferror::@7->ferror::cbm_k_readst1#3] -- vbum1=vbuc1 
+    sta errno_parsed
+    // ferror::cbm_k_readst1
+  cbm_k_readst1:
+    // char status
+    // [2382] ferror::cbm_k_readst1_status = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_readst1_status
+    // asm
+    // asm { jsrCBM_READST stastatus  }
+    jsr CBM_READST
+    sta cbm_k_readst1_status
+    // return status;
+    // [2384] ferror::cbm_k_readst1_return#0 = ferror::cbm_k_readst1_status -- vbum1=vbum2 
+    sta cbm_k_readst1_return
+    // ferror::cbm_k_readst1_@return
+    // }
+    // [2385] ferror::cbm_k_readst1_return#1 = ferror::cbm_k_readst1_return#0
+    // ferror::@8
+    // cbm_k_readst()
+    // [2386] ferror::$6 = ferror::cbm_k_readst1_return#1 -- vbuz1=vbum2 
+    sta.z ferror__6
+    // st = cbm_k_readst()
+    // [2387] ferror::st#1 = ferror::$6 -- vbum1=vbuz2 
+    sta st
+    // while (!(st = cbm_k_readst()))
+    // [2388] if(0==ferror::st#1) goto ferror::@1 -- 0_eq_vbum1_then_la1 
+    beq __b1
+    // ferror::@2
+    // __status = st
+    // [2389] ((char *)&__stdio_file+$46)[ferror::sp#0] = ferror::st#1 -- pbuc1_derefidx_vbum1=vbum2 
+    ldy sp
+    sta __stdio_file+$46,y
+    // cbm_k_close(15)
+    // [2390] ferror::cbm_k_close1_channel = $f -- vbum1=vbuc1 
+    lda #$f
+    sta cbm_k_close1_channel
+    // ferror::cbm_k_close1
+    // asm
+    // asm { ldachannel jsrCBM_CLOSE  }
+    jsr CBM_CLOSE
+    // ferror::@9
+    // return __errno;
+    // [2392] ferror::return#1 = __errno#18 -- vwsm1=vwsm2 
+    lda __errno
+    sta return
+    lda __errno+1
+    sta return+1
+    // ferror::@return
+    // }
+    // [2393] return 
+    rts
+    // ferror::@1
+  __b1:
+    // if (!errno_parsed)
+    // [2394] if(0!=ferror::errno_parsed#2) goto ferror::@3 -- 0_neq_vbum1_then_la1 
+    lda errno_parsed
+    bne __b3
+    // ferror::@4
+    // if (ch == ',')
+    // [2395] if(ferror::ch#10!=',') goto ferror::@3 -- vbum1_neq_vbuc1_then_la1 
+    lda #','
+    cmp ch
+    bne __b3
+    // ferror::@5
+    // errno_parsed++;
+    // [2396] ferror::errno_parsed#1 = ++ ferror::errno_parsed#2 -- vbum1=_inc_vbum1 
+    inc errno_parsed
+    // strncpy(temp, __errno_error, errno_len+1)
+    // [2397] strncpy::n#0 = ferror::errno_len#10 + 1 -- vwum1=vbuz2_plus_1 
+    lda.z errno_len
+    clc
+    adc #1
+    sta strncpy.n
+    lda #0
+    adc #0
+    sta strncpy.n+1
+    // [2398] call strncpy
+    // [2440] phi from ferror::@5 to strncpy [phi:ferror::@5->strncpy]
+    jsr strncpy
+    // [2399] phi from ferror::@5 to ferror::@13 [phi:ferror::@5->ferror::@13]
+    // ferror::@13
+    // atoi(temp)
+    // [2400] call atoi
+    // [2412] phi from ferror::@13 to atoi [phi:ferror::@13->atoi]
+    // [2412] phi atoi::str#2 = ferror::temp [phi:ferror::@13->atoi#0] -- pbuz1=pbuc1 
+    lda #<temp
+    sta.z atoi.str
+    lda #>temp
+    sta.z atoi.str+1
+    jsr atoi
+    // atoi(temp)
+    // [2401] atoi::return#4 = atoi::return#2
+    // ferror::@14
+    // __errno = atoi(temp)
+    // [2402] __errno#2 = atoi::return#4 -- vwsm1=vwsm2 
+    lda atoi.return
+    sta __errno
+    lda atoi.return+1
+    sta __errno+1
+    // [2403] phi from ferror::@1 ferror::@14 ferror::@4 to ferror::@3 [phi:ferror::@1/ferror::@14/ferror::@4->ferror::@3]
+    // [2403] phi __errno#115 = __errno#18 [phi:ferror::@1/ferror::@14/ferror::@4->ferror::@3#0] -- register_copy 
+    // [2403] phi ferror::errno_parsed#11 = ferror::errno_parsed#2 [phi:ferror::@1/ferror::@14/ferror::@4->ferror::@3#1] -- register_copy 
+    // ferror::@3
+  __b3:
+    // __errno_error[errno_len] = ch
+    // [2404] __errno_error[ferror::errno_len#10] = ferror::ch#10 -- pbuc1_derefidx_vbuz1=vbum2 
+    lda ch
+    ldy.z errno_len
+    sta __errno_error,y
+    // errno_len++;
+    // [2405] ferror::errno_len#1 = ++ ferror::errno_len#10 -- vbuz1=_inc_vbuz1 
+    inc.z errno_len
+    // ferror::cbm_k_chrin2
+    // char ch
+    // [2406] ferror::cbm_k_chrin2_ch = 0 -- vbum1=vbuc1 
+    lda #0
+    sta cbm_k_chrin2_ch
+    // asm
+    // asm { jsrCBM_CHRIN stach  }
+    jsr CBM_CHRIN
+    sta cbm_k_chrin2_ch
+    // return ch;
+    // [2408] ferror::cbm_k_chrin2_return#0 = ferror::cbm_k_chrin2_ch -- vbum1=vbum2 
+    sta cbm_k_chrin2_return
+    // ferror::cbm_k_chrin2_@return
+    // }
+    // [2409] ferror::cbm_k_chrin2_return#1 = ferror::cbm_k_chrin2_return#0
+    // ferror::@10
+    // cbm_k_chrin()
+    // [2410] ferror::$15 = ferror::cbm_k_chrin2_return#1 -- vbuz1=vbum2 
+    sta.z ferror__15
+    // ch = cbm_k_chrin()
+    // [2411] ferror::ch#1 = ferror::$15 -- vbum1=vbuz2 
+    sta ch
+    // [2381] phi from ferror::@10 to ferror::cbm_k_readst1 [phi:ferror::@10->ferror::cbm_k_readst1]
+    // [2381] phi __errno#18 = __errno#115 [phi:ferror::@10->ferror::cbm_k_readst1#0] -- register_copy 
+    // [2381] phi ferror::errno_len#10 = ferror::errno_len#1 [phi:ferror::@10->ferror::cbm_k_readst1#1] -- register_copy 
+    // [2381] phi ferror::ch#10 = ferror::ch#1 [phi:ferror::@10->ferror::cbm_k_readst1#2] -- register_copy 
+    // [2381] phi ferror::errno_parsed#2 = ferror::errno_parsed#11 [phi:ferror::@10->ferror::cbm_k_readst1#3] -- register_copy 
+    jmp cbm_k_readst1
+  .segment Data
+    temp: .fill 4, 0
+    ferror__18: .text ""
+    .byte 0
+    cbm_k_setnam1_filename_len: .byte 0
+    cbm_k_chkin1_channel: .byte 0
+    cbm_k_chkin1_status: .byte 0
+    cbm_k_chrin1_ch: .byte 0
+    cbm_k_readst1_status: .byte 0
+    cbm_k_close1_channel: .byte 0
+    cbm_k_chrin2_ch: .byte 0
+    return: .word 0
+    sp: .byte 0
+    .label cbm_k_chrin1_return = ch
+    ch: .byte 0
+    cbm_k_readst1_return: .byte 0
+    st: .byte 0
+    cbm_k_chrin2_return: .byte 0
+    errno_parsed: .byte 0
+}
+.segment Code
+  // atoi
+// Converts the string argument str to an integer.
+// __mem() int atoi(__zp($50) const char *str)
+atoi: {
+    .label atoi__6 = $48
+    .label atoi__7 = $48
+    .label str = $50
+    .label atoi__10 = $48
+    .label atoi__11 = $48
+    // if (str[i] == '-')
+    // [2413] if(*atoi::str#2!='-') goto atoi::@3 -- _deref_pbuz1_neq_vbuc1_then_la1 
+    ldy #0
+    lda (str),y
+    cmp #'-'
+    bne __b2
+    // [2414] phi from atoi to atoi::@2 [phi:atoi->atoi::@2]
+    // atoi::@2
+    // [2415] phi from atoi::@2 to atoi::@3 [phi:atoi::@2->atoi::@3]
+    // [2415] phi atoi::negative#2 = 1 [phi:atoi::@2->atoi::@3#0] -- vbum1=vbuc1 
+    lda #1
+    sta negative
+    // [2415] phi atoi::res#2 = 0 [phi:atoi::@2->atoi::@3#1] -- vwsm1=vwsc1 
+    tya
+    sta res
+    sta res+1
+    // [2415] phi atoi::i#4 = 1 [phi:atoi::@2->atoi::@3#2] -- vbum1=vbuc1 
+    lda #1
+    sta i
+    jmp __b3
+  // Iterate through all digits and update the result
+    // [2415] phi from atoi to atoi::@3 [phi:atoi->atoi::@3]
+  __b2:
+    // [2415] phi atoi::negative#2 = 0 [phi:atoi->atoi::@3#0] -- vbum1=vbuc1 
+    lda #0
+    sta negative
+    // [2415] phi atoi::res#2 = 0 [phi:atoi->atoi::@3#1] -- vwsm1=vwsc1 
+    sta res
+    sta res+1
+    // [2415] phi atoi::i#4 = 0 [phi:atoi->atoi::@3#2] -- vbum1=vbuc1 
+    sta i
+    // atoi::@3
+  __b3:
+    // for (; str[i]>='0' && str[i]<='9'; ++i)
+    // [2416] if(atoi::str#2[atoi::i#4]<'0') goto atoi::@5 -- pbuz1_derefidx_vbum2_lt_vbuc1_then_la1 
+    ldy i
+    lda (str),y
+    cmp #'0'
+    bcc __b5
+    // atoi::@6
+    // [2417] if(atoi::str#2[atoi::i#4]<='9') goto atoi::@4 -- pbuz1_derefidx_vbum2_le_vbuc1_then_la1 
+    lda (str),y
+    cmp #'9'
+    bcc __b4
+    beq __b4
+    // atoi::@5
+  __b5:
+    // if(negative)
+    // [2418] if(0!=atoi::negative#2) goto atoi::@1 -- 0_neq_vbum1_then_la1 
+    // Return result with sign
+    lda negative
+    bne __b1
+    // [2420] phi from atoi::@1 atoi::@5 to atoi::@return [phi:atoi::@1/atoi::@5->atoi::@return]
+    // [2420] phi atoi::return#2 = atoi::return#0 [phi:atoi::@1/atoi::@5->atoi::@return#0] -- register_copy 
+    rts
+    // atoi::@1
+  __b1:
+    // return -res;
+    // [2419] atoi::return#0 = - atoi::res#2 -- vwsm1=_neg_vwsm1 
+    lda #0
+    sec
+    sbc return
+    sta return
+    lda #0
+    sbc return+1
+    sta return+1
+    // atoi::@return
+    // }
+    // [2421] return 
+    rts
+    // atoi::@4
+  __b4:
+    // res * 10
+    // [2422] atoi::$10 = atoi::res#2 << 2 -- vwsz1=vwsm2_rol_2 
+    lda res
+    asl
+    sta.z atoi__10
+    lda res+1
+    rol
+    sta.z atoi__10+1
+    asl.z atoi__10
+    rol.z atoi__10+1
+    // [2423] atoi::$11 = atoi::$10 + atoi::res#2 -- vwsz1=vwsz1_plus_vwsm2 
+    clc
+    lda.z atoi__11
+    adc res
+    sta.z atoi__11
+    lda.z atoi__11+1
+    adc res+1
+    sta.z atoi__11+1
+    // [2424] atoi::$6 = atoi::$11 << 1 -- vwsz1=vwsz1_rol_1 
+    asl.z atoi__6
+    rol.z atoi__6+1
+    // res * 10 + str[i]
+    // [2425] atoi::$7 = atoi::$6 + atoi::str#2[atoi::i#4] -- vwsz1=vwsz1_plus_pbuz2_derefidx_vbum3 
+    ldy i
+    lda.z atoi__7
+    clc
+    adc (str),y
+    sta.z atoi__7
+    bcc !+
+    inc.z atoi__7+1
+  !:
+    // res = res * 10 + str[i] - '0'
+    // [2426] atoi::res#1 = atoi::$7 - '0' -- vwsm1=vwsz2_minus_vbuc1 
+    lda.z atoi__7
+    sec
+    sbc #'0'
+    sta res
+    lda.z atoi__7+1
+    sbc #0
+    sta res+1
+    // for (; str[i]>='0' && str[i]<='9'; ++i)
+    // [2427] atoi::i#2 = ++ atoi::i#4 -- vbum1=_inc_vbum1 
+    inc i
+    // [2415] phi from atoi::@4 to atoi::@3 [phi:atoi::@4->atoi::@3]
+    // [2415] phi atoi::negative#2 = atoi::negative#2 [phi:atoi::@4->atoi::@3#0] -- register_copy 
+    // [2415] phi atoi::res#2 = atoi::res#1 [phi:atoi::@4->atoi::@3#1] -- register_copy 
+    // [2415] phi atoi::i#4 = atoi::i#2 [phi:atoi::@4->atoi::@3#2] -- register_copy 
+    jmp __b3
+  .segment Data
+    .label res = return
+    // Initialize sign as positive
+    i: .byte 0
+    return: .word 0
+    // Initialize result
+    negative: .byte 0
+}
+.segment Code
+  // cx16_k_macptr
+/**
+ * @brief Read a number of bytes from the sdcard using kernal macptr call.
+ * BRAM bank needs to be set properly before the load between adressed A000 and BFFF.
+ *
+ * @return x the size of bytes read
+ * @return y the size of bytes read
+ * @return if carry is set there is an error
+ */
+// __mem() unsigned int cx16_k_macptr(__mem() volatile char bytes, __zp($4e) void * volatile buffer)
+cx16_k_macptr: {
+    .label buffer = $4e
+    // unsigned int bytes_read
+    // [2428] cx16_k_macptr::bytes_read = 0 -- vwum1=vwuc1 
+    lda #<0
+    sta bytes_read
+    sta bytes_read+1
+    // asm
+    // asm { ldabytes ldxbuffer ldybuffer+1 clc jsrCX16_MACPTR stxbytes_read stybytes_read+1 bcc!+ lda#$FF stabytes_read stabytes_read+1 !:  }
+    lda bytes
+    ldx buffer
+    ldy buffer+1
+    clc
+    jsr CX16_MACPTR
+    stx bytes_read
+    sty bytes_read+1
+    bcc !+
+    lda #$ff
+    sta bytes_read
+    sta bytes_read+1
+  !:
+    // return bytes_read;
+    // [2430] cx16_k_macptr::return#0 = cx16_k_macptr::bytes_read -- vwum1=vwum2 
+    lda bytes_read
+    sta return
+    lda bytes_read+1
+    sta return+1
+    // cx16_k_macptr::@return
+    // }
+    // [2431] cx16_k_macptr::return#1 = cx16_k_macptr::return#0
+    // [2432] return 
+    rts
+  .segment Data
+    bytes: .byte 0
+    bytes_read: .word 0
+    .label return = fgets.bytes
+}
+.segment Code
+  // ultoa_append
+// Used to convert a single digit of an unsigned number value to a string representation
+// Counts a single digit up from '0' as long as the value is larger than sub.
+// Each time the digit is increased sub is subtracted from value.
+// - buffer : pointer to the char that receives the digit
+// - value : The value where the digit will be derived from
+// - sub : the value of a '1' in the digit. Subtracted continually while the digit is increased.
+//        (For decimal the subs used are 10000, 1000, 100, 10, 1)
+// returns : the value reduced by sub * digit so that it is less than sub.
+// __mem() unsigned long ultoa_append(__zp($3d) char *buffer, __mem() unsigned long value, __mem() unsigned long sub)
+ultoa_append: {
+    .label buffer = $3d
+    // [2434] phi from ultoa_append to ultoa_append::@1 [phi:ultoa_append->ultoa_append::@1]
+    // [2434] phi ultoa_append::digit#2 = 0 [phi:ultoa_append->ultoa_append::@1#0] -- vbum1=vbuc1 
+    lda #0
+    sta digit
+    // [2434] phi ultoa_append::value#2 = ultoa_append::value#0 [phi:ultoa_append->ultoa_append::@1#1] -- register_copy 
+    // ultoa_append::@1
+  __b1:
+    // while (value >= sub)
+    // [2435] if(ultoa_append::value#2>=ultoa_append::sub#0) goto ultoa_append::@2 -- vdum1_ge_vdum2_then_la1 
+    lda value+3
+    cmp sub+3
+    bcc !+
+    bne __b2
+    lda value+2
+    cmp sub+2
+    bcc !+
+    bne __b2
+    lda value+1
+    cmp sub+1
+    bcc !+
+    bne __b2
+    lda value
+    cmp sub
+    bcs __b2
+  !:
+    // ultoa_append::@3
+    // *buffer = DIGITS[digit]
+    // [2436] *ultoa_append::buffer#0 = DIGITS[ultoa_append::digit#2] -- _deref_pbuz1=pbuc1_derefidx_vbum2 
+    ldy digit
+    lda DIGITS,y
+    ldy #0
+    sta (buffer),y
+    // ultoa_append::@return
+    // }
+    // [2437] return 
+    rts
+    // ultoa_append::@2
+  __b2:
+    // digit++;
+    // [2438] ultoa_append::digit#1 = ++ ultoa_append::digit#2 -- vbum1=_inc_vbum1 
+    inc digit
+    // value -= sub
+    // [2439] ultoa_append::value#1 = ultoa_append::value#2 - ultoa_append::sub#0 -- vdum1=vdum1_minus_vdum2 
+    lda value
+    sec
+    sbc sub
+    sta value
+    lda value+1
+    sbc sub+1
+    sta value+1
+    lda value+2
+    sbc sub+2
+    sta value+2
+    lda value+3
+    sbc sub+3
+    sta value+3
+    // [2434] phi from ultoa_append::@2 to ultoa_append::@1 [phi:ultoa_append::@2->ultoa_append::@1]
+    // [2434] phi ultoa_append::digit#2 = ultoa_append::digit#1 [phi:ultoa_append::@2->ultoa_append::@1#0] -- register_copy 
+    // [2434] phi ultoa_append::value#2 = ultoa_append::value#1 [phi:ultoa_append::@2->ultoa_append::@1#1] -- register_copy 
+    jmp __b1
+  .segment Data
+    .label value = printf_ulong.uvalue
+    .label sub = ultoa.digit_value
+    .label return = printf_ulong.uvalue
+    digit: .byte 0
+}
+.segment Code
+  // strncpy
+/// Copies up to n characters from the string pointed to, by src to dst.
+/// In a case where the length of src is less than that of n, the remainder of dst will be padded with null bytes.
+/// @param dst ? This is the pointer to the destination array where the content is to be copied.
+/// @param src ? This is the string to be copied.
+/// @param n ? The number of characters to be copied from source.
+/// @return The destination
+// char * strncpy(__zp($3b) char *dst, __zp($37) const char *src, __mem() unsigned int n)
+strncpy: {
+    .label dst = $3b
+    .label src = $37
+    // [2441] phi from strncpy to strncpy::@1 [phi:strncpy->strncpy::@1]
+    // [2441] phi strncpy::dst#2 = ferror::temp [phi:strncpy->strncpy::@1#0] -- pbuz1=pbuc1 
+    lda #<ferror.temp
+    sta.z dst
+    lda #>ferror.temp
+    sta.z dst+1
+    // [2441] phi strncpy::src#2 = __errno_error [phi:strncpy->strncpy::@1#1] -- pbuz1=pbuc1 
+    lda #<__errno_error
+    sta.z src
+    lda #>__errno_error
+    sta.z src+1
+    // [2441] phi strncpy::i#2 = 0 [phi:strncpy->strncpy::@1#2] -- vwum1=vwuc1 
+    lda #<0
+    sta i
+    sta i+1
+    // strncpy::@1
+  __b1:
+    // for(size_t i = 0;i<n;i++)
+    // [2442] if(strncpy::i#2<strncpy::n#0) goto strncpy::@2 -- vwum1_lt_vwum2_then_la1 
+    lda i+1
+    cmp n+1
+    bcc __b2
+    bne !+
+    lda i
+    cmp n
+    bcc __b2
+  !:
+    // strncpy::@return
+    // }
+    // [2443] return 
+    rts
+    // strncpy::@2
+  __b2:
+    // char c = *src
+    // [2444] strncpy::c#0 = *strncpy::src#2 -- vbum1=_deref_pbuz2 
+    ldy #0
+    lda (src),y
+    sta c
+    // if(c)
+    // [2445] if(0==strncpy::c#0) goto strncpy::@3 -- 0_eq_vbum1_then_la1 
+    beq __b3
+    // strncpy::@4
+    // src++;
+    // [2446] strncpy::src#0 = ++ strncpy::src#2 -- pbuz1=_inc_pbuz1 
+    inc.z src
+    bne !+
+    inc.z src+1
+  !:
+    // [2447] phi from strncpy::@2 strncpy::@4 to strncpy::@3 [phi:strncpy::@2/strncpy::@4->strncpy::@3]
+    // [2447] phi strncpy::src#6 = strncpy::src#2 [phi:strncpy::@2/strncpy::@4->strncpy::@3#0] -- register_copy 
+    // strncpy::@3
+  __b3:
+    // *dst++ = c
+    // [2448] *strncpy::dst#2 = strncpy::c#0 -- _deref_pbuz1=vbum2 
+    lda c
+    ldy #0
+    sta (dst),y
+    // *dst++ = c;
+    // [2449] strncpy::dst#0 = ++ strncpy::dst#2 -- pbuz1=_inc_pbuz1 
+    inc.z dst
+    bne !+
+    inc.z dst+1
+  !:
+    // for(size_t i = 0;i<n;i++)
+    // [2450] strncpy::i#1 = ++ strncpy::i#2 -- vwum1=_inc_vwum1 
+    inc i
+    bne !+
+    inc i+1
+  !:
+    // [2441] phi from strncpy::@3 to strncpy::@1 [phi:strncpy::@3->strncpy::@1]
+    // [2441] phi strncpy::dst#2 = strncpy::dst#0 [phi:strncpy::@3->strncpy::@1#0] -- register_copy 
+    // [2441] phi strncpy::src#2 = strncpy::src#6 [phi:strncpy::@3->strncpy::@1#1] -- register_copy 
+    // [2441] phi strncpy::i#2 = strncpy::i#1 [phi:strncpy::@3->strncpy::@1#2] -- register_copy 
+    jmp __b1
+  .segment Data
+    c: .byte 0
+    i: .word 0
+    n: .word 0
 }
   // File Data
+  /**
+ * @file errno.c
+ * @author Sven Van de Velde (sven.van.de.velde@telenet.be)
+ * @brief Contains the POSIX implementation of errno, which contains the last error detected.
+ * @version 0.1
+ * @date 2023-03-18
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+  __errno_error: .fill $20, 0
   // The digits used for numbers
   DIGITS: .text "0123456789abcdef"
   // Values of binary digits
@@ -9358,19 +15610,24 @@ toupper: {
   RADIX_DECIMAL_VALUES_CHAR: .byte $64, $a
   // Values of hexadecimal digits
   RADIX_HEXADECIMAL_VALUES_CHAR: .byte $10
+  // Values of binary digits
+  RADIX_BINARY_VALUES: .word $8000, $4000, $2000, $1000, $800, $400, $200, $100, $80, $40, $20, $10, 8, 4, 2
+  // Values of octal digits
+  RADIX_OCTAL_VALUES: .word $8000, $1000, $200, $40, 8
   // Values of decimal digits
   RADIX_DECIMAL_VALUES: .word $2710, $3e8, $64, $a
-  info_text: .fill $50, 0
-  status_text: .word __3, __4, __5, __6, __7, __8, __9, __10, __11, __12, __13
-  status_color: .byte BLACK, GREY, WHITE, CYAN, PURPLE, CYAN, PURPLE, PURPLE, GREEN, YELLOW, RED
-  status_rom: .byte 0
-  .fill 7, 0
-  display_into_briefing_text: .word __14, __15, __75, __17, __18, __19, __20, __21, __22, __75, __24, __25, __75, __27, __28
-  display_into_colors_text: .word __29, __30, __75, __32, __33, __34, __35, __36, __37, __38, __39, __40, __41, __42, __75, __44
-  display_smc_rom_issue_text: .word __45, __75, __55, __48, __75, __50, __51, __52
-  display_smc_unsupported_rom_text: .word __53, __75, __55, __56, __75, __58, __59
-  display_debriefing_text_smc: .word __74, __75, main.text, __75, __64, __65, __66, __75, __68, __75, __70, __71, __72, __73
-  display_debriefing_text_rom: .word __74, __75, __76, __77
+  // Values of hexadecimal digits
+  RADIX_HEXADECIMAL_VALUES: .word $1000, $100, $10
+  // Values of hexadecimal digits
+  RADIX_HEXADECIMAL_VALUES_LONG: .dword $10000000, $1000000, $100000, $10000, $1000, $100, $10
+  display_into_briefing_text: .word __3, __4, ferror.ferror__18, __6, __7, __8, __9, __10, __11, ferror.ferror__18, __13, __14, ferror.ferror__18, __16, __17
+  display_into_colors_text: .word __18, __19, ferror.ferror__18, __21, __22, __23, __24, __25, __26, __27, __28, __29, __30, __31, ferror.ferror__18, __33
+  display_close_jp1_spi_vera_text: .word __34, __35
+  display_open_jp1_spi_vera_text: .word __36, __37, __38, __39
+  display_smc_rom_issue_text: .word __40, ferror.ferror__18, __50, __43, ferror.ferror__18, __45, __46, __47
+  display_smc_unsupported_rom_text: .word __48, ferror.ferror__18, __50, __51, ferror.ferror__18, __53, __54
+  display_debriefing_text_smc: .word __69, ferror.ferror__18, main.text, ferror.ferror__18, __59, __60, __61, ferror.ferror__18, __63, ferror.ferror__18, __65, __66, __67, __68
+  display_debriefing_text_rom: .word __69, ferror.ferror__18, __71, __72
   smc_file_header: .fill $20, 0
   smc_version_text: .fill $10, 0
   rom_device_names: .word 0
@@ -9379,125 +15636,143 @@ toupper: {
   .fill 2*7, 0
   rom_release_text: .fill 8*$d, 0
   rom_release: .fill 8, 0
-  __3: .text "None"
+  status_rom: .byte 0
+  .fill 7, 0
+  file: .fill $20, 0
+  info_text: .fill $50, 0
+  status_text: .word __73, __74, __75, vera_read.vera_action_text_2, vera_read.vera_action_text_1, __78, __79, __80, __81, __82, __83, __84
+  status_color: .byte BLACK, GREY, WHITE, CYAN, PURPLE, CYAN, PURPLE, PURPLE, GREEN, YELLOW, RED, PINK
+  __3: .text "Welcome to the CX16 update tool! This program updates the"
   .byte 0
-  __4: .text "Skip"
+  __4: .text "chipsets on your CX16 and ROM expansion boards."
   .byte 0
-  __5: .text "Detected"
+  __6: .text "Depending on the files found on the SDCard, various"
   .byte 0
-  __6: .text "Checking"
+  __7: .text "components will be updated:"
   .byte 0
-  __7: .text "Reading"
+  __8: .text "- Mandatory: SMC.BIN for the SMC firmware."
   .byte 0
-  __8: .text "Comparing"
+  __9: .text "- Mandatory: ROM.BIN for the main ROM."
   .byte 0
-  __9: .text "Update"
+  __10: .text "- Optional: VERA.BIN for the VERA firmware."
   .byte 0
-  __10: .text "Updating"
+  __11: .text "- Optional: ROMn.BIN for a ROM expansion board or cartridge."
   .byte 0
-  __11: .text "Updated"
+  __13: .text "  Important: Ensure J1 write-enable jumper is closed"
   .byte 0
-  __12: .text "Issue"
+  __14: .text "  on both the main board and any ROM expansion board."
   .byte 0
-  __13: .text "Error"
+  __16: .text "Please carefully read the step-by-step instructions at "
   .byte 0
-  __14: .text "Welcome to the CX16 update tool! This program updates the"
+  __17: .text "https://flightcontrol-user.github.io/x16-flash"
   .byte 0
-  __15: .text "chipsets on your CX16 and ROM expansion boards."
+  __18: .text "The panels above indicate the update progress,"
   .byte 0
-  __17: .text "Depending on the files found on the SDCard, various"
+  __19: .text "using status indicators and colors as specified below:"
   .byte 0
-  __18: .text "components will be updated:"
+  __21: .text " -   None       Not detected, no action."
   .byte 0
-  __19: .text "- Mandatory: SMC.BIN for the SMC firmware."
+  __22: .text " -   Skipped    Detected, but no action, eg. no file."
   .byte 0
-  __20: .text "- Mandatory: ROM.BIN for the main ROM."
+  __23: .text " -   Detected   Detected, verification pending."
   .byte 0
-  __21: .text "- Optional: VERA.BIN for the VERA firmware."
+  __24: .text " -   Checking   Verifying size of the update file."
   .byte 0
-  __22: .text "- Optional: ROMn.BIN for a ROM expansion board or cartridge."
+  __25: .text " -   Reading    Reading the update file into RAM."
   .byte 0
-  __24: .text "  Important: Ensure J1 write-enable jumper is closed"
+  __26: .text " -   Comparing  Comparing the RAM with the ROM."
   .byte 0
-  __25: .text "  on both the main board and any ROM expansion board."
+  __27: .text " -   Update     Ready to update the firmware."
   .byte 0
-  __27: .text "Please carefully read the step-by-step instructions at "
+  __28: .text " -   Updating   Updating the firmware."
   .byte 0
-  __28: .text "https://flightcontrol-user.github.io/x16-flash"
+  __29: .text " -   Updated    Updated the firmware succesfully."
   .byte 0
-  __29: .text "The panels above indicate the update progress,"
+  __30: .text " -   Issue      Problem identified during update."
   .byte 0
-  __30: .text "using status indicators and colors as specified below:"
+  __31: .text " -   Error      Error found during update."
   .byte 0
-  __32: .text " -   None       Not detected, no action."
+  __33: .text "Errors can indicate J1 jumpers are not closed!"
   .byte 0
-  __33: .text " -   Skipped    Detected, but no action, eg. no file."
+  __34: .text "Closing the JP1 jumper pins on the VERA board is required"
   .byte 0
-  __34: .text " -   Detected   Detected, verification pending."
+  __35: .text "to direct the SPI to the VERA flash memory instead of the SDCard"
   .byte 0
-  __35: .text " -   Checking   Verifying size of the update file."
+  __36: .text "Opening the JP1 jumper pins on the VERA board is required"
   .byte 0
-  __36: .text " -   Reading    Reading the update file into RAM."
+  __37: .text "to direct the SPI to the SDCard. The update utility needs"
   .byte 0
-  __37: .text " -   Comparing  Comparing the RAM with the ROM."
+  __38: .text "the SDCard to further read the update .BIN files from the"
   .byte 0
-  __38: .text " -   Update     Ready to update the firmware."
+  __39: .text "SDCard for the remaining CX16 components to be updated!"
   .byte 0
-  __39: .text " -   Updating   Updating the firmware."
+  __40: .text "There is an issue with the CX16 SMC or ROM flash readiness."
   .byte 0
-  __40: .text " -   Updated    Updated the firmware succesfully."
+  __43: .text "to avoid possible conflicts of firmware, bricking your CX16."
   .byte 0
-  __41: .text " -   Issue      Problem identified during update."
+  __45: .text "Therefore, ensure you have the correct SMC.BIN and ROM.BIN"
   .byte 0
-  __42: .text " -   Error      Error found during update."
+  __46: .text "files placed on your SDcard. Also ensure that the"
   .byte 0
-  __44: .text "Errors can indicate J1 jumpers are not closed!"
+  __47: .text "J1 jumper pins on the CX16 board are closed."
   .byte 0
-  __45: .text "There is an issue with the CX16 SMC or ROM flash readiness."
+  __48: .text "There is an issue with the CX16 SMC or ROM flash versions."
   .byte 0
-  __48: .text "to avoid possible conflicts of firmware, bricking your CX16."
+  __50: .text "Both the SMC and the main ROM must be updated together,"
   .byte 0
-  __50: .text "Therefore, ensure you have the correct SMC.BIN and ROM.BIN"
+  __51: .text "to avoid possible conflicts, risking bricking your CX16."
   .byte 0
-  __51: .text "files placed on your SDcard. Also ensure that the"
+  __53: .text "The SMC.BIN and ROM.BIN found on your SDCard may not be"
   .byte 0
-  __52: .text "J1 jumper pins on the CX16 board are closed."
+  __54: .text "mutually compatible. Update the CX16 at your own risk!"
   .byte 0
-  __53: .text "There is an issue with the CX16 SMC or ROM flash versions."
+  __59: .text "Because your SMC chipset has been updated,"
   .byte 0
-  __55: .text "Both the SMC and the main ROM must be updated together,"
+  __60: .text "the restart process differs, depending on the"
   .byte 0
-  __56: .text "to avoid possible conflicts, risking bricking your CX16."
+  __61: .text "SMC boootloader version installed on your CX16 board:"
   .byte 0
-  __58: .text "The SMC.BIN and ROM.BIN found on your SDCard may not be"
+  __63: .text "- SMC bootloader v2.0: your CX16 will automatically shut down."
   .byte 0
-  __59: .text "mutually compatible. Update the CX16 at your own risk!"
+  __65: .text "- SMC bootloader v1.0: you need to "
   .byte 0
-  __64: .text "Because your SMC chipset has been updated,"
+  __66: .text "  COMPLETELY DISCONNECT your CX16 from the power source!"
   .byte 0
-  __65: .text "the restart process differs, depending on the"
+  __67: .text "  The power-off button won't work!"
   .byte 0
-  __66: .text "SMC boootloader version installed on your CX16 board:"
+  __68: .text "  Then, reconnect and start the CX16 normally."
   .byte 0
-  __68: .text "- SMC bootloader v2.0: your CX16 will automatically shut down."
+  __69: .text "Your CX16 system has been successfully updated!"
   .byte 0
-  __70: .text "- SMC bootloader v1.0: you need to "
+  __71: .text "Since your CX16 system SMC chip has not been updated"
   .byte 0
-  __71: .text "  COMPLETELY DISCONNECT your CX16 from the power source!"
+  __72: .text "your CX16 will just reset automatically after count down."
   .byte 0
-  __72: .text "  The power-off button won't work!"
+  __73: .text "None"
   .byte 0
-  __73: .text "  Then, reconnect and start the CX16 normally."
+  __74: .text "Skip"
   .byte 0
-  __74: .text "Your CX16 system has been successfully updated!"
+  __75: .text "Detected"
   .byte 0
-  __75: .text ""
+  __78: .text "Comparing"
   .byte 0
-  __76: .text "Since your CX16 system SMC chip has not been updated"
+  __79: .text "Update"
   .byte 0
-  __77: .text "your CX16 will just reset automatically after count down."
+  __80: .text "Updating"
   .byte 0
-  s3: .text " "
+  __81: .text "Updated"
+  .byte 0
+  __82: .text "Issue"
+  .byte 0
+  __83: .text "Error"
+  .byte 0
+  __84: .text "Waiting"
+  .byte 0
+  s4: .text "/"
+  .byte 0
+  s: .text " "
+  .byte 0
+  s1: .text ":"
   .byte 0
   isr_vsync: .word $314
   __conio: .fill SIZEOF_STRUCT___1, 0
@@ -9509,8 +15784,12 @@ toupper: {
   // The number of chars that would have been filled when printing without capacity. Grows even after size>capacity.
   /// Used to hold state while printing
   __snprintf_size: .word 0
+  __stdio_file: .fill SIZEOF_STRUCT___2, 0
+  __stdio_filecount: .byte 0
+  __errno: .word 0
   // Globals
   status_smc: .byte 0
+  vera_file_size: .dword 0
   status_vera: .byte 0
   spi_manufacturer: .byte 0
   spi_memory_type: .byte 0

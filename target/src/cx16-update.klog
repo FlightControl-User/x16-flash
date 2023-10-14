@@ -15,10 +15,10 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$271d Code
+  $080d-$4358 Code
 
 Data-segment:
-  $271e-$3894 Data
+  $4359-$5d15 Data
 
 Writing Vice symbol file: cx16-update.vs
 Writing Symbol file: cx16-update.sym
