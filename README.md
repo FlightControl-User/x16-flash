@@ -55,7 +55,7 @@ Notes:
 
 Copy the SMC.BIN, VERA.BIN and the ROM.BIN files on the SDcard at the same folder fro where your CX16-UPDATE.PRG file is located. Ensure the files are copied onto the SDcard with the file names in **CAPITAL** letters.
 
-## 3.2. Main CX16 ROM J1 jumper pins: CLOSED!
+### 3.2. Main CX16 ROM J1 jumper pins: CLOSED!
 
 ![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg)
 
@@ -72,7 +72,7 @@ Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. I
 
 ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg)
 
-At the start position, before the update process, ensure that the JP1 jumper pins o the VERA board are closed!
+At the start position, before the update process, ensure that the JP1 jumper pins on the VERA board are **open**! (Picture above)
 
 ![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg)
 
