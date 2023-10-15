@@ -53,5 +53,7 @@ void smc_reset();
 unsigned int smc_flash_block(bram_ptr_t ram_ptr);
 unsigned int smc_read(unsigned char info_status);
 unsigned int smc_flash(unsigned int smc_bytes_total);
+unsigned char smc_supported_rom(unsigned char rom_release);
+
 
 

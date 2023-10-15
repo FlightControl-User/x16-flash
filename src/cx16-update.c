@@ -239,7 +239,7 @@ void main() {
     
     display_frame_init_64(); // ST1 | Reset canvas to 64 columns
     display_frame_draw();
-    display_frame_title("Commander X16 Update Utility (v2.2.0)."); // ST2 | Ensure correct version
+    display_frame_title("Commander X16 Update Utility (v3.0.0) "); // ST2 | Ensure correct version
     display_info_title();
     display_action_progress("Introduction, please read carefully the below!");
     display_progress_clear();
@@ -676,9 +676,12 @@ void main() {
         return;
     }
 
+
+
+
     if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
-       check_status_roms_less(STATUS_SKIP)) {
+       (check_status_roms_less(STATUS_SKIP)) ) {
         // DE1 | All components skipped
         vera_display_set_border_color(BLACK);
         display_action_progress("No CX16 component has been updated with new firmware!");

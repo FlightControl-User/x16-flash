@@ -81,7 +81,7 @@ unsigned char check_status_card_roms(unsigned char status) {
 }
 
 /**
- * @brief Check the status of all the ROMs.
+ * @brief Check the status of any of the ROMs.
  * 
  * @param status The status to be checked.
  * @return unsigned char true if one chip is equal to the status.
@@ -96,14 +96,14 @@ unsigned char check_status_roms(unsigned char status) {
 }
 
 /**
- * @brief Check the status of all the ROMs mutually.
+ * @brief Check the status of all the ROMs.
  * 
  * @param status The status to be checked.
  * @return unsigned char true if all chips are equal to the status.
  */
 unsigned char check_status_roms_less(unsigned char status) {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
-        if(check_status_rom(rom_chip, status) > status) {
+        if((unsigned char)(status_rom[rom_chip] > status)) {
             return 0;
         }        
     }

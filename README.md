@@ -45,99 +45,164 @@ Download the latest SMC.BIN, VERA.BIN and ROM.BIN file from the Commander X16 co
 - [ROM.BIN from the ROM Release page](https://github.com/X16Community/x16-rom/releases)
 
 Notes: 
--  SMC Release page is not yet containing the correct SMC.BIN files, so download from the CX16 update tool release page. Therefore, the CX16 update tool release page contains the SMC.BIN artefacts.
+-  The SMC Release page is not yet containing the correct SMC.BIN files, so download from the CX16 update tool release page. Therefore, the CX16 update tool release page contains the SMC.BIN artefacts.
 - The names of the artefacts can differ a bit. They might contain the release number of version number. Always rename the files to the correct name!
 
-### 2.1. Update your SMC, VERA.BIN and main ROM firmware on your CX16 board
+
+## 3. Explanations of the update process.
+
+### 3.1. Copy the files on the SD card.
 
 Copy the SMC.BIN, VERA.BIN and the ROM.BIN files on the SDcard at the same folder fro where your CX16-UPDATE.PRG file is located. Ensure the files are copied onto the SDcard with the file names in **CAPITAL** letters.
 
-Ensure that the J1 jumper pins on the Commander X16 main board are closed, to remove the write protection of the on-board ROM. If the J1 jumper pins are not closed, the onboard ROM will not be recognized by the 
-update utility and an issue will be reported by the software!
+## 3.2. Main CX16 ROM J1 jumper pins: CLOSED!
 
-![ROM-onboard-dip](https://user-images.githubusercontent.com/13690775/225110062-8081d0a6-079a-405a-b03a-ab2f482fbfff.jpg)
+![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg)
 
-Once you have the J1 jumper pins properly closed, the ROM on the main board of the Commander X16 will be detected by the update utility.
+Ensure that the J1 jumper pins on the Commander X16 main board are **closed**, to **remove the write protection** of the main CX16 ROM.  
+If the J1 jumper pins are **not closed**, the **main CX16 ROM will not be detected** by the update utility and an issue will be reported by the software!
 
-Ensure that the J5 jumper pins on the Commander X16 main board are closed, to ensure that no issue occurs reading the contents of the SMC chipset. The update utility can flash the SMC with the J5 jumper pins open, but to ensure that no issue occurs, it is safer to have them also closed.
+### 3.3. SMC J5 jumper pins: CLOSED!
 
-### 2.2. Flash multiple ROMs on the external RAM/ROM board or cartridge.
+![CX16-J5](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J5.jpg)
+
+Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. If the J5 jumper pins are not closed, the keyboard won't be functional!
+
+### 3.4. VERA JP1 jumper pins: OPEN!
+
+![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg)
+
+At the start position, before the update process, ensure that the JP1 jumper pins o the VERA board are closed!
+
+![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg)
+
+During the update process, the program will ask you to place a jumper cap, **closing** the JP1 jumper pins. 
+
+Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, opening the pins again.
+
+**Note that this will happen during the update process and it is crucial that you follow carefully the instructions given by the program!**
+
+### 3.5. Flash multiple ROMs on the external RAM/ROM board or cartridge.
 
 First for all clarity, find below a picture of such a ROM expansion cartridge:
 
-![ROM-cartridge](https://user-images.githubusercontent.com/13690775/225110167-546596e6-998a-464f-b6a9-53fb598c19b4.jpg)
+![ROM-CARD](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD.jpg)
 
-On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and flashing. The cartridge is placed in one of the 4 CX16 extension slots, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
+On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and can be updated using this program. The cartridge is placed in one of the 4 PCI extension slots on the CX16 main board, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
 
-Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM[N].BIN file(s), where N must be a number between 1 and 7! For example, ROM1.BIN will flash ROM#1 on the cartridge. ROM5.BIN will flash ROM#5. ROM devices are to be placed and counted, from left to right!
+Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM*n*.BIN file(s), where *n* must be a number between 1 and 7! 
 
-To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on the cartridge are to be remained open. However, in order to flash the ROMs, close the relevant jumper pins.
+For example, `ROM1.BIN` will flash ROM#1 on the cartridge. `ROM5.BIN` will flash ROM#5. ROMs are to be counted from left to right!
 
-Close the J1 jumper pins (at the left side of the cartridge board) to remove the write-protection for ROM#1 till ROM#6.
+To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on the cartridge are to be remained **open**. In order to flash the ROMs, **close** the relevant jumper pins!
 
-![ROM-DIP-J1](https://user-images.githubusercontent.com/13690775/225111120-56eeaca5-69a6-4812-a854-5cfc1246045a.jpg)
+![ROM-CARD-J1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J1-CLOSED.jpg)
 
-Close the J2 jumper pins (at the right side of the cartridge board) to remove the write-protection for ROM#7.
+ - **Close** the J1 jumper pins (at the left side of the cartridge board) to remove the write-protection for ROM#1 till ROM#6.
 
-![ROM-DIP-J2](https://user-images.githubusercontent.com/13690775/225111150-c441812c-5331-46b1-805f-f769064507f7.jpg)
+![ROM-CARD-J2-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J2-CLOSED.jpg)
 
-Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM[n].BIN file(s) will not be flashed!
+ - **Close** the J2 jumper pins (at the right side of the cartridge board) to remove the write-protection for ROM#7.
 
-## 3. Proceed with updating your Commander X16 firmware or ROMs.
+Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM*n*.BIN file(s) will not be flashed!
 
-Once you've copied the CX16-UPDATE.PRG and the relevant SMC.BIN and ROM[N].BIN files onto the SDcard, you are ready to update your Commander X16!
+## 4. Update checklist for the Commander X16.
 
-Place the SDcard in the VERA card slot, and again, verify that all indicated J1 and J5 jumper pins are closed properly on the Commander X16 main board and optionally on the cartridge board.
+Please consolidate the following checklist before you commence running the program:
+
+
+## 4.0 Needed materials checklist:
+
+  Ensure that you have in total 6 standard [computer jumper caps](https://www.amazon.com/s?k=computer+jumper+caps&crid=30ZIZP22RVD1R&sprefix=computer+jumper+caps%2Caps%2C169&ref=nb_sb_noss_1) available. These are needed to close:
+
+  - 1 x jumper cap for the J1 jumper pins on the CX16 main board.
+  - 2 x jumper caps for the J5 jumper pins on the CX16 main board.
+  - 1 x jumper cap for the JP1 jumper pins on the VERA board.
+  - 2 x jumper caps for the J1 and J2 jumper pins on the external ROM cardridge board.
+
+
+## 4.1 SMC update checklist:
+
+  1. Is the **version** of the `SMC.BIN` correct?
+  2. Has the file been **copied** onto your SDcard?
+  3. Is the file named `SMC.BIN` in **capital** letters?
+  4. Are the J5 jumper pins **closed** on the CX16 main board?
+
+
+## 4.2 VERA update checklist:
+
+  1. Is the **version** of the `VERA.BIN` correct?
+  2. Has the file been **copied** onto your SDcard?
+  3. Is the file named `VERA.BIN` in **capital** letters?
+  4. Do you have a jumper pin **connector** at your disposal?  
+  You will need it to close the JP1 pins on the VERA board.  
+  5. Are the **JP1 jumper pins open** on the **VERA board**?
+  6. Have you understood why the JP1 jumper pins need to be closed and when it will be asked to close them?
+  7. Have you understood why the JP1 jumper pins need to be opened again when the VERA memory has been updated? 
+
+## 4.3 Main CX16 ROM checklist:
+
+  1. Is the **version** of the `ROM.BIN` correct?
+  2. Has the file been **copied** onto your SDcard?
+  3. Is the file named `ROM.BIN` in **capital** letters?
+  4. Are the **J1 jumper pins** on the CX16 main board **closed**?
+
+## 4.4 External CX16 ROMs update checklist:
+
+  1. Are the **version** of the `ROMn.BIN` file(s) correct?  
+  2. Has(ve) the file(s) been **copied** onto your SDcard?
+  3. Have the file(s) been named `ROMn.BIN` in **capital** letters, with the *n* being a number from 1 to 7?
+  4. For the **ROMs 1 to 6** on the cardridge, are the **J1 jumper pins closed**?
+  5. For the **ROM 7** on the cardridge, are the **J2 jumper pins closed**?
+  
+# 5. Start the CX16 update.
+
+Place the SDcard in the CX16 (VERA) card slot.  
 
 Boot/Start your Commander X16 computer.
 
-Your Commander X16 startup screen might look like this ...
+Type `LOAD CX16-UPDATE.PRG` or press `F7` on the keyboard (`DOS"$"`) and put the cursor in front of the program, then press `F3` on the keyboard (`LOAD`).
 
-<img width="242" alt="FLASH-DOS" src="https://user-images.githubusercontent.com/13690775/225111204-88051585-ecb7-4614-8374-ba4de2623d43.png">
+Type `RUN` or press `F5` on the keyboard.
 
-Load the program and run it, follow a small guide as described below.
+# 6. Main flow of the CX16 update utility:
 
-  1. DOS "CD:folder" - Optionally ensure that you navigate to the right folder on the SDcard where you copied all the files using DOS "CD:folder" commands.
-  2. LOAD "CX16-UPDATE.PRG",8
-  3. RUN
-
-The update utility will walk you through the update process in a very user friendly way.
-At first 2 introduction screens are shown. Once those screens have been read and understood, the actual update process can commence.
-The update utility detects each chipset and its properties. It will read each file, and will verify the contents of the file in terms of file presence, file size and contents. Once these checks are executed and everything is fine, the update process can proceed for the identified Commander X16 components to be updated. And finally, a debriefing screen is shown with the result of the update process. Depending on the type of components updated, different reboot actions will take place.
-
+The update utility is very user friendly and walks you through the different steps.
 Please find below a detailed description of the complete process.
 
-### 3.1. Introduction and briefing screens
+## 6.1. Introduction and briefing screens
 
-You will see a first screen, which introduces the update process. The top shows the title of the utility.
-Below are all the possible components shown that this update utility supports. Above each component, a led is shown that will light up in different colors indicating the status of the upgrade progress. Below the components is an overview shown of each chipset and its properties. Totally on the right of each line will show a short indication with additional information or issue, or even an error situation with the component during the process. In the middle of the screen are two lines shown that indicate the step of the overall flow of thee update process and an action line or additional information of the update action in progress. And at the bottom is an information pane, that shows additional textual or graphical information of the update action awaiting or being executed.
+![Into-1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/INTRO1.jpg)
 
-
-![into-1](https://github.com/FlightControl-User/x16-flash/blob/main/images/intro-1.jpg)
+At program start, you will see an introduction screen, introducing the update process. 
 
 Please carefully read the text at the bottom panel of the screen, and press SPACE to continue ...
 
+![Into-1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/INTRO2.jpg)
+
 A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your expansion cartridge board. Press SPACE to continue.
 
-![intro-2](https://github.com/FlightControl-User/x16-flash/blob/main/images/intro-2.jpg)
+### 6.2. Component detection
 
+Next, the update utility detects which components are upgradable and will validate which files are found on the SD card. 
 
-### 3.2. Component detection
+![FLASH-DETECT](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/FLASH-DETECT.jpg)
 
-Next, the update utility detects which components are upgradable. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the remaining 7 ROM chips (the most right chip is ROM#7), which would be the right most chip on the expansion cartridge.
+The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips, which would be the right most chip on the expansion cartridge.
 
-Each component detected will be highlighted with a Detected status and a WHITE led. The capacity of each detected ROM is shown in KBytes. Other components that are not detected are highlighed with a None staus and a BLACK led. These ROMs won't be considered for flashing.
+- Each component detected will be highlighted with a Detected status and a **WHITE** led. The capacity of each detected ROM is shown in KBytes. 
 
-![detected](https://github.com/FlightControl-User/x16-flash/blob/main/images/detected.jpg)
+- Other components that are not detected are highlighed with a None staus and a **BLACK** led. These ROMs won't be considered for flashing.
 
-Note again, that ROMs that can be flashed, but which don't have the jumper pins closed, won't be detected and will be skipped!
+## 6.3 File presence and validation
 
-Once all components have been detected, it will validate each file.
-For each flashable ROM, the program will look for a related ROM[N].BIN file. 
+After component detection, the program will immediately search for file presence for **each detected component** and will validate it.
 
-If there is no file found, a message is shown to the user and this ROM will be skipped. The ROM will be highlighted with a GREY led. 
+The program will read each file and check on data size and any validation content to be used before flashing. 
 
-Otherwise, the ROM[N].BIN file will be loaded from the SDcard into low and high RAM.
+- Detected and valid files will result in the status of the component in a **PURPLE** led and status `Update`.
+
+- Files that are not present, will result in the component not to be updated. The component will get a GREY led and status `skipped`.
 
 ### 3.2. ROM[N].BIN file load
 
