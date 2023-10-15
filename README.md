@@ -234,22 +234,41 @@ The program will read the firmware data into memory first, and will then commenc
 
 However, the update process differs for each component type, so please read carefully the below explanation:
 
-### 7.1. Update the SMC
+### 7.1. The SMC update process
 
 The SMC update is straightforward. 
 
 It will first read the `SMC.BIN` into internal memory.
 
-
+![POWER-RESET-SCREEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET-SCREEN.jpg)
 
 Then, the program asks you to press the `POWER` and the `RESET` button at the same time on the CX16 board.
 
-![FLASH-CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/FLASH-CHECK.jpg)
+![POWER-RESET](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg)
 
 Do so on the CX16 board.
 
+When the POWER-RESET button is not pressed in time (there is a countdown), the program will cancel the update of the SMC but will continue updating any other component. The update of the ROM will be skipped, though!
 
-### 3.2. ROM[N].BIN file load
+![SMC-ROM-ISSUE](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-ISSUE.jpg)
+
+The cancellation of the SMC update results in a reported issue, as the SMC and the ROM must be flashed together.
+
+When POWER-RESET is pressed, the program will flash your SMC. Don't interrupt the process. 
+
+**VERY IMPORTANT:**
+
+**Once your SMC is updated, you MUST wait till the end of the program to continue to update process, or your CX16 will be BRICKED!!!**
+
+### 7.2. The VERA update process.
+
+The update process of the VERA requires a manual interaction, where the user places the JP1 jumper cap, closing the JP1 jumper pins when requested on the VERA board.
+
+
+
+### 7.3. The main CX16 ROM update process.
+
+### 7.4. The external cardridge ROMs update process.
 
 The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $4000 bytes are loaded in low RAM, while the remainder of the ROM[N].BIN file is loaded in high RAM. This is nothing for you to be concerned about, just explaining how the program works. But note that a ROM[N].BIN file that is 512KB large, will be fully loaded into RAM on the Commander X16!
 
