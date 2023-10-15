@@ -53,18 +53,24 @@ const char* display_into_colors_text[16] = {
 
 #pragma code_seg(CodeVera)
 #pragma data_seg(DataVera)
-const char display_close_jp1_spi_vera_count = 2;
-const char* display_close_jp1_spi_vera_text[2] = {
-    "Closing the JP1 jumper pins on the VERA board is required",
-    "to direct the SPI to the VERA flash memory instead of the SDCard",
-};
-
-const char display_open_jp1_spi_vera_count = 4;
-const char* display_open_jp1_spi_vera_text[4] = {
-    "Opening the JP1 jumper pins on the VERA board is required",
-    "to direct the SPI to the SDCard. The update utility needs",
-    "the SDCard to further read the update .BIN files from the",
-    "SDCard for the remaining CX16 components to be updated!"
+const char display_jp1_spi_vera_count = 16;
+const char* display_jp1_spi_vera_text[16] = {
+    "The following steps are IMPORTANT to update the VERA:",
+    "",
+    "1. In the next step you will be asked to close the JP1 jumper",
+    "   pins on the VERA board.",
+    "   The closure of the JP1 jumper pins is required",
+    "   to allow the program to access VERA flash memory",
+    "   instead of the SDCard!",
+    "",
+    "2. Once the VERA has been updated, you will be asked to open",
+    "   the JP1 jumper pins!",
+    "",
+    "Reminder:",
+    " - DON'T CLOSE THE JP1 JUMPER PINS BEFORE BEING ASKED!",
+    " - DON'T OPEN THE JP1 JUMPER PINS WHILE VERA IS BEING UPDATED!",
+    "",
+    "The program continues once the JP1 pins are opened/closed.",
 };
 
 #pragma code_seg(Code)

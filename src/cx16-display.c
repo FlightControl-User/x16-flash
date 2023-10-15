@@ -481,6 +481,7 @@ void display_action_text(unsigned char* info_text) {
     gotoxy(x, y);
 }
 
+
 /**
  * @brief Display the title in the info pane.
  * 
@@ -489,6 +490,7 @@ void display_info_title() {
     cputsxy(INFO_X-2, INFO_Y-2, "# Chip Status    Type   Curr. Release Update Info");
     cputsxy(INFO_X-2, INFO_Y-1, "- ---- --------- ------ ------------- --------------------------");
 }
+
 
 /**
  * @brief Display the SMC status in the info frame.
@@ -504,11 +506,12 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     gotoxy(INFO_X, INFO_Y);
     printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader);
     if(info_text) {
-        gotoxy(INFO_X+64-28, INFO_Y+1);
+        gotoxy(INFO_X+64-28, INFO_Y);
         printf("%-25s", info_text);
     }
     gotoxy(x, y);
 }
+
 
 /**
  * @brief Display the VERA status at the info frame.
@@ -528,6 +531,7 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     gotoxy(x, y);
 }
 
+
 /**
  * @brief Display the ROM status of a specific rom chip. 
  * 
@@ -542,17 +546,25 @@ void display_info_rom(unsigned char rom_chip, unsigned char info_status, unsigne
     gotoxy(INFO_X, INFO_Y+rom_chip+2);
     printf("ROM%u %-9s %-6s %-13s ", rom_chip, status_text[info_status], rom_device_names[rom_chip], &rom_release_text[rom_chip*13]);
     if(info_text) {
-        gotoxy(INFO_X+64-28, INFO_Y+1);
+        gotoxy(INFO_X+64-28, INFO_Y+rom_chip+2);
         printf("%-25s", info_text);
     }
     gotoxy(x,y);
 }
 
+
+/**
+ * @brief Display all the ROM statuses.
+ * 
+ * @param info_status The status.
+ * @param info_text The status text.
+ */
 void display_info_roms(unsigned char info_status, unsigned char* info_text) {
     for(unsigned char rom_chip=0; rom_chip<8; rom_chip++) {
         display_info_rom(rom_chip, info_status, info_text);
     }
 }
+
 
 /**
  * @brief Display the ROM status of the main CX16 ROM chip.
@@ -564,3 +576,17 @@ void display_info_cx16_rom(unsigned char info_status, unsigned char* info_text) 
     display_info_rom(0, info_status, info_text);
 }
 
+void display_action_text_reading(unsigned char* action, unsigned char* file, unsigned long bytes, unsigned long size, bram_bank_t bram_bank, bram_ptr_t bram_ptr) {
+    sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", action, file, bytes, size, bram_bank, bram_ptr);
+    display_action_text(info_text);
+}
+
+void display_action_text_flashing(unsigned long bytes, unsigned char* chip, bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned long address ) {
+    sprintf(info_text, "Flashing %u bytes from RAM:%02x:%04p -> %s:%05x ... ", bytes, bram_bank, bram_ptr, chip, address);
+    display_action_text(info_text);
+}
+
+void display_action_text_flashed(unsigned long bytes, unsigned char* chip) {
+    sprintf(info_text, "Flashed %u bytes from RAM -> %s ... ", bytes, chip);
+    display_action_text(info_text);
+}

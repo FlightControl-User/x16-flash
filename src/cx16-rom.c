@@ -243,7 +243,7 @@ unsigned char rom_byte_compare(brom_ptr_t ptr_rom, unsigned char value) {
     brom_ptr_t ptr_rom = rom_ptr((unsigned long)address);
     unsigned long rom_chip_address = address & ROM_CHIP_MASK;
 
-#ifdef __FLASH
+#ifdef __ROM_FLASH
     rom_unlock(rom_chip_address + 0x05555, 0x80);
     rom_unlock(address, 0x30);
 
@@ -377,24 +377,26 @@ unsigned long rom_read(
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    unsigned char bram_bank = 0;
-    bram_ptr_t ram_address = (bram_ptr_t)RAM_BASE;
+    // We start for ROM from 0x0:0x7800 !!!!
+    bram_bank_t rom_bram_bank = 0;
+    bram_ptr_t rom_bram_ptr = (bram_ptr_t)RAM_BASE;
+    bank_set_bram(rom_bram_bank);
+    bank_set_brom(0);
+
+    unsigned char* rom_action_text;
+    if(info_status == STATUS_READING) {
+        rom_action_text = "Reading";
+    } else {
+        rom_action_text = "Checking";
+    }
+
 
     unsigned long rom_address = rom_address_from_bank(brom_bank_start);
     unsigned long rom_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
 
-    bank_set_bram(bram_bank);
-    bank_set_brom(0);
-
     unsigned int rom_row_current = 0;
     unsigned char rom_release;
     unsigned char rom_github[6];
-    unsigned char* rom_action_text;
-
-    if(info_status == STATUS_READING)
-        rom_action_text = "Reading";
-    else
-        rom_action_text = "Checking";
 
     sprintf(info_text, "Opening %s from SD card ...", file);
     display_action_text(info_text);
@@ -405,8 +407,11 @@ unsigned long rom_read(
         gotoxy(x, y);
         while (rom_file_size < rom_size) {
 
-            sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", rom_action_text, file, rom_file_size, rom_size, bram_bank, ram_address);
-            display_action_text(info_text);
+            if(info_status == STATUS_CHECKING) {
+                rom_bram_ptr = (bram_ptr_t)0x0400; // When we check the file, we don't read in RAM yet.
+            }
+
+            display_action_text_reading(rom_action_text, file, rom_file_size, rom_size, rom_bram_bank, rom_bram_ptr);
 
             if (!(rom_address % 0x04000)) {
                 brom_bank_start++;
@@ -414,9 +419,9 @@ unsigned long rom_read(
 
             // __DEBUG
 
-            bank_set_bram(bram_bank);
+            bank_set_bram(rom_bram_bank);
 
-            unsigned int rom_package_read = fgets(ram_address, ROM_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
+            unsigned int rom_package_read = fgets(rom_bram_ptr, ROM_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
             if (!rom_package_read) {
                 break;
             }
@@ -429,19 +434,19 @@ unsigned long rom_read(
             if(info_status == STATUS_READING)
                 cputc('.');
 
-            ram_address += rom_package_read;
+            rom_bram_ptr += rom_package_read;
             rom_address += rom_package_read;
             rom_file_size += rom_package_read;
             rom_row_current += rom_package_read;
 
-            if (ram_address == (bram_ptr_t)BRAM_HIGH) {
-                ram_address = (bram_ptr_t)BRAM_LOW;
-                bram_bank++;
+            if (rom_bram_ptr == (bram_ptr_t)BRAM_HIGH) {
+                rom_bram_ptr = (bram_ptr_t)BRAM_LOW;
+                rom_bram_bank++;
             }
 
-            if (ram_address == (bram_ptr_t)RAM_HIGH) {
-                ram_address = (bram_ptr_t)BRAM_LOW;
-                bram_bank = 1; // This is required to continue the reading into bram from bank 1.
+            if (rom_bram_ptr == (bram_ptr_t)RAM_HIGH) {
+                rom_bram_ptr = (bram_ptr_t)BRAM_LOW;
+                rom_bram_bank = 1; // This is required to continue the reading into bram from bank 1.
             }
         }
         fclose(fp);
@@ -484,8 +489,10 @@ unsigned long rom_verify(
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    bram_bank_t bram_bank = 0;
-    bram_ptr_t ram_address = (bram_ptr_t)RAM_BASE;
+    // We start for ROM from 0x0:0x7800 !!!!
+    bram_bank_t rom_bram_bank = 0;
+    bram_ptr_t rom_bram_ptr = (bram_ptr_t)RAM_BASE;
+    bank_set_bram(rom_bram_bank);
 
     unsigned long rom_address = rom_address_from_bank(rom_bank_start);
     unsigned long rom_boundary = rom_address + file_size;
@@ -501,9 +508,9 @@ unsigned long rom_verify(
 
         // {asm{.byte $db}}
 
-        unsigned int equal_bytes = rom_compare(bram_bank, (bram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
+        unsigned int equal_bytes = rom_compare(rom_bram_bank, (bram_ptr_t)rom_bram_ptr, rom_address, ROM_PROGRESS_CELL);
 
-        if (progress_row_current == VERA_PROGRESS_ROW) {
+        if (progress_row_current == ROM_PROGRESS_ROW) {
             gotoxy(x, ++y);
             progress_row_current = 0;
         }
@@ -514,24 +521,24 @@ unsigned long rom_verify(
             cputc('=');
         }
 
-        ram_address += ROM_PROGRESS_CELL;
+        rom_bram_ptr += ROM_PROGRESS_CELL;
         rom_address += ROM_PROGRESS_CELL;
         progress_row_current += ROM_PROGRESS_CELL;
 
-        if (ram_address == BRAM_HIGH) {
-            ram_address = (bram_ptr_t)BRAM_LOW;
-            bram_bank++;
+        if (rom_bram_ptr == BRAM_HIGH) {
+            rom_bram_ptr = (bram_ptr_t)BRAM_LOW;
+            rom_bram_bank++;
             // {asm{.byte $db}}
         }
 
-        if (ram_address == RAM_HIGH) {
-            ram_address = (bram_ptr_t)BRAM_LOW;
-            bram_bank = 1;
+        if (rom_bram_ptr == RAM_HIGH) {
+            rom_bram_ptr = (bram_ptr_t)BRAM_LOW;
+            rom_bram_bank = 1;
         }
 
         rom_different_bytes += (ROM_PROGRESS_CELL - equal_bytes);
 
-        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", rom_different_bytes, bram_bank, ram_address, rom_address);
+        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", rom_different_bytes, rom_bram_bank, rom_bram_ptr, rom_address);
         display_action_text(info_text);
     }
 
@@ -561,7 +568,7 @@ unsigned long rom_verify(
     bank_set_bram(flash_ram_bank);
 
     while (flashed_bytes < flash_rom_size) {
-#ifdef __FLASH
+#ifdef __ROM_FLASH
         rom_unlock(rom_chip_address + 0x05555, 0xA0);
         rom_byte_program(flash_rom_address, *flash_ram_address);
 #endif
@@ -581,8 +588,10 @@ unsigned long rom_flash(
     unsigned char y_sector = PROGRESS_Y;
     unsigned char w_sector = PROGRESS_W;
 
+    // We start for ROM from 0x0:0x7800 !!!!
     bram_bank_t bram_bank_sector = 0;
     bram_ptr_t ram_address_sector = (bram_ptr_t)RAM_BASE;
+    bank_set_bram(bram_bank_sector);
 
     // Now we compare the RAM with the actual ROM contents.
     display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
@@ -624,8 +633,7 @@ unsigned long rom_flash(
 
                 while (rom_address < rom_sector_boundary) {
 
-                    sprintf(info_text, "Flashing ... RAM:%02x:%04p -> ROM:%05x ... %u flash errors ...", bram_bank_sector, ram_address_sector, rom_address_sector, flash_errors_sector + flash_errors);
-                    display_action_text(info_text);
+                    display_action_text_flashing( ROM_SECTOR, "ROM", bram_bank_sector, ram_address_sector, rom_address_sector);
 
                     unsigned long written_bytes = rom_write(bram_bank, (bram_ptr_t)ram_address, rom_address, ROM_PROGRESS_CELL);
 
@@ -684,7 +692,8 @@ unsigned long rom_flash(
         display_info_rom(rom_chip, STATUS_FLASHING, info_text);
     }
 
-    display_action_text("Flashed ...");
+    display_action_text_flashed(rom_address_sector, "ROM");
+    wait_moment(32);
 
     return flash_errors;
 }

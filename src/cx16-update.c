@@ -103,7 +103,6 @@ void main_vera_check() {
 
     vera_preamable_SPI();
 
-    wait_moment(16);
 }
 
 void main_vera_flash() {
@@ -118,10 +117,10 @@ void main_vera_flash() {
     // If the ROM file was correctly read, verify the file ...
     if(vera_bytes_read) {
 
+#ifdef __VERA_CHIP_DETECT
         // Now we loop until jumper JP1 has been placed!
         display_action_progress("VERA SPI activation ...");
         display_action_text("Please close the jumper JP1 on the VERA board!");
-        display_progress_text(display_close_jp1_spi_vera_text, display_close_jp1_spi_vera_count);
         vera_detect();
         unsigned char spi_ensure_detect = 0;
         while(spi_ensure_detect < 16) {
@@ -136,8 +135,7 @@ void main_vera_flash() {
             }
         }
         display_action_text("The jumper JP1 has been closed on the VERA!");
-
-        display_progress_clear();
+#endif
 
         // Now we compare the RAM with the actual VERA contents.
         display_action_progress("Comparing VERA ... (.) data, (=) same, (*) different.");
@@ -189,12 +187,10 @@ void main_vera_flash() {
         }
 
 
-        wait_moment(32);
-
+#ifdef __VERA_CHIP_DETECT
         // Now we loop until jumper JP1 is open again!
         display_action_progress("VERA SPI de-activation ...");
         display_action_text("Please OPEN the jumper JP1 on the VERA board!");
-        display_progress_text(display_open_jp1_spi_vera_text, display_open_jp1_spi_vera_count);
         vera_detect();
         spi_ensure_detect = 0;
         while(spi_ensure_detect < 16) {
@@ -209,6 +205,8 @@ void main_vera_flash() {
             }
         }
         display_action_text("The jumper JP1 has been opened on the VERA!");
+#endif
+
     }
     spi_deselect();
 
@@ -304,8 +302,10 @@ void main() {
 
 #endif
 
-
 #ifdef __ROM_CHIP_PROCESS
+
+    // Block all interrupts to prevent a changed ROM bank to make an interrupt go wrong.
+    SEI();
 
     // Detecting ROM chips
     rom_detect();
@@ -314,18 +314,21 @@ void main() {
     for(unsigned char rom_chip = 0; rom_chip < 8; rom_chip++) {
         if(rom_device_ids[rom_chip] != UNKNOWN) {
             // RD1 | Known ROM chip device ID | Display ROM chip firmware release number and github commit ID if in hexadecimal format and set to Check. | None
-            // Fill the version data ...
+            // Fill the version data ..., we need to set the ROM bank to find the version ids.
             bank_set_brom(rom_chip*32);
             rom_get_github_commit_id(&rom_github[rom_chip*8], (char*)0xC000);
             rom_release[rom_chip] = rom_get_release(*((char*)0xFF80));
             rom_prefix[rom_chip] = rom_get_prefix(*((char*)0xFF80));
             rom_get_version_text(&rom_release_text[rom_chip*13], rom_prefix[rom_chip], rom_release[rom_chip], &rom_github[rom_chip*8]);
-            display_info_rom(rom_chip, STATUS_DETECTED, ""); // Set the info for the ROMs to Detected.
+            display_info_rom(rom_chip, STATUS_DETECTED, NULL); // Set the info for the ROMs to Detected.
         } else {
             // RD2 | Unknown ROM chip device ID | Don't do anything and set to None. | None
             // display_info_rom(rom_chip, STATUS_NONE, ""); // Set the info for the ROMs to None.
         }
     }
+
+    bank_set_brom(4);
+    CLI();
 
 #endif
 
@@ -445,13 +448,11 @@ void main() {
         }
     }
 
-#endif
-#endif
-
-
-
     bank_set_brom(4);
     CLI();
+
+#endif
+#endif
 
     // VA5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and don't flash. | Issue
     if(!check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
@@ -530,6 +531,8 @@ void main() {
         CLI();
 
         if(check_status_vera(STATUS_FLASH)) {
+            display_progress_text(display_jp1_spi_vera_text, display_jp1_spi_vera_count);
+            util_wait_space();
             main_vera_flash();
         }
 
@@ -576,6 +579,9 @@ void main() {
 
 #endif
 #endif
+
+    // Point of no return for the interrupts!
+    SEI();
 
 
 #ifdef __ROM_CHIP_PROCESS

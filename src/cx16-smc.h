@@ -28,6 +28,8 @@
 
 #define FLASH_I2C_SMC_DEVICE 0x42
 
+const unsigned int SMC_CHIP_SIZE = 0x2000;
+
 extern unsigned int smc_bootloader;
 extern unsigned char smc_version_text[16];
 extern unsigned int smc_file_size;

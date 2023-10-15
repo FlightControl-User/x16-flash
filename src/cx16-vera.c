@@ -56,9 +56,18 @@ unsigned long vera_read(unsigned char info_status) {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
+    // We start for VERA from 0x1:0xA000.
     bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
     bram_bank_t vera_bram_bank = 1;
     bank_set_bram(vera_bram_bank);
+    unsigned char* vera_action_text;
+
+    if(info_status == STATUS_READING) {
+        vera_action_text = "Reading";
+    } else {
+        vera_action_text = "Checking";
+        vera_bram_bank = 0;
+    }
 
     unsigned long vera_address = 0;
     unsigned long vera_file_size = 0; /// Holds the amount of bytes actually read in the memory to be flashed.
@@ -66,12 +75,6 @@ unsigned long vera_read(unsigned char info_status) {
     bank_set_brom(0);
 
     unsigned int progress_row_current = 0;
-    unsigned char* vera_action_text;
-
-    if(info_status == STATUS_READING)
-        vera_action_text = "Reading";
-    else
-        vera_action_text = "Checking";
 
     display_action_text("Opening VERA.BIN from SD card ...");
 
@@ -80,12 +83,12 @@ unsigned long vera_read(unsigned char info_status) {
 
         gotoxy(x, y);
 
-
-
         while (vera_file_size < vera_size) {
 
-            sprintf(info_text, "%s %s:%05x/%05x -> RAM:%02x:%04p ...", vera_action_text, file, vera_file_size, vera_size, vera_bram_bank, vera_bram_ptr);
-            display_action_text(info_text);
+            if(info_status == STATUS_CHECKING) {
+                vera_bram_ptr = (bram_ptr_t)0x0400; // When we check the file, we don't read in RAM yet.
+            } 
+            display_action_text_reading(vera_action_text, "VERA.BIN", vera_file_size, vera_size, vera_bram_bank, vera_bram_ptr);
 
             // __DEBUG
 
@@ -153,11 +156,10 @@ unsigned char vera_preamable_RAM() {
     unsigned char w = PROGRESS_W;
 
     bram_bank_t vera_bram_bank = 1;
-    bram_ptr_t vera_bram_address = (bram_ptr_t)BRAM_LOW;
+    bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
     bank_set_bram(vera_bram_bank);
 
     unsigned long vera_address = 0;
-    unsigned long vera_boundary = vera_file_size;
 
     unsigned int progress_row_current = 0;
     unsigned long vera_different_bytes = 0;
@@ -166,22 +168,22 @@ unsigned char vera_preamable_RAM() {
 
     // Display the header until the preamable has been found.
 
-    unsigned char* vera_file_preamable_byte = (bram_ptr_t)RAM_BASE; 
+    unsigned char* ram_preamable_byte = (bram_ptr_t)BRAM_LOW; 
 
     unsigned char vera_file_preamable_pos = 0;
-    unsigned int vera_file_pos = 0;
+    unsigned int ram_pos = 0;
     unsigned char vera_file_preamable[4] = {0x7E, 0xAA, 0x99, 0x7E};
 
-    if(*vera_file_preamable_byte == 0xFF) {
-        sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte);
-        display_action_text(info_text);
-        while(vera_address <= vera_boundary) {
-            vera_file_preamable_byte++;
-            vera_file_pos++;
+    if(*ram_preamable_byte == 0xFF) {
+        // sprintf(info_text, "Premable byte %p: %x", ram_preamable_byte, *ram_preamable_byte);
+        // display_action_text(info_text);
+        while(vera_address <= vera_file_size) {
+            ram_preamable_byte++;
+            ram_pos++;
             vera_address++;
-            sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte);
-            display_action_text(info_text);
-            if(vera_file_preamable_pos < 4 && *vera_file_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
+            // sprintf(info_text, "Premable byte %02p: %02x(%01u)",  ram_preamable_byte, *ram_preamable_byte, vera_file_preamable_pos);
+            // display_action_text(info_text);
+            if(vera_file_preamable_pos < 4 && *ram_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
                 if(vera_file_preamable_pos == 3) { 
                     break; // The preamable has been found ...
                 } else {
@@ -189,13 +191,13 @@ unsigned char vera_preamable_RAM() {
                 }
             } else {
                 vera_file_preamable_pos = 0;
-                if(*vera_file_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
+                if(*ram_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
                     vera_file_preamable_pos++;
                 }
             }
-            if(*vera_file_preamable_byte) {
-                if(*vera_file_preamable_byte >= 20 && *vera_file_preamable_byte <= 0x7F)
-                    cputcxy(x, y, *vera_file_preamable_byte);
+            if(*ram_preamable_byte) {
+                if(*ram_preamable_byte >= 20 && *ram_preamable_byte <= 0x7F)
+                    // cputcxy(x, y, *ram_preamable_byte);
                     x++;
             } else {
                 y++;
@@ -217,58 +219,6 @@ unsigned char vera_preamable_SPI() {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    bram_bank_t bram_bank = 0;
-    bram_ptr_t ram_address = (bram_ptr_t)RAM_BASE;
-
-    unsigned long vera_address = 0;
-    unsigned long vera_boundary = vera_file_size;
-
-    unsigned int progress_row_current = 0;
-    unsigned long vera_different_bytes = 0;
-
-    gotoxy(x, y);
-
-    // Display the header until the preamable has been found.
-
-    unsigned char* vera_file_preamable_byte = (bram_ptr_t)RAM_BASE; 
-
-    unsigned char vera_file_preamable_pos = 0;
-    unsigned int vera_file_pos = 0;
-    unsigned char vera_file_preamable[4] = {0x7E, 0xAA, 0x99, 0x7E};
-
-    if(*vera_file_preamable_byte == 0xFF) {
-        sprintf(info_text, "Premable byte %u: %x", vera_file_pos, *vera_file_preamable_byte);
-        display_action_text(info_text);
-        while(vera_address <= vera_boundary) {
-            vera_file_preamable_byte++;
-            vera_file_pos++;
-            vera_address++;
-            sprintf(info_text, "Premable byte %u: %u/%x",  vera_file_pos, vera_file_preamable_pos, *vera_file_preamable_byte);
-            display_action_text(info_text);
-            if(vera_file_preamable_pos < 4 && *vera_file_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
-                if(vera_file_preamable_pos == 3) { 
-                    break; // The preamable has been found ...
-                } else {
-                    vera_file_preamable_pos++;
-                }
-            } else {
-                vera_file_preamable_pos = 0;
-                if(*vera_file_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
-                    vera_file_preamable_pos++;
-                }
-            }
-            if(*vera_file_preamable_byte) {
-                if(*vera_file_preamable_byte >= 20 && *vera_file_preamable_byte <= 0x7F)
-                    cputcxy(x, y, *vera_file_preamable_byte);
-                    x++;
-            } else {
-                y++;
-                x = PROGRESS_X;
-            }
-        }
-    } else {
-        return 0; // No pre-fix byte 0xff
-    }
 
     return 1;
 }
@@ -346,9 +296,11 @@ unsigned char vera_erase() {
     unsigned char vera_current_64k_block = 0;
 
     while(vera_current_64k_block < vera_total_64k_blocks) {
-        if(spi_wait_non_busy() == 0) {
 #ifdef __VERA_FLASH
+        if(!spi_wait_non_busy()) {
             spi_block_erase(vera_address);
+#else
+        if(1) {
 #endif
             vera_address += 0x10000;
             vera_current_64k_block++;
@@ -392,7 +344,11 @@ unsigned long vera_flash() {
         cputcxy(x,y,'.');
         cputc('.');
 
+#ifdef __VERA_FLASH
         if(!spi_wait_non_busy()) {
+#else
+        if(1) {
+#endif
 
             bank_set_bram(vera_bram_bank);
 
@@ -401,8 +357,7 @@ unsigned long vera_flash() {
 #endif
             while (vera_address < vera_page_boundary) {
 
-                sprintf(info_text, "Flashing 256 bytes from RAM:%02x:%04p -> VERA:%05x ... ", vera_bram_bank, vera_bram_ptr, vera_address_page);
-                display_action_text(info_text);
+                display_action_text_flashing(VERA_PROGRESS_PAGE, "VERA", vera_bram_bank, vera_bram_ptr, vera_address);
                 
                 for(unsigned int i=0; i<=255; i++) {
 #ifdef __VERA_FLASH
@@ -442,9 +397,7 @@ unsigned long vera_flash() {
 
     }
 
-    sprintf(info_text, "Flashed %05x bytes from RAM -> VERA ... ", vera_address_page);
-    display_action_text(info_text);
-
+    display_action_text_flashed(vera_address_page, "VERA");
     wait_moment(32);
 
     return vera_address_page;

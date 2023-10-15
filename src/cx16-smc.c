@@ -147,6 +147,9 @@ unsigned int smc_read(unsigned char info_status) {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W; 
 
+
+    bram_ptr_t smc_bram_ptr = (bram_ptr_t)BRAM_LOW; 
+    bram_bank_t smc_bram_bank = 1;
     unsigned char* smc_action_text;
 
     if(info_status == STATUS_READING) {
@@ -155,8 +158,8 @@ unsigned int smc_read(unsigned char info_status) {
         smc_action_text = "Checking";
     }
     
-    bram_ptr_t ram_ptr = (bram_ptr_t)BRAM_LOW;  // It is assume that one RAM bank is 0X2000 bytes.
-    bram_bank_t bram_bank = 1;
+    // We start for SMC from 0x1:0xA000.
+    bank_set_bram(smc_bram_bank);
 
     textcolor(WHITE);
     gotoxy(x, y);
@@ -167,20 +170,21 @@ unsigned int smc_read(unsigned char info_status) {
     FILE *fp = fopen("SMC.BIN", "r");
     if (fp) {
 
-        bank_set_bram(bram_bank);
-
         // Read the ROM releases in the SMC.BIN header first.
         smc_file_read = fgets(smc_file_header, 32, fp);
 
         // Has the header been read, all ok, otherwise the file size is wrong!
         if(smc_file_read) {
 
+            if(info_status == STATUS_CHECKING) {
+                smc_bram_ptr = (bram_ptr_t)0x0400; // When we check the file, we don't read in RAM yet.
+            }
+
             // We read block_size bytes at a time, and each block_size bytes we plot a dot.
             // Every r bytes we move to the next line.
-            while (smc_file_read = fgets(ram_ptr, SMC_PROGRESS_CELL, fp)) {
+            while (smc_file_read = fgets(smc_bram_ptr, SMC_PROGRESS_CELL, fp)) {
 
-                sprintf(info_text, "%s SMC.BIN:%05x/%05x -> RAM:%02x:%04p ...", smc_action_text, smc_file_read, smc_file_size, bram_bank, ram_ptr);
-                display_action_text(info_text);
+                display_action_text_reading(smc_action_text, "SMC.BIN", smc_file_size, SMC_CHIP_SIZE, smc_bram_bank, smc_bram_ptr);
 
                 if (progress_row_bytes == SMC_PROGRESS_ROW) {
                     gotoxy(x, ++y);
@@ -190,7 +194,11 @@ unsigned int smc_read(unsigned char info_status) {
                 if(info_status == STATUS_READING)
                     cputc('.');
 
-                ram_ptr += smc_file_read;
+                if(info_status == STATUS_CHECKING) {
+                    smc_bram_ptr = (bram_ptr_t)0x0400; // When we check the file, we don't read in RAM yet.
+                } else {
+                    smc_bram_ptr += smc_file_read;
+                }
                 smc_file_size += smc_file_read;
                 progress_row_bytes += smc_file_read;
             }
@@ -217,7 +225,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W; 
 
-    bram_ptr_t smc_ram_ptr = (bram_ptr_t)BRAM_LOW;
+    bram_ptr_t smc_bram_ptr = (bram_ptr_t)BRAM_LOW;
     bram_bank_t smc_bram_bank = 1;
 
     bank_set_bram(smc_bram_bank);
@@ -277,19 +285,26 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     unsigned int smc_attempts_total = 0;
 
     while(smc_bytes_flashed < smc_bytes_total) {
+
         unsigned char smc_attempts_flashed = 0;
         unsigned char smc_package_committed = 0;
+
         while(!smc_package_committed && smc_attempts_flashed < 10) {
+
             unsigned char smc_bytes_checksum = 0;
             unsigned int smc_package_flashed = 0;
+
+            display_action_text_flashing(8, "SMC", smc_bram_bank, smc_bram_ptr, smc_bytes_flashed);
+
             while(smc_package_flashed < SMC_PROGRESS_CELL) {
-                unsigned char smc_byte_upload = *smc_ram_ptr;
-                smc_ram_ptr++;
+                unsigned char smc_byte_upload = *smc_bram_ptr;
+                smc_bram_ptr++;
                 smc_bytes_checksum += smc_byte_upload;
                 // Upload byte
                 unsigned char smc_upload_result = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_UPLOAD, smc_byte_upload);
                 smc_package_flashed++;
             }
+
             // 8 bytes have been uploaded, now send the checksum byte, in 1 complement.
             unsigned char smc_checksum_result = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_UPLOAD, (smc_bytes_checksum ^ 0xFF)+1);
 
@@ -307,12 +322,9 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
                 smc_row_bytes += SMC_PROGRESS_CELL;
                 smc_attempts_total += smc_attempts_flashed;
 
-                sprintf(info_text, "Flashed %05u of %05u bytes in the SMC, with %02u retries ...", smc_bytes_flashed, smc_bytes_total, smc_attempts_total);
-                display_action_text(info_text);
-
                 smc_package_committed = 1;
             } else {
-                smc_ram_ptr -= SMC_PROGRESS_CELL;
+                smc_bram_ptr -= SMC_PROGRESS_CELL;
                 smc_attempts_flashed++; // We retry uploading the package ...
             }
         }
@@ -322,6 +334,8 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
             return (unsigned int)0xFFFF;
         }
     }
+
+    display_action_text_flashed(smc_bytes_flashed, "SMC");
 
     return smc_bytes_flashed;
 }
