@@ -15,22 +15,22 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$5186 Code
+  $080d-$58a7 Code
 
 Data-segment:
-  $5187-$6eea Data
+  $58a8-$772f Data
 
 CodeIntro-segment:
-  $6eeb-$6f35 CodeIntro
+  $7730-$7780 CodeIntro
 
 CodeVera-segment:
-  $6f36-$7dab CodeVera
+  $7781-$84c8 CodeVera
 
 DataIntro-segment:
-  $7dac-$7de9 DataIntro
+  $84c9-$8506 DataIntro
 
 DataVera-segment:
-  $7dea-$80ea DataVera
+  $8507-$87ce DataVera
 
 Writing Vice symbol file: cx16-update.vs
 Writing Symbol file: cx16-update.sym

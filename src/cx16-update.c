@@ -118,7 +118,7 @@ void main_vera_flash() {
     // If the ROM file was correctly read, verify the file ...
     if(vera_bytes_read) {
 
-#ifdef __VERA_CHIP_DETECT
+#ifdef __VERA_JP1_DETECT
         // Now we loop until jumper JP1 has been placed!
         display_action_progress("VERA SPI activation ...");
         display_action_text("Please close the jumper JP1 on the VERA board!");
@@ -188,7 +188,7 @@ void main_vera_flash() {
         }
 
 
-#ifdef __VERA_CHIP_DETECT
+#ifdef __VERA_JP1_DETECT
         // Now we loop until jumper JP1 is open again!
         display_action_progress("VERA SPI de-activation ...");
         display_action_text("Please OPEN the jumper JP1 on the VERA board!");
