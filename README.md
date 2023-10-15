@@ -22,19 +22,19 @@ Please consider this draft user manual as a first guide how to use the update to
 Depending on your configuration and the new release artefacts available from the CX16 community site,  
 specific hardware on your CX16 board will be updated. But in essence, the update should be fairly straightforward and user friendly!
 
-- Ensure you have a valid and working SDCARD that has sufficient free space and is formatted in FAT32.
+- Ensure you have a valid and working SD card that has sufficient free space and is formatted in FAT32.
 - You need a Commander X16 computer (the real thing).
 - You optionally can have an add-on cartridge board, that is plugged in any of the 4 expansion slots. This RAM/ROM board can contain an extra 3.5 MB of RAM/ROM!
 
 On the Commander X16 main board, you have 3 important compontents that this utility can update with new firmware:
 
 - The **SMC** : This microcontroller handles your mouse, keyboard and timer. It is essential to boot your CX16.
-- The **VERA** : This FPGA made by Frank Van den Hoef, handles the CX16 graphics and the SDCard operations.
+- The **VERA** : This FPGA made by Frank Van den Hoef, handles the CX16 graphics and the SD card operations.
 - The **ROM** : The main CX16 ROM contains the DOS and KERNAL to run your CX16.
 
 ## 1. Download the program
 
-The latest version of the program can be found on the [release page](https://github.com/FlightControl-User/x16-flash/releases) of this repository. Search for the file CX16-UPDATE.PRG and download the file. Copy the program into a directory of your SDCARD. You will run this program on your CX16 hardware. Ensure the file is copied onto the SDcard with the file name in CAPITAL letters.
+The latest version of the program can be found on the [release page](https://github.com/FlightControl-User/x16-flash/releases) of this repository. Search for the file CX16-UPDATE.PRG and download the file. Copy the program into a directory of your SD card. You will run this program on your CX16 hardware. Ensure the file is copied onto the SD card with the file name in CAPITAL letters.
 
 ## 2. Download the Commander X16 community firmware release files from the web site.
 
@@ -53,9 +53,9 @@ Notes:
 
 ### 3.1. Copy the files on the SD card.
 
-Copy the SMC.BIN, VERA.BIN and the ROM.BIN files on the SDcard at the same folder fro where your CX16-UPDATE.PRG file is located. Ensure the files are copied onto the SDcard with the file names in **CAPITAL** letters.
+Copy the SMC.BIN, VERA.BIN and the ROM.BIN files on the SD card at the same folder fro where your CX16-UPDATE.PRG file is located. Ensure the files are copied onto the SD card with the file names in **CAPITAL** letters.
 
-## 3.2. Main CX16 ROM J1 jumper pins: CLOSED!
+### 3.2. Main CX16 ROM J1 jumper pins: CLOSED!
 
 ![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg)
 
@@ -72,7 +72,7 @@ Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. I
 
 ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg)
 
-At the start position, before the update process, ensure that the JP1 jumper pins o the VERA board are closed!
+At the start position, before the update process, ensure that the JP1 jumper pins on the VERA board are **open**! (Picture above)
 
 ![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg)
 
@@ -124,7 +124,7 @@ Please consolidate the following checklist before you commence running the progr
 ## 4.1 SMC update checklist:
 
   1. Is the **version** of the `SMC.BIN` correct?
-  2. Has the file been **copied** onto your SDcard?
+  2. Has the file been **copied** onto your SD card?
   3. Is the file named `SMC.BIN` in **capital** letters?
   4. Are the J5 jumper pins **closed** on the CX16 main board?
 
@@ -132,7 +132,7 @@ Please consolidate the following checklist before you commence running the progr
 ## 4.2 VERA update checklist:
 
   1. Is the **version** of the `VERA.BIN` correct?
-  2. Has the file been **copied** onto your SDcard?
+  2. Has the file been **copied** onto your SD card?
   3. Is the file named `VERA.BIN` in **capital** letters?
   4. Do you have a jumper pin **connector** at your disposal?  
   You will need it to close the JP1 pins on the VERA board.  
@@ -143,21 +143,21 @@ Please consolidate the following checklist before you commence running the progr
 ## 4.3 Main CX16 ROM checklist:
 
   1. Is the **version** of the `ROM.BIN` correct?
-  2. Has the file been **copied** onto your SDcard?
+  2. Has the file been **copied** onto your SD card?
   3. Is the file named `ROM.BIN` in **capital** letters?
   4. Are the **J1 jumper pins** on the CX16 main board **closed**?
 
 ## 4.4 External CX16 ROMs update checklist:
 
   1. Are the **version** of the `ROMn.BIN` file(s) correct?  
-  2. Has(ve) the file(s) been **copied** onto your SDcard?
+  2. Has(ve) the file(s) been **copied** onto your SD card?
   3. Have the file(s) been named `ROMn.BIN` in **capital** letters, with the *n* being a number from 1 to 7?
   4. For the **ROMs 1 to 6** on the cardridge, are the **J1 jumper pins closed**?
   5. For the **ROM 7** on the cardridge, are the **J2 jumper pins closed**?
   
 # 5. Start the CX16 update.
 
-Place the SDcard in the CX16 (VERA) card slot.  
+Place the SD card in the CX16 (VERA) card slot.  
 
 Boot/Start your Commander X16 computer.
 
@@ -197,6 +197,8 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 ## 6.3 File presence and validation
 
 After component detection, the program will immediately search for file presence for **each detected component** and will validate it.
+
+![FLASh-CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/FLASH-CHECK.jpg)
 
 The program will read each file and check on data size and any validation content to be used before flashing. 
 
