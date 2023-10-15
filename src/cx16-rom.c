@@ -33,6 +33,8 @@ unsigned char rom_github[8*8];
 unsigned char rom_manufacturer_ids[8] = {0};
 unsigned long rom_sizes[8] = {0};
 unsigned long file_sizes[8] = {0};
+unsigned char rom_file_github[8*8];
+unsigned char rom_file_release[8];
 
 
 /**
@@ -425,6 +427,16 @@ unsigned long rom_read(
             unsigned int rom_package_read = fgets(rom_bram_ptr, ROM_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
             if (!rom_package_read) {
                 break;
+            }
+
+            // Get the github and release from the file ...
+            if(info_status == STATUS_CHECKING) {
+                if(rom_file_size == 0x0) {
+                    rom_get_github_commit_id(&rom_file_github[rom_chip*8], (char*)0x0400);
+                }
+                if(rom_file_size == 0x3E00) {
+                    rom_file_release[rom_chip] = *((char*)(0x0400+0x0180));
+                }
             }
 
             if (rom_row_current == ROM_PROGRESS_ROW) {

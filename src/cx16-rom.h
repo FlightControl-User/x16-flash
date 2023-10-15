@@ -29,6 +29,8 @@ extern unsigned char rom_github[8*8];
 extern unsigned char rom_manufacturer_ids[8];
 extern unsigned long rom_sizes[8];
 extern unsigned long file_sizes[8];
+extern unsigned char rom_file_github[8*8];
+extern unsigned char rom_file_release[8];
 
 
 #define ROM_BASE                ((unsigned int)0xC000)

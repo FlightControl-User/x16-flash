@@ -432,15 +432,12 @@ void main() {
                     file_sizes[rom_chip] = rom_bytes_read;
                     
                     // Fill the version data ...
-                    unsigned char rom_file_github[8];
-                    rom_get_github_commit_id(rom_file_github, (char*)RAM_BASE);
-                    bank_push_set_bram(1);
-                    unsigned char rom_file_release = rom_get_release(*((char*)0xBF80));
-                    unsigned char rom_file_prefix = rom_get_prefix(*((char*)0xBF80));
-                    bank_pull_bram();
+                    unsigned char* rom_file_github_id = &rom_file_github[8*rom_chip];
+                    unsigned char rom_file_release_id = rom_get_release(rom_file_release[rom_chip]);
+                    unsigned char rom_file_prefix_id = rom_get_prefix(rom_file_release[rom_chip]);
 
                     char rom_file_release_text[13]; 
-                    rom_get_version_text(rom_file_release_text, rom_file_prefix, rom_file_release, rom_file_github);
+                    rom_get_version_text(rom_file_release_text, rom_file_prefix_id, rom_file_release_id, rom_file_github_id);
 
                     sprintf(info_text, "%s:%s", file, rom_file_release_text);
                     display_info_rom(rom_chip, STATUS_FLASH, info_text);

@@ -26,11 +26,11 @@ specific hardware on your CX16 board will be updated. But in essence, the update
 - You need a Commander X16 computer (the real thing).
 - You optionally can have an add-on cartridge board, that is plugged in any of the 4 expansion slots. This RAM/ROM board can contain an extra 3.5 MB of RAM/ROM!
 
-On the Commander X16 main board, you have 3 important compontents that this utility can update:
+On the Commander X16 main board, you have 3 important compontents that this utility can update with new firmware:
 
-- The SMC : 
-- The VERA : 
-- The ROM : 
+- The **SMC** : This microcontroller handles your mouse, keyboard and timer. It is essential to boot your CX16.
+- The **VERA** : This FPGA made by Frank Van den Hoef, handles the CX16 graphics and the SDCard operations.
+- The **ROM** : The main CX16 ROM contains the DOS and KERNAL to run your CX16.
 
 ## 1. Download the program
 
@@ -38,12 +38,19 @@ The latest version of the program can be found on the [release page](https://git
 
 ## 2. Download the Commander X16 community firmware release files from the web site.
 
-Download the latest SMC.BIN and ROM.BIN file from the Commander X16 community web site.
-Any additional ROMs on the expansion card to be flashed, require ROMn.BIN files to be added,  according your rom flashing strategy.
+Download the latest SMC.BIN, VERA.BIN and ROM.BIN file from the Commander X16 community web sites. Any additional ROMs on the expansion card to be updated, require ROMn.BIN files to be added, according your rom update strategy.
 
-### 2.1. Update your SMC and main ROM firmware on your CX16 board
+- [SMC.BIN from the CX16 update tool release page](https://github.com/FlightControl-User/x16-flash/releases)
+- [VERA.BIN from the VERA Release page](https://github.com/X16Community/vera-module/releases)
+- [ROM.BIN from the ROM Release page](https://github.com/X16Community/x16-rom/releases)
 
-Copy the SMC.BIN and the ROM.BIN files on the SDcard at the same folder where your FLASH-CX16.PRG file is located. Ensure the files are copied onto the SDcard with the file names in **CAPITAL** letters.
+Notes: 
+-  SMC Release page is not yet containing the correct SMC.BIN files, so download from the CX16 update tool release page. Therefore, the CX16 update tool release page contains the SMC.BIN artefacts.
+- The names of the artefacts can differ a bit. They might contain the release number of version number. Always rename the files to the correct name!
+
+### 2.1. Update your SMC, VERA.BIN and main ROM firmware on your CX16 board
+
+Copy the SMC.BIN, VERA.BIN and the ROM.BIN files on the SDcard at the same folder fro where your CX16-UPDATE.PRG file is located. Ensure the files are copied onto the SDcard with the file names in **CAPITAL** letters.
 
 Ensure that the J1 jumper pins on the Commander X16 main board are closed, to remove the write protection of the on-board ROM. If the J1 jumper pins are not closed, the onboard ROM will not be recognized by the 
 update utility and an issue will be reported by the software!
