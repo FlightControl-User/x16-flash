@@ -219,7 +219,6 @@ Before the update commences, there are important conditions vaidated to ensure t
 
 3. The main CX16 ROM not detected will stop the update process.
 
-
 ![UPDATE-CONFIRM](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/UPDATE-CONFIRM.jpg)
 
 When there are no issues, the user is asked for a confirmation to proceed with the update:
@@ -231,7 +230,7 @@ When there are no issues, the user is asked for a confirmation to proceed with t
 
 The program will update each component that has status `Update`.
 
-It will read the firmware data into memory first, and will then commence with the update process, updating your component.
+The program will read the firmware data into memory first, and will then commence with the update process, updating your component.
 
 However, the update process differs for each component type, so please read carefully the below explanation:
 
