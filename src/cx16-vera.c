@@ -1,18 +1,21 @@
-#include "cx16-vera.h"
 /**
  * @file cx16-vera.c
-
- * @author MooingLemur (https://github.com/mooinglemur)
- * @author Sven Van de Velde (https://github.com/FlightControl-User)
  * 
- * @brief COMMANDER X16 VERA FIRMWARE UPDATE ROUTINES
+ * @author Wavicle from CX16 community (https://gist.github.com/jburks) -- Main ROM update logic & overall support and test assistance.
+ * @author MooingLemur from CX16 community (https://github.com/mooinglemur) -- Main SPI and VERA update logic, VERA firmware.
+ * @author Stefan Jakobsson from CX16 community (https://github.com/stefan-b-jakobsson) -- Main SMC update logic, SMC firmware and bootloader.
+ * @author Sven Van de Velde from CX16 community (https://github.com/FlightControl-User) -- Creation of this program, under the strong expertise by the people above.
+ * 
+ * @brief COMMANDER X16 UPDATE VERA ROUTINES
  *
- * @version 2.0
- * @date 2023-10-11
+ * @version 3.0
+ * @date 2023-10-15
  *
  * @copyright Copyright (c) 2023
  *
  */
+
+
 
 #include "cx16-defines.h"
 #include "cx16-globals.h"
@@ -229,8 +232,8 @@ unsigned long vera_verify() {
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    bram_bank_t vera_bram_bank = 0;
-    bram_ptr_t vera_bram_address = (bram_ptr_t)BRAM_LOW;
+    bram_bank_t vera_bram_bank = 1;
+    bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
     bank_set_bram(vera_bram_bank);
 
     unsigned long vera_address = 0;
@@ -249,7 +252,7 @@ unsigned long vera_verify() {
 
         // {asm{.byte $db}}
 
-        unsigned int equal_bytes = vera_compare(vera_bram_bank, (bram_ptr_t)vera_bram_address, VERA_PROGRESS_CELL);
+        unsigned int equal_bytes = vera_compare(vera_bram_bank, (bram_ptr_t)vera_bram_ptr, VERA_PROGRESS_CELL);
 
         if (progress_row_current == VERA_PROGRESS_ROW) {
             gotoxy(x, ++y);
@@ -262,24 +265,24 @@ unsigned long vera_verify() {
             cputc('=');
         }
 
-        vera_bram_address += VERA_PROGRESS_CELL;
+        vera_bram_ptr += VERA_PROGRESS_CELL;
         vera_address += VERA_PROGRESS_CELL;
         progress_row_current += VERA_PROGRESS_CELL;
 
-        if (vera_bram_address == BRAM_HIGH) {
-            vera_bram_address = (bram_ptr_t)BRAM_LOW;
+        if (vera_bram_ptr == BRAM_HIGH) {
+            vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
             vera_bram_bank++;
             // {asm{.byte $db}}
         }
 
-        if (vera_bram_address == RAM_HIGH) {
-            vera_bram_address = (bram_ptr_t)BRAM_LOW;
+        if (vera_bram_ptr == RAM_HIGH) {
+            vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
             vera_bram_bank = 1;
         }
 
         vera_different_bytes += (VERA_PROGRESS_CELL - equal_bytes);
 
-        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, vera_bram_bank, vera_bram_address, vera_address);
+        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, vera_bram_bank, vera_bram_ptr, vera_address);
         display_action_text(info_text);
     }
 

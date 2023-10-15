@@ -1,14 +1,15 @@
 /**
- * @mainpage cx16-update.c
+ * @file cx16-update.c
  * 
- * @author Wavicle -- Overall support and startup assistance for the chipset upgrade program.
- * @author Stefan Jakobsson -- Main SMC update logic, SMC firmware and bootloader.
- * @author Sven Van de Velde -- Creation of this program, under guidance of the SME of the people above.
+ * @author Wavicle from CX16 community (https://gist.github.com/jburks) -- Main ROM update logic & overall support and test assistance.
+ * @author MooingLemur from CX16 community (https://github.com/mooinglemur) -- Main SPI and VERA update logic, VERA firmware.
+ * @author Stefan Jakobsson from CX16 community (https://github.com/stefan-b-jakobsson) -- Main SMC update logic, SMC firmware and bootloader.
+ * @author Sven Van de Velde from CX16 community (https://github.com/FlightControl-User) -- Creation of this program, under the strong expertise by the people above.
  * 
- * @brief COMMANDER X16 FIRMWARE UPDATE UTILITY
+ * @brief COMMANDER X16 UPDATE TOOL MAIN LOGIC FLOW
  *
- * @version 2.0
- * @date 2023-09-21
+ * @version 3.0
+ * @date 2023-10-15
  *
  * @copyright Copyright (c) 2023
  *
@@ -97,7 +98,7 @@ void main_vera_check() {
         // rom_get_version_text(rom_file_release_text, rom_file_prefix, rom_file_release, rom_file_github);
 
         // sprintf(info_text, "VERA.BIN:%s", rom_file_release_text);
-        sprintf(info_text, "VERA.BIN:%s", "RELEASE TEXT TODO");
+        sprintf(info_text, "VERA.BIN:%s", "");
         display_info_vera(STATUS_FLASH, info_text);
     }
 
