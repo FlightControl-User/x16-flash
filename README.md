@@ -206,7 +206,7 @@ Please find below a detailed description of the complete process.
 
 ### 2.1.2 Component detection
 
-| Step  | Picture  |
+|  |  |
 | --- | --- |
 | Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. | ![DETECTED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/DETECTED.jpg) |
 
@@ -218,7 +218,7 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 ### 2.1.3 File presence and validation
 
-| Step  | Picture  |
+|  |  |
 | --- | --- |
 | After component detection, the program will immediately search for file presence for **each detected component** and will validate it. The program will read each file and check on data size and any validation content to be used before flashing.  | ![CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CHECK.jpg) |
 
@@ -229,9 +229,9 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 ### 2.1.4 Pre-Update conditions.
 
-| Step  | Picture  |
+|  |  |
 | --- | --- |
-| Before the update commences, there are important conditions vaidated to ensure that any upgrade file or component compatibility risk or issues, potentially corrupting your CX16, are properly mitigated. | ![SMC-ROM-COMPATIBILITY](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-COMPATIBILITY.jpg) |
+| Before the update commences, there are important conditions vaidated to ensure that any upgrade file or component compatibility risk or issues, potentially corrupting your CX16, are properly mitigated. |  |
 
 
 1. SMC and ROM must be flashed together: To avoid an SMC update corrupting your CX16 because it is not supportive or compatible with your ROM. The SMC file contains flags to ensure the compatibility between the SMC and the ROM.
@@ -240,9 +240,9 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 3. The main CX16 ROM not detected will stop the update process.
 
-| Step  | Picture  |
+|  |  |
 | --- | --- |
-| When there are no issues, the user is asked for a confirmation to proceed with the update. Replying `N` will cancel the update. Replying `Y` will proceed with the update! | ![UPDATE-CONFIRM](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/UPDATE-CONFIRM.jpg) |
+| When there are no issues, the user is asked for a confirmation to proceed with the update. Replying `N` will cancel the update. Replying `Y` will proceed with the update! | ![UPDATE-CONFIRMATION](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/UPDATE-CONFIRMATION.jpg) |
 
 
 ## 2.2 The CX16 update program updating your CX16 internal and external components
