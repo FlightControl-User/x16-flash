@@ -33,15 +33,15 @@
 
 #define __INTRO
 
+#define __VERA_CHIP_PROCESS
+// #define __SMC_CHIP_PROCESS
+// #define __ROM_CHIP_PROCESS
+
+
 #define __VERA_JP1_DETECT
 // #define __VERA_FLASH
 #define __SMC_FLASH
 #define __ROM_FLASH
-
-
-#define __VERA_CHIP_PROCESS
-#define __SMC_CHIP_PROCESS
-#define __ROM_CHIP_PROCESS
 
 #define __VERA_CHIP_DETECT
 #define __SMC_CHIP_DETECT
