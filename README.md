@@ -208,7 +208,7 @@ Please find below a detailed description of the complete process.
 
 | Step  | Picture  |
 | --- | --- |
-| Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. | ![FLASH-DETECT](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/FLASH-DETECT.jpg) |
+| Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. | ![DETECTED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/DETECTED.jpg) |
 
 The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips.
 
@@ -220,7 +220,7 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 | Step  | Picture  |
 | --- | --- |
-| After component detection, the program will immediately search for file presence for **each detected component** and will validate it. The program will read each file and check on data size and any validation content to be used before flashing.  | ![FLASH-CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/FLASH-CHECK.jpg) |
+| After component detection, the program will immediately search for file presence for **each detected component** and will validate it. The program will read each file and check on data size and any validation content to be used before flashing.  | ![CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CHECK.jpg) |
 
 
 - Detected and valid files will result in the status of the component in a **PURPLE** led and status `Update`.
