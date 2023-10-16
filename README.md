@@ -1,74 +1,89 @@
 # --- WORK IN PROGRESS ---
 
-# Commander X16 Flashing Utility
+# Commander X16 update program
 
-Contains the source code of the commander x16 update utility.
-This utility allows you to upgrade (or downgrade) your CX16 on-board SMC firmware and main ROM, and/or, to flash external ROMs installed on a cartridge board.
+This program allows you to upgrade (or downgrade) the firmware of your CX16 internal and external components in a very user friendly way and with minimal preparations and/or manual actions during the update process:
 
-Please see below for a short user manual.
+| Component | Location | Purpose | File(s) | Size |
+| --- | --- | --- | --- | --- |
+| **VERA**  | internal CX16 board | This FPGA made by Frank Van den Hoef, handles the CX16 - graphics and the SD card operations | `VERA.BIN` | 128KB |
+| **VERA**  | external VERA cardridge | This cardridge allows to connect an extra monitor to your CX16, and has a separate graphics engine! | `VERA1.BIN` | 128KB |
+| **SMC**   | internal CX16 board | This microcontroller handles your mouse, keyboard and timer. It is essential to boot your CX16. | `SMC.BIN` | 2KB |
+| **ROM**   | internal CX16 board | The main CX16 ROM contains the DOS and KERNAL to run your CX16. | `ROM.BIN` | 512KB |
+| **ROM** | external CX16 cardridge |  This cardridge allows you to extend the memory of your CX16 with (7) extra ROM or RAM ICs, fitted into a PCI slot on your CX16 board. | `ROMn.BIN` | 7x512KB |
 
-## Notice of caution
+**Please note that there are Manual Actions or Preparations needed to update your CX16 components! So don't just run this program but first carefully read this User Manual!**
+
+# Table of contents:
+
+### 1 [User Manual](#1-user-manual)
+### 2 [Run the CX16 update program](#2-run-the-cx16-update-program)
+### 3 [Issues and Resolutions](#3-issues-and-resolutions)
+### 4 [Recovery from a bricked CX16](#4-recovery-from-bricked-cx16)
+
+
+# Notice of caution
 
 Updating your on-board firmware requires you to carefully follow the instructions. There is a small risk that your on-board firmware may get damaged during the update process and may generate your CX16 unusable, resulting in a bricked CX16!
 
-Further steps to mitigate and recover from such situations are pending to be documented. However, please direct youself in such situations to the Commander X16 [Discord](https://discord.gg/nS2PqEC) or [Forum](https://www.commanderx16.com/forum)!
+Further steps to mitigate and recover from such situations is always possible. However, these actions are pending to be documented. Please direct youself in such situations to the Commander X16 [Discord](https://discord.gg/nS2PqEC) or [Forum](https://www.commanderx16.com/forum)!
 
-# User Manual
+# 1 User Manual
 
-Please consider this draft user manual as a first guide how to use the update tool.
+Please consider this draft user manual as a first guide how to use the update program.
 
-## 0. What you need
+## 1.0 What you need
 
-Depending on your configuration and the new release artefacts available from the CX16 community site,  
+Depending on your configuration and the new released artefacts available from the CX16 community site,  
 specific hardware on your CX16 board will be updated. But in essence, the update should be fairly straightforward and user friendly!
 
 - Ensure you have a valid and working SD card that has sufficient free space and is formatted in FAT32.
 - You need a Commander X16 computer (the real thing).
 - You optionally can have an add-on cartridge board, that is plugged in any of the 4 expansion slots. This RAM/ROM board can contain an extra 3.5 MB of RAM/ROM!
+- Ensure that you have in total 6 standard [computer jumper caps](https://www.amazon.com/s?k=computer+jumper+caps&crid=30ZIZP22RVD1R&sprefix=computer+jumper+caps%2Caps%2C169&ref=nb_sb_noss_1) available. These are needed to close:
+  - 1 x jumper cap for the J1 jumper pins on the CX16 main board.
+  - 2 x jumper caps for the J5 jumper pins on the CX16 main board.
+  - 1 x jumper cap for the JP1 jumper pins on the VERA board.
+  - 2 x jumper caps for the J1 and J2 jumper pins on the external ROM cardridge board.
 
-On the Commander X16 main board, you have 3 important compontents that this utility can update with new firmware:
+That's it!
 
-- The **SMC** : This microcontroller handles your mouse, keyboard and timer. It is essential to boot your CX16.
-- The **VERA** : This FPGA made by Frank Van den Hoef, handles the CX16 graphics and the SD card operations.
-- The **ROM** : The main CX16 ROM contains the DOS and KERNAL to run your CX16.
+## 1.1 Download the program
 
-## 1. Download the program
+The latest version of the program can be found on the [release page](https://github.com/FlightControl-User/x16-flash/releases) of this repository. Please read through the release notes for any specific actions!
 
-The latest version of the program can be found on the [release page](https://github.com/FlightControl-User/x16-flash/releases) of this repository. Search for the file CX16-UPDATE.PRG and download the file. Copy the program into a directory of your SD card. You will run this program on your CX16 hardware. Ensure the file is copied onto the SD card with the file name in CAPITAL letters.
+- Search for the file CX16-UPDATE.PRG and download the file. 
+- Copy the program into a directory of your SD card. 
+- You will run this program on your CX16. 
+- Ensure the file is copied onto the SD card with the file name in CAPITAL letters.
 
-## 2. Download the Commander X16 community firmware release files from the web site.
+## 1.2 Download the Commander X16 community firmware release files from the web site.
 
-Download the latest SMC.BIN, VERA.BIN and ROM.BIN file from the Commander X16 community web sites. Any additional ROMs on the expansion card to be updated, require ROMn.BIN files to be added, according your rom update strategy.
+Download the latest `VERA.BIN`, `SMC.BIN` and `ROM.BIN` file(s) from the Commander X16 community web sites. 
 
-- [SMC.BIN from the CX16 update tool release page](https://github.com/FlightControl-User/x16-flash/releases)
+Any additional external ROMs on the expansion card to be updated, create the `ROMn.BIN` files to be according your external ROM update strategy.
+
+If you own an external VERA, download or create an extra VERA1.BIN file and copy it onto your SD card.
+
+- [SMC.BIN from the CX16 update program release page](https://github.com/FlightControl-User/x16-flash/releases)
 - [VERA.BIN from the VERA Release page](https://github.com/X16Community/vera-module/releases)
-- [ROM.BIN from the ROM Release page](https://github.com/X16Community/x16-rom/releases)
+- [ROM.BIN files from the ROM Release page](https://github.com/X16Community/x16-rom/releases).
 
 Notes: 
--  The SMC Release page is not yet containing the correct SMC.BIN files, so download from the CX16 update tool release page. Therefore, the CX16 update tool release page contains the SMC.BIN artefacts.
-- The names of the artefacts can differ a bit. They might contain the release number of version number. Always rename the files to the correct name!
+-  The SMC Release page is not yet containing the correct SMC.BIN files, so download from the CX16 update program release page. Therefore, the CX16 update program release page contains the SMC.BIN artefacts.
+- The names of the artefacts can differ a bit. They might contain the release number of version number. Always rename the files to the correct name before copying it onto the SD card!
 
+## 1.3 The update PREPARATIONS:
 
-## 3. Explanations of the update process.
+### 1.3.1 Copy the files on the SD card.
 
-### 3.1. Copy the files on the SD card.
+Copy the `SMC.BIN`, `VERA.BIN`, `VERA1.BIN`, `ROM.BIN` and `ROMn.BIN` files on the SD card at the same folder fro where your CX16-UPDATE.PRG file is located according your update strategy and needs.
 
-Copy the SMC.BIN, VERA.BIN and the ROM.BIN files on the SD card at the same folder fro where your CX16-UPDATE.PRG file is located. Ensure the files are copied onto the SD card with the file names in **CAPITAL** letters.
+Ensure the files are copied onto the SD card with the file names in **CAPITAL** letters.
 
-### 3.2. Main CX16 ROM J1 jumper pins: CLOSED!
+For an overview, please find the following checklists with all the actions and attention points, which are explained further below with pictures and further details.
 
-![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg)
-
-Ensure that the J1 jumper pins on the Commander X16 main board are **closed**, to **remove the write protection** of the main CX16 ROM.  
-If the J1 jumper pins are **not closed**, the **main CX16 ROM will not be detected** by the update utility and an issue will be reported by the software!
-
-### 3.3. SMC J5 jumper pins: CLOSED!
-
-![CX16-J5](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J5.jpg)
-
-Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. If the J5 jumper pins are not closed, the keyboard won't be functional!
-
-### 3.4. VERA JP1 jumper pins: OPEN!
+### 1.3.1 PREPARE: OPEN VERA JP1 jumper pins + Be prepared for a manual action!
 
 ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg)
 
@@ -80,9 +95,26 @@ During the update process, the program will ask you to place a jumper cap, **clo
 
 Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, opening the pins again.
 
-**Note that this will happen during the update process and it is crucial that you follow carefully the instructions given by the program!**
+**Note that this will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF!**
 
-### 3.5. Flash multiple ROMs on the external RAM/ROM board or cartridge.
+Note, on the external VERA card, you won't need to follow this process.
+
+### 1.3.2 Prepare: CLOSE SMC J5 jumper pins!
+
+![CX16-J5](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J5.jpg)
+
+Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. If the J5 jumper pins are not closed, the keyboard won't be functional!
+
+
+### 1.3.3 Prepare: CLOSE Main CX16 ROM J1 jumper pins!
+
+![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg)
+
+Ensure that the J1 jumper pins on the Commander X16 main board are **closed**, to **remove the write protection** of the main CX16 ROM.  
+If the J1 jumper pins are **not closed**, the **main CX16 ROM will not be detected** by the update program and an issue will be reported by the software!
+
+
+### 1.3.4 Prepare: Flash multiple ROMs on the external RAM/ROM board or cartridge.
 
 First for all clarity, find below a picture of such a ROM expansion cartridge:
 
@@ -106,30 +138,11 @@ To ensure that no harmful program can damage your ROMs, jumper pins J1 and J2 on
 
 Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM*n*.BIN file(s) will not be flashed!
 
-## 4. Update checklist for the Commander X16.
+## 1.4. Final Update checklist for the Commander X16.
 
-Please consolidate the following checklist before you commence running the program:
+Please consolidate the following checklist before you commence running the CX16 update program, taking all the information you learned above:
 
-
-## 4.0 Needed materials checklist:
-
-  Ensure that you have in total 6 standard [computer jumper caps](https://www.amazon.com/s?k=computer+jumper+caps&crid=30ZIZP22RVD1R&sprefix=computer+jumper+caps%2Caps%2C169&ref=nb_sb_noss_1) available. These are needed to close:
-
-  - 1 x jumper cap for the J1 jumper pins on the CX16 main board.
-  - 2 x jumper caps for the J5 jumper pins on the CX16 main board.
-  - 1 x jumper cap for the JP1 jumper pins on the VERA board.
-  - 2 x jumper caps for the J1 and J2 jumper pins on the external ROM cardridge board.
-
-
-## 4.1 SMC update checklist:
-
-  1. Is the **version** of the `SMC.BIN` correct?
-  2. Has the file been **copied** onto your SD card?
-  3. Is the file named `SMC.BIN` in **capital** letters?
-  4. Are the J5 jumper pins **closed** on the CX16 main board?
-
-
-## 4.2 VERA update checklist:
+## 1.4.1 Internal CX16 VERA update checklist:
 
   1. Is the **version** of the `VERA.BIN` correct?
   2. Has the file been **copied** onto your SD card?
@@ -140,14 +153,21 @@ Please consolidate the following checklist before you commence running the progr
   6. Have you understood why the JP1 jumper pins need to be closed and when it will be asked to close them?
   7. Have you understood why the JP1 jumper pins need to be opened again when the VERA memory has been updated? 
 
-## 4.3 Main CX16 ROM checklist:
+## 1.4.2 Internal CX16 SMC update checklist:
+
+  1. Is the **version** of the `SMC.BIN` correct?
+  2. Has the file been **copied** onto your SD card?
+  3. Is the file named `SMC.BIN` in **capital** letters?
+  4. Are the J5 jumper pins **closed** on the CX16 main board?
+
+## 1.4.3 Internal CX16 ROM update checklist:
 
   1. Is the **version** of the `ROM.BIN` correct?
   2. Has the file been **copied** onto your SD card?
   3. Is the file named `ROM.BIN` in **capital** letters?
   4. Are the **J1 jumper pins** on the CX16 main board **closed**?
 
-## 4.4 External CX16 ROMs update checklist:
+## 1.4.4 External CX16 ROMs update checklist:
 
   1. Are the **version** of the `ROMn.BIN` file(s) correct?  
   2. Has(ve) the file(s) been **copied** onto your SD card?
@@ -155,22 +175,22 @@ Please consolidate the following checklist before you commence running the progr
   4. For the **ROMs 1 to 6** on the cardridge, are the **J1 jumper pins closed**?
   5. For the **ROM 7** on the cardridge, are the **J2 jumper pins closed**?
   
-# 5. Start the CX16 update.
+# 2. Run the CX16 update program.
 
-Place the SD card in the CX16 (VERA) card slot.  
+1. Place the SD card in the CX16 (VERA) card slot.  
 
-Boot/Start your Commander X16 computer.
+2. Boot/Start your Commander X16 computer.
 
-Type `LOAD CX16-UPDATE.PRG` or press `F7` on the keyboard (`DOS"$"`) and put the cursor in front of the program, then press `F3` on the keyboard (`LOAD`).
+3. Type `LOAD CX16-UPDATE.PRG` or press `F7` on the keyboard (`DOS"$"`) and put the cursor in front of the program, then press `F3` on the keyboard (`LOAD`).
 
-Type `RUN` or press `F5` on the keyboard.
+4. Type `RUN` or press `F5` on the keyboard.
 
-# 6. Main flow of the CX16 update utility:
+# 2.1 Main flow of the CX16 update program:
 
-The update utility is very user friendly and walks you through the different steps.
+The update program is very user friendly and walks you through the different steps.
 Please find below a detailed description of the complete process.
 
-## 6.1. Introduction and briefing screens
+## 2.1.1 Introduction and briefing screens
 
 ![Into-1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/INTRO1.jpg)
 
@@ -182,9 +202,9 @@ Please carefully read the text at the bottom panel of the screen, and press SPAC
 
 A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your expansion cartridge board. Press SPACE to continue.
 
-### 6.2. Component detection
+### 2.1.2 Component detection
 
-Next, the update utility detects which components are upgradable and will validate which files are found on the SD card. 
+Next, the update program detects which components are upgradable and will validate which files are found on the SD card. 
 
 ![FLASH-DETECT](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/FLASH-DETECT.jpg)
 
@@ -194,7 +214,7 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 - Other components that are not detected are highlighed with a None staus and a **BLACK** led. These ROMs won't be considered for flashing.
 
-### 6.3. File presence and validation
+### 2.1.3 File presence and validation
 
 After component detection, the program will immediately search for file presence for **each detected component** and will validate it.
 
@@ -206,7 +226,7 @@ The program will read each file and check on data size and any validation conten
 
 - Files that are not present, will result in the component not to be updated. The component will get a GREY led and status `skipped`.
 
-### 6.4 Pre-Update conditions.
+### 2.1.4 Pre-Update conditions.
 
 Before the update commences, there are important conditions vaidated to ensure that any upgrade file or component compatibility risk or issues, potentially corrupting your CX16, are properly mitigated.
 
@@ -226,7 +246,7 @@ When there are no issues, the user is asked for a confirmation to proceed with t
  - Replying `N` will cancel the update. 
  - Replying `Y` will proceed with the update!
 
-## 7. The update process, updating your components
+## 2.2 The update process, updating your components
 
 The program will update each component that has status `Update`.
 
@@ -234,7 +254,12 @@ The program will read the firmware data into memory first, and will then commenc
 
 However, the update process differs for each component type, so please read carefully the below explanation:
 
-### 7.1. The SMC update process
+### 2.2.1 The VERA update process
+
+The update process of the VERA requires a manual interaction, where the user places the JP1 jumper cap, closing the JP1 jumper pins when requested on the VERA board.
+
+
+### 2.2.2 The SMC update process
 
 The SMC update is straightforward. 
 
@@ -260,15 +285,11 @@ When POWER-RESET is pressed, the program will flash your SMC. Don't interrupt th
 
 **Once your SMC is updated, you MUST wait till the end of the program to continue to update process, or your CX16 will be BRICKED!!!**
 
-### 7.2. The VERA update process.
 
-The update process of the VERA requires a manual interaction, where the user places the JP1 jumper cap, closing the JP1 jumper pins when requested on the VERA board.
-
+### 2.2.3 The main CX16 ROM update process
 
 
-### 7.3. The main CX16 ROM update process.
-
-### 7.4. The external cardridge ROMs update process.
+### 2.2.4 The external cardridge ROMs update process
 
 The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $4000 bytes are loaded in low RAM, while the remainder of the ROM[N].BIN file is loaded in high RAM. This is nothing for you to be concerned about, just explaining how the program works. But note that a ROM[N].BIN file that is 512KB large, will be fully loaded into RAM on the Commander X16!
 
@@ -279,6 +300,15 @@ Each $100 bytes loaded will be shown on the screen as a '.' in the memory matrix
 The ROM address ranges being processed are shown. The first column shows the ROM bank being processed, while the 2nd column indicates the "relative" ROM addres for each row. 
 
 Loading and Comparing in progress is highlighted with a CYAN led on top of the ROM chip. 
+
+# 3 ISSUES AND RESOLUTIONS
+
+# 4 RECOVERY FROM BRICKED CX16
+
+
+----
+
+# OLD
 
 ### 3.3. ROM[N].BIN file changes
 
