@@ -53,6 +53,7 @@ unsigned char util_wait_key(unsigned char* info_text, unsigned char* filter) {
     unsigned char brom = bank_get_brom();
     bank_set_bram(0);
     bank_set_brom(4);
+    CLI();
 
     while (true) {
         ch = kbhit();

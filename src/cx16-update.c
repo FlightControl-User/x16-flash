@@ -307,6 +307,7 @@ void main() {
 
     // Block all interrupts to prevent a changed ROM bank to make an interrupt go wrong.
     SEI();
+    bank_set_brom(0);
 
     // Detecting ROM chips
     rom_detect();
@@ -367,21 +368,19 @@ void main() {
         }
     }
 
-    CLI();
-
 #endif
 #endif
 
 #ifdef __VERA_CHIP_PROCESS
 #ifdef __VERA_CHIP_CHECK
 
-
+    // Here we allow for interrupts for the VERA check process.
     bank_set_brom(4);
-    CLI();    
+    CLI();
     display_progress_clear();
     main_vera_check();
-    bank_set_brom(0);
     SEI();
+    bank_set_brom(0);
 
 #endif
 #endif
@@ -446,9 +445,6 @@ void main() {
         }
     }
 
-    bank_set_brom(4);
-    CLI();
-
 #endif
 #endif
 
@@ -498,6 +494,7 @@ void main() {
         display_info_smc(STATUS_SKIP, "SMC.BIN and SMC equal.");
     }
 
+
     // VA6 | no SMC.BIN and no CX16 ROM.BIN
 
 
@@ -519,22 +516,17 @@ void main() {
             }
         }
 
-        bank_set_bram(0);
-        SEI();
-
 #ifdef __VERA_CHIP_PROCESS
 #ifdef __VERA_CHIP_FLASH
 
+        // Here we allow for interrupts for the VERA flash process.
         bank_set_brom(4);
         CLI();
-
         if(check_status_vera(STATUS_FLASH)) {
             display_progress_text(display_jp1_spi_vera_text, display_jp1_spi_vera_count);
             util_wait_space();
             main_vera_flash();
         }
-
-
         SEI();
         bank_set_brom(0);
 
