@@ -37,14 +37,14 @@ Please consider this draft user manual as a first guide how to use the update pr
 Depending on your configuration and the new released artefacts available from the CX16 community site,  
 specific hardware on your CX16 board will be updated. But in essence, the update should be fairly straightforward and user friendly!
 
-- Ensure you have a valid and working SD card that has sufficient free space and is formatted in FAT32.
-- You need a Commander X16 computer (the real thing).
-- You optionally can have an add-on cartridge board, that is plugged in any of the 4 expansion slots. This RAM/ROM board can contain an extra 3.5 MB of RAM/ROM!
-- Ensure that you have in total 6 standard [computer jumper caps](https://www.amazon.com/s?k=computer+jumper+caps&crid=30ZIZP22RVD1R&sprefix=computer+jumper+caps%2Caps%2C169&ref=nb_sb_noss_1) available. These are needed to close:
-  - 1 x jumper cap for the J1 jumper pins on the CX16 main board.
-  - 2 x jumper caps for the J5 jumper pins on the CX16 main board.
-  - 1 x jumper cap for the JP1 jumper pins on the VERA board.
-  - 2 x jumper caps for the J1 and J2 jumper pins on the external ROM cardridge board.
+1. Ensure you have a valid and working SD card that has sufficient free space and is formatted in FAT32.
+2. You need a Commander X16 computer (the real thing).
+3. You optionally can have an add-on cartridge board, that is plugged in any of the 4 expansion slots. This RAM/ROM board can contain an extra 3.5 MB of RAM/ROM!
+4. Ensure that you have in total 6 standard [computer jumper caps](https://www.amazon.com/s?k=computer+jumper+caps&crid=30ZIZP22RVD1R&sprefix=computer+jumper+caps%2Caps%2C169&ref=nb_sb_noss_1) available:
+    - 1 x jumper cap for the J1 jumper pins on the CX16 main board.
+    - 2 x jumper caps for the J5 jumper pins on the CX16 main board.
+    - 1 x jumper cap for the JP1 jumper pins on the VERA board.
+    - 2 x jumper caps for the J1 and J2 jumper pins on the external ROM cardridge board.
 
 That's it!
 
