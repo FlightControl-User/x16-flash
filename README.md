@@ -254,7 +254,7 @@ The program guides you through the update process for each component in a very u
 
 ### 2.2.1 The VERA update process
 
-| Step  | Picture  |
+|   |   |
 | --- | --- |
 | Once the CX16 update has verified all the the files, and the VERA.BIN file is accepted, you need to confirm here with typing `Y` on the CX16 keyboard. | ![UPDATE-VERA-CONFIRMATION](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/UPDATE-VERA-CONFIRMATION.jpg) |
 | You will be presented with this briefing, that explains the importance of the JP1 jumper pins manual handing during the update process (Picture above). Press SPACE on the CX16 keyboard to continue. | ![VERA-UPDATE-BRIEFING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-BRIEFING.jpg) |
