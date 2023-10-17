@@ -438,7 +438,7 @@ init();
         display_info_cx16_rom(STATUS_SKIP, "Issue with SMC!");
         display_info_smc(STATUS_ISSUE, NULL);
         unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
-        if(ch == 'N') {
+        if(ch == 'Y') {
             display_info_cx16_rom(STATUS_FLASH, "");
             display_info_smc(STATUS_SKIP, NULL);
         }
@@ -446,24 +446,24 @@ init();
 
     // VA3 | SMC.BIN and CX16 ROM not Detected
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_NONE)) {
-        display_action_progress("Issue with the CX16 main ROM: not detected ...");
+        display_action_progress("Issue with the CX16 ROM: not detected! ...");
         display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
-        display_info_smc(STATUS_SKIP, "Issue with CX16 main ROM!");
+        display_info_smc(STATUS_SKIP, "Issue with CX16 ROM!");
         display_info_cx16_rom(STATUS_ISSUE, "Are J1 jumper pins closed?");
         unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
-        if(ch == 'N') {
+        if(ch == 'Y') {
             display_info_smc(STATUS_FLASH, "");
             display_info_cx16_rom(STATUS_SKIP, "");
         }
     } else {
         // VA4 | SMC is Flash and CX16 is not Flash
         if(check_status_smc(STATUS_FLASH) && !check_status_cx16_rom(STATUS_FLASH)) {
-            display_action_progress("Issue with the CX16 main ROM, check the issue ...");
+            display_action_progress("Issue with the CX16 ROM, check the issue ...");
             display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
             display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!");
             display_info_cx16_rom(STATUS_ISSUE, NULL);
             unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
-            if(ch == 'N') {
+            if(ch == 'Y') {
                 display_info_smc(STATUS_FLASH, "");
                 display_info_cx16_rom(STATUS_SKIP, "");
             }
@@ -484,14 +484,14 @@ init();
 
     // VA1 | Version of SMC and SMC.BIN equal
     if(check_status_smc(STATUS_FLASH) && smc_release == smc_file_release && smc_major == smc_file_major && smc_minor == smc_file_minor) {
-        display_action_progress("The SMC chip and SMC.BIN versions are equal, no flash required!");
+        display_action_progress("The CX16 SMC and SMC.BIN versions are equal, no flash required!");
         util_wait_space();
         display_info_smc(STATUS_SKIP, NULL);
     }
 
-    // VA7 | Version of CX16 main ROM and ROM.BIN are equal
-    if(check_status_cx16_rom(STATUS_FLASH) && rom_release[0] == rom_file_release[8] && strncmp(rom_github, rom_file_github, 7) == 0) {
-        display_action_progress("The CX16 main ROM and ROM.BIN versions are equal, no flash required!");
+    // VA7 | Version of CX16 ROM and ROM.BIN are equal
+    if(check_status_cx16_rom(STATUS_FLASH) && rom_release[0] == rom_file_release[0] && strncmp(&rom_github[0], &rom_file_github[0], 7) == 0) {
+        display_action_progress("The CX16 ROM and ROM.BIN versions are equal, no flash required!");
         util_wait_space();
         display_info_cx16_rom(STATUS_SKIP, NULL);
     }

@@ -15,18 +15,18 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$5553 Code
+  $080d-$56d7 Code
 
 Data-segment:
-  $5554-$7183 Data
+  $56d8-$7388 Data
 
 CodeIntro-segment:
-  $7184-$71d4 CodeIntro
+  $7389-$73db CodeIntro
 
 CodeVera-segment:
 
 DataIntro-segment:
-  $71d5-$7213 DataIntro
+  $73dc-$741a DataIntro
 
 DataVera-segment:
 

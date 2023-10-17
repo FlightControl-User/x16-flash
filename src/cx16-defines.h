@@ -33,7 +33,7 @@
 
 #define __INTRO
 
-#define __VERA_CHIP_PROCESS
+// #define __VERA_CHIP_PROCESS
 #define __SMC_CHIP_PROCESS
 #define __ROM_CHIP_PROCESS
 
