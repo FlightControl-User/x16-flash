@@ -3,7 +3,7 @@
  * 
  * @author Wavicle from CX16 community (https://gist.github.com/jburks) -- Advice and outline of the ROM update logic & overall support and test assistance of this program.
  * @author MooingLemur from CX16 community (https://github.com/mooinglemur) -- Advice and outline of the main SPI and W25Q16 update logic, and supply of new VERA firmware.
- * @author Stefan Jakobsson from CX16 community (https://github.com/stefan-b-jakobsson) -- Advice and outline of the SMC update logic, SMC firmware and bootloader.
+ * @author Stefan Jakobsson from CX16 community (https://github.com/stefan-b-jakobsson) -- Advice and outline of the SMC update logic, SMC firmware and bootloader and creation of SMC firmware.
  * @author Sven Van de Velde from CX16 community (https://github.com/FlightControl-User) -- Creation of this program, under the strong expertise by the people above.
  * 
  * @brief COMMANDER X16 UPDATE TOOL MAIN LOGIC FLOW
@@ -321,7 +321,7 @@ init();
 #ifdef __SMC_CHIP_PROCESS
 #ifdef __SMC_CHIP_CHECK
 
-    if(check_status_smc(STATUS_DETECTED)) {
+    if(check_status_smc(STATUS_DETECTED) || check_status_smc(STATUS_ISSUE) ) {
 
         display_action_progress("Checking SMC.BIN ...");
 
@@ -431,38 +431,50 @@ init();
 #endif
 #endif
 
-    // VA5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and don't flash. | Issue
+    // VA5 | SMC is not Flash and CX16 is Flash
     if(!check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
-        display_action_progress("SMC update issue!");
+        display_action_progress("Issue with the CX16 SMC, check the issue ...");
         display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
         display_info_cx16_rom(STATUS_SKIP, "Issue with SMC!");
         display_info_smc(STATUS_ISSUE, NULL);
-        util_wait_space();
-    }
-
-    // VA3 | SMC.BIN and CX16 ROM not Detected | Display issue and don't flash. Ask to close the J1 jumper pins on the CX16 main board. | Issue
-    if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_NONE)) {
-        display_action_progress("CX16 ROM update issue, ROM not detected!");
-        display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
-        display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!");
-        display_info_cx16_rom(STATUS_ISSUE, "Are J1 jumper pins closed?");
-        util_wait_space();
-    } else {
-        // VA4 | SMC is Flash and CX16 is not Flash | Display CX16 ROM update issue and don't flash. | Issue
-        if(check_status_smc(STATUS_FLASH) && !check_status_cx16_rom(STATUS_FLASH)) {
-            display_action_progress("CX16 ROM update issue!");
-            display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
-            display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!");
-            display_info_cx16_rom(STATUS_ISSUE, NULL);
-            util_wait_space();
+        unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
+        if(ch == 'N') {
+            display_info_cx16_rom(STATUS_FLASH, "");
+            display_info_smc(STATUS_SKIP, NULL);
         }
     }
 
-    // VA2 | SMC.BIN does not support ROM.BIN release | Display warning that SMC.BIN does not support the ROM.BIN release. Ask for user confirmation to continue flashing Y/N. If the users selects not to flash, set both the SMC and the ROM as an Issue and don't flash. | Issue
+    // VA3 | SMC.BIN and CX16 ROM not Detected
+    if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_NONE)) {
+        display_action_progress("Issue with the CX16 main ROM: not detected ...");
+        display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
+        display_info_smc(STATUS_SKIP, "Issue with CX16 main ROM!");
+        display_info_cx16_rom(STATUS_ISSUE, "Are J1 jumper pins closed?");
+        unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
+        if(ch == 'N') {
+            display_info_smc(STATUS_FLASH, "");
+            display_info_cx16_rom(STATUS_SKIP, "");
+        }
+    } else {
+        // VA4 | SMC is Flash and CX16 is not Flash
+        if(check_status_smc(STATUS_FLASH) && !check_status_cx16_rom(STATUS_FLASH)) {
+            display_action_progress("Issue with the CX16 main ROM, check the issue ...");
+            display_progress_text(display_smc_rom_issue_text, display_smc_rom_issue_count);
+            display_info_smc(STATUS_SKIP, "Issue with main CX16 ROM!");
+            display_info_cx16_rom(STATUS_ISSUE, NULL);
+            unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
+            if(ch == 'N') {
+                display_info_smc(STATUS_FLASH, "");
+                display_info_cx16_rom(STATUS_SKIP, "");
+            }
+        }
+    }
+
+    // VA2 | SMC.BIN does not support ROM.BIN release
     if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) && !smc_supported_rom(rom_file_release[0])) {
         display_action_progress("Compatibility between ROM.BIN and SMC.BIN can't be assured!");
         display_progress_text(display_smc_unsupported_rom_text, display_smc_unsupported_rom_count);
-        unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN");
+        unsigned char ch = util_wait_key("Proceed with the update? [Y/N]", "YN");
         if(ch == 'N') {
             // Cancel flash
             display_info_smc(STATUS_ISSUE, NULL);

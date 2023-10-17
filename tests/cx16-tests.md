@@ -48,9 +48,9 @@ ID | Test Case | Action Description | Error Level
 --- | --- | --- | ---
 VA1 | Version of SMC and SMC.BIN equal | Display that the SMC and SMC.BIN versions are equal and no flashing is required. Set SMC to Skip. | None
 VA2 | SMC.BIN does not support ROM.BIN release | Display warning that SMC.BIN does not support the ROM.BIN release. Ask for user confirmation to continue flashing Y/N. If the users selects not to flash, set both the SMC and the ROM as an Issue and don't flash. | Issue
-VA3 | SMC.BIN and CX16 ROM not Detected | Display issue and don't flash. Ask to close the J1 jumper pins on the CX16 main board. | Issue
-VA4 | SMC is Flash and CX16 is not Flash | Display CX16 ROM update issue and don't flash. | Issue
-VA5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and don't flash. | Issue
+VA3 | SMC.BIN and CX16 ROM not Detected | Display issue and ask for a confirmation to proceed. Ask to close the J1 jumper pins on the CX16 main board. | Issue or None
+VA4 | SMC is Flash and CX16 is not Flash | Display CX16 ROM update issue and ask for a confirmation to proceed. | Issue or None
+VA5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and ask for a confirmation to proceed. | Issue or None
 VA6 | no SMC.BIN and no CX16 ROM.BIN | No action for flashing. Both SMC and CX16 ROM should be set to Skip. | None
 VA99 | One of the components is Flash | Request to continue with flashing from the user Y/N. | None
 
