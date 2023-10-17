@@ -20,8 +20,8 @@
 
 #include "cx16-spi.h"
 
-#pragma code_seg(CodeVera)
-#pragma data_seg(DataVera)
+//#pragma code_seg(CodeVera)
+//#pragma data_seg(DataVera)
 
 __mem unsigned char spi_buffer[256];
 
@@ -312,19 +312,15 @@ unsigned char spi_read() {
 .endproc
 */
 
-    unsigned char SPIData;
-
 #ifndef __INTELLISENSE__
     asm {
         stz vera_reg_SPIData
         !: bit vera_reg_SPICtrl
         bmi !-
-        lda vera_reg_SPIData
-        sta SPIData
     }
 #endif
 
-    return SPIData;
+    return *vera_reg_SPIData;
 }
 
 /**

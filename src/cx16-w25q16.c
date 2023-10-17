@@ -1,5 +1,5 @@
 /**
- * @file cx16-vera.c
+ * @file cx16-w25q16.c
  * 
  * @author Wavicle from CX16 community (https://gist.github.com/jburks) -- Main ROM update logic & overall support and test assistance.
  * @author MooingLemur from CX16 community (https://github.com/mooinglemur) -- Main SPI and VERA update logic, VERA firmware.
@@ -20,19 +20,20 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
-#include "cx16-vera.h"
+#include "cx16-w25q16.h"
 #include "cx16-spi.h"
 #include "cx16-display.h"
+#include "cx16-utils.h"
 
-#pragma code_seg(CodeVera)
-#pragma data_seg(DataVera)
+//#pragma code_seg(CodeVera)
+//#pragma data_seg(DataVera)
 
 __mem char* const vera_file_name = "VERA.BIN";
 __mem unsigned long vera_file_size = 0;
 __mem unsigned long const vera_size = (unsigned long)0x20000;
 
 
-void vera_detect() {
+void w25q16_detect() {
 
 // This conditional compilation ensures that only the detection interpretation happens if it is switched on.
 #ifdef __VERA_CHIP_DETECT
@@ -53,7 +54,7 @@ void vera_get_device_text(unsigned char* device_text, unsigned char manufacturer
     return;
 }
 
-unsigned long vera_read(unsigned char info_status) {
+unsigned long w25q16_read(unsigned char info_status) {
 
     unsigned char x = PROGRESS_X;
     unsigned char y = PROGRESS_Y;
@@ -132,10 +133,12 @@ unsigned long vera_read(unsigned char info_status) {
     return vera_file_size;
 }
 
-unsigned int vera_compare(bram_bank_t bank_ram, bram_ptr_t bram_ptr, unsigned int vera_compare_size) {
 
-    unsigned int compared_bytes = 0; /// Holds the amount of bytes actually verified between the VERA and the RAM.
-    unsigned int equal_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the VERA.
+inline unsigned char w25q16_compare(bram_bank_t bank_ram, bram_ptr_t bram_ptr, unsigned char vera_compare_size)
+{
+
+    unsigned char compared_bytes = 0; /// Holds the amount of bytes actually verified between the VERA and the RAM.
+    unsigned char equal_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the VERA.
 
     bank_set_bram(bank_ram);
 
@@ -150,9 +153,10 @@ unsigned int vera_compare(bram_bank_t bank_ram, bram_ptr_t bram_ptr, unsigned in
     }
 
     return equal_bytes;
+    
 }
 
-unsigned char vera_preamable_RAM() {
+unsigned char w25q16_preamable_RAM() {
 
     unsigned char x = PROGRESS_X;
     unsigned char y = PROGRESS_Y;
@@ -216,7 +220,7 @@ unsigned char vera_preamable_RAM() {
 }
 
 
-unsigned char vera_preamable_SPI() {
+unsigned char w25q16_preamable_SPI() {
 
     unsigned char x = PROGRESS_X;
     unsigned char y = PROGRESS_Y;
@@ -226,71 +230,90 @@ unsigned char vera_preamable_SPI() {
     return 1;
 }
 
-unsigned long vera_verify() {
+/**
+ * @brief Verify the w25q16 flash memory contents with the VERA.BIN file contents loaded from RAM $01:A000.
+ * 
+ * @return unsigned long The total different bytes identified.
+ */
+unsigned long w25q16_verify() {
 
     unsigned char x = PROGRESS_X;
     unsigned char y = PROGRESS_Y;
     unsigned char w = PROGRESS_W;
 
-    bram_bank_t vera_bram_bank = 1;
-    bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
-    bank_set_bram(vera_bram_bank);
-
-    unsigned long vera_address = 0;
-    unsigned long vera_boundary = vera_file_size;
+    bram_bank_t bram_bank = 1;
+    bram_ptr_t bram_ptr = (bram_ptr_t)BRAM_LOW;
+    bank_set_bram(bram_bank);
 
     unsigned int progress_row_current = 0;
-    unsigned long vera_different_bytes = 0;
 
     display_info_vera(STATUS_COMPARING, "Comparing VERA ...");
 
     gotoxy(x, y);
 
-    spi_read_flash(0UL);
+    unsigned long w25q16_address = 0;
+    unsigned long w25q16_different_bytes = 0;
 
-    while (vera_address < vera_boundary) {
+    spi_read_flash(0UL); // Start the w26q16 flash memory read cycle from 0x0 using the spi interface
 
-        // {asm{.byte $db}}
+    while (w25q16_address < vera_file_size) {
 
-        unsigned int equal_bytes = vera_compare(vera_bram_bank, (bram_ptr_t)vera_bram_ptr, VERA_PROGRESS_CELL);
+        // WARNING: if VERA_PROGRESS_CELL every needs to be a value larger than 128 then the char scalar widtg needs to be extended to an int.
+        unsigned char w25q16_equal_bytes = 0; /// Holds the amount of correct and verified bytes flashed in the VERA.
+        unsigned char w25q16_compared_bytes = 0; /// Holds the amount of bytes actually verified between the VERA and the RAM.
+        unsigned char w25q16_compare_size = VERA_PROGRESS_CELL;
+
+        if(w25q16_address + VERA_PROGRESS_CELL > vera_file_size) {
+            w25q16_compare_size = BYTE0(vera_file_size - w25q16_address);
+        }
+        bank_set_bram(bram_bank);
+
+        do {
+            unsigned char w25q16_byte = spi_read(); // read the w26q16 flash memory using the spi interface
+            if (w25q16_byte == *bram_ptr) {
+                w25q16_equal_bytes++;
+            }
+            bram_ptr++;
+        } while(w25q16_compared_bytes++ != w25q16_compare_size-1);
 
         if (progress_row_current == VERA_PROGRESS_ROW) {
             gotoxy(x, ++y);
             progress_row_current = 0;
         }
 
-        if (equal_bytes != VERA_PROGRESS_CELL) {
+        if (w25q16_equal_bytes != w25q16_compare_size) {
             cputc('*');
         } else {
             cputc('=');
         }
 
-        vera_bram_ptr += VERA_PROGRESS_CELL;
-        vera_address += VERA_PROGRESS_CELL;
+        // vera_bram_ptr += VERA_PROGRESS_CELL;
+        w25q16_address += VERA_PROGRESS_CELL;
         progress_row_current += VERA_PROGRESS_CELL;
 
-        if (vera_bram_ptr == BRAM_HIGH) {
-            vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
-            vera_bram_bank++;
+        if (bram_ptr == BRAM_HIGH) {
+            bram_ptr = (bram_ptr_t)BRAM_LOW;
+            bram_bank++;
             // {asm{.byte $db}}
         }
 
-        if (vera_bram_ptr == RAM_HIGH) {
-            vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
-            vera_bram_bank = 1;
+        if (bram_ptr == RAM_HIGH) {
+            bram_ptr = (bram_ptr_t)BRAM_LOW;
+            bram_bank = 1;
         }
 
-        vera_different_bytes += (VERA_PROGRESS_CELL - equal_bytes);
+        w25q16_different_bytes += (w25q16_compare_size - w25q16_equal_bytes);
 
-        sprintf(info_text, "Comparing: %05x differences between RAM:%02x:%04p <-> ROM:%05x", vera_different_bytes, vera_bram_bank, vera_bram_ptr, vera_address);
+        sprintf(info_text, "%05x different RAM:%02x:%04p <-> VERA:%05x", w25q16_different_bytes, bram_bank, bram_ptr, w25q16_address);
         display_action_text(info_text);
     }
 
-    return vera_different_bytes;
+    wait_moment(16);
+    return w25q16_different_bytes;
 }
 
 
-unsigned char vera_erase() {
+unsigned char w25q16_erase() {
 
     unsigned long vera_address = 0;
     unsigned long vera_boundary = vera_file_size;
@@ -300,11 +323,12 @@ unsigned char vera_erase() {
 
     while(vera_current_64k_block < vera_total_64k_blocks) {
 #ifdef __VERA_FLASH
-        if(!spi_wait_non_busy()) {
+        if(!spi_wait_non_busy())
             spi_block_erase(vera_address);
 #else
-        if(1) {
+        if(1)
 #endif
+        {
             vera_address += 0x10000;
             vera_current_64k_block++;
         } else {
@@ -314,10 +338,9 @@ unsigned char vera_erase() {
     }
 
     return 0;
-
 }
 
-unsigned long vera_flash() {
+unsigned long w25q16_flash() {
 
     unsigned char x_sector = PROGRESS_X;
     unsigned char y_sector = PROGRESS_Y;
@@ -348,11 +371,11 @@ unsigned long vera_flash() {
         cputc('.');
 
 #ifdef __VERA_FLASH
-        if(!spi_wait_non_busy()) {
+        if(!spi_wait_non_busy())
 #else
-        if(1) {
+        if(1)
 #endif
-
+        {
             bank_set_bram(vera_bram_bank);
 
 #ifdef __VERA_FLASH

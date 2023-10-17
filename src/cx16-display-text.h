@@ -57,8 +57,8 @@ const char* display_into_colors_text[16] = {
     "Errors can indicate J1 jumpers are not closed!"
 };
 
-#pragma code_seg(CodeVera)
-#pragma data_seg(DataVera)
+//#pragma code_seg(CodeVera)
+//#pragma data_seg(DataVera)
 const char display_jp1_spi_vera_count = 16;
 const char* display_jp1_spi_vera_text[16] = {
     "The following steps are IMPORTANT to update the VERA:",
@@ -136,9 +136,11 @@ const char* display_debriefing_text_smc[14] = {
     "  Then, reconnect and start the CX16 normally."
 };
 
-const char display_debriefing_count_rom = 4;
-const char* display_debriefing_text_rom[4] = {
+const char display_debriefing_count_rom = 6;
+const char* display_debriefing_text_rom[6] = {
     "Your CX16 system has been successfully updated!",
+    "",
+    "",
     "",
     "Since your CX16 system SMC chip has not been updated",
     "your CX16 will just reset automatically after count down."

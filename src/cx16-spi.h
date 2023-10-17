@@ -15,8 +15,8 @@
  *
  */
 
-#pragma code_seg(CodeVera)
-#pragma data_seg(DataVera)
+//#pragma code_seg(CodeVera)
+//#pragma data_seg(DataVera)
 
 
 extern unsigned char spi_manufacturer;

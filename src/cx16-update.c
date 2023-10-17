@@ -1,5 +1,5 @@
 /**
- * @file cx16-update.c
+ * @file cx16-w25q16.c
  * 
  * @author Wavicle from CX16 community (https://gist.github.com/jburks) -- Main ROM update logic & overall support and test assistance.
  * @author MooingLemur from CX16 community (https://github.com/mooinglemur) -- Main SPI and VERA update logic, VERA firmware.
@@ -30,14 +30,14 @@
 
 #pragma var_model(zp)
 
+#include "cx16-init.h"
 #include "cx16-status.h"
 #include "cx16-utils.h"
 #include "cx16-display.h"
 #include "cx16-display-text.h"
 #include "cx16-smc.h"
 #include "cx16-rom.h"
-
-#include "cx16-vera.h"
+#include "cx16-w25q16.h"
 
 #pragma code_seg(CodeIntro)
 #pragma data_seg(DataIntro)
@@ -60,7 +60,7 @@ void main_intro() {
 
 void main_vera_detect() {
 
-    vera_detect();
+    w25q16_detect();
     display_chip_vera();
     display_info_vera(STATUS_DETECTED, NULL); // Set the info for the VERA to Detected.
 }
@@ -71,7 +71,7 @@ void main_vera_check() {
     display_action_progress("Checking VERA.BIN ...");
 
     // Read the VERA.BIN file.
-    unsigned long vera_bytes_read = vera_read(STATUS_CHECKING);
+    unsigned long vera_bytes_read = w25q16_read(STATUS_CHECKING);
 
     wait_moment(10);
 
@@ -102,18 +102,20 @@ void main_vera_check() {
         display_info_vera(STATUS_FLASH, info_text);
     }
 
-    vera_preamable_SPI();
+    w25q16_preamable_SPI();
 
 }
 
 void main_vera_flash() {
 
+    display_progress_text(display_jp1_spi_vera_text, display_jp1_spi_vera_count);
+    util_wait_space();
     display_progress_clear();
 
     sprintf(info_text, "Reading VERA.BIN ... (.) data ( ) empty");
     display_action_progress(info_text);
 
-    unsigned long vera_bytes_read = vera_read(STATUS_READING);
+    unsigned long vera_bytes_read = w25q16_read(STATUS_READING);
 
     // If the ROM file was correctly read, verify the file ...
     if(vera_bytes_read) {
@@ -122,13 +124,11 @@ void main_vera_flash() {
         // Now we loop until jumper JP1 has been placed!
         display_action_progress("VERA SPI activation ...");
         display_action_text("Please close the jumper JP1 on the VERA board!");
-        vera_detect();
         unsigned char spi_ensure_detect = 0;
         while(spi_ensure_detect < 16) {
-            vera_detect();
+            w25q16_detect();
             wait_moment(1);
             if(spi_manufacturer == 0xEF && spi_memory_type == 0x40 && spi_memory_capacity == 0x15) {
-                display_info_vera(STATUS_DETECTED, "JP1 jumper pins closed!");
                 spi_ensure_detect++;
             } else {
                 spi_ensure_detect = 0;
@@ -143,16 +143,16 @@ void main_vera_flash() {
         display_info_vera(STATUS_COMPARING, NULL);
 
         // Verify VERA ...
-        unsigned long vera_differences = vera_verify();
+        unsigned long vera_differences = w25q16_verify();
         
         if (!vera_differences) {
             // VFL1 | VERA and VERA.BIN equal | Display that there are no differences between the VERA and VERA.BIN. Set VERA to Flashed. | None
             display_info_vera(STATUS_SKIP, "No update required");
         } else {
             // If there are differences, the VERA needs to be flashed.
-            sprintf(info_text, "%05x differences!", vera_differences);
+            sprintf(info_text, "%u differences!", vera_differences);
             display_info_vera(STATUS_FLASH, info_text);
-            unsigned char vera_erase_error = vera_erase();
+            unsigned char vera_erase_error = w25q16_erase();
             if(vera_erase_error) {
                 display_action_progress("There was an error cleaning your VERA flash memory!");
                 display_action_text("DO NOT RESET or REBOOT YOUR CX16 AND WAIT!");
@@ -164,14 +164,16 @@ void main_vera_flash() {
                 return;
             }
 
-            unsigned long vera_flashed = vera_flash();
-            if(vera_flashed) {
+            __mem unsigned long vera_flashed = w25q16_flash();
+            if (vera_flashed) {
                 // VFL3 | Flash VERA and all ok
-                sprintf(info_text, "%x bytes flashed!", vera_flashed);
+                sprintf(info_text, "%u bytes flashed!", vera_flashed);
                 display_info_vera(STATUS_FLASHED, info_text);
-                unsigned long vera_differences = vera_verify();
-                sprintf(info_text, "%05x differences!", vera_differences);
-                display_info_vera(STATUS_FLASHED, info_text);
+                __mem unsigned long vera_differences = w25q16_verify();
+                if (vera_differences) {
+                    sprintf(info_text, "%u differences!", vera_differences);
+                    display_info_vera(STATUS_FLASHED, info_text);
+                }
             } else {
                 // VFL2 | Flash VERA resulting in errors
                 display_info_vera(STATUS_ERROR, info_text);
@@ -184,7 +186,6 @@ void main_vera_flash() {
                 spi_deselect();
                 return;
             }
-
         }
 
 
@@ -192,16 +193,13 @@ void main_vera_flash() {
         // Now we loop until jumper JP1 is open again!
         display_action_progress("VERA SPI de-activation ...");
         display_action_text("Please OPEN the jumper JP1 on the VERA board!");
-        vera_detect();
         spi_ensure_detect = 0;
         while(spi_ensure_detect < 16) {
-            vera_detect();
+            w25q16_detect();
             wait_moment(1);
             if(spi_manufacturer != 0xEF && spi_memory_type != 0x40 && spi_memory_capacity != 0x15) {
-                display_info_vera(STATUS_DETECTED, NULL);
                 spi_ensure_detect++;
             } else {
-                display_info_vera(STATUS_WAITING, NULL);
                 spi_ensure_detect = 0;
             }
         }
@@ -210,7 +208,7 @@ void main_vera_flash() {
 
     }
     spi_deselect();
-
+    wait_moment(16);
 }
 
 #pragma code_seg(Code)
@@ -236,22 +234,7 @@ void main() {
     }
     */
 
-    
-    display_frame_init_64(); // ST1 | Reset canvas to 64 columns
-    display_frame_draw();
-    display_frame_title("Commander X16 Update Utility (v3.0.0) "); // ST2 | Ensure correct version
-    display_info_title();
-    display_action_progress("Introduction, please read carefully the below!");
-    display_progress_clear();
-    display_chip_smc();
-    display_chip_vera();
-    display_chip_rom();
-    display_info_smc(STATUS_COLOR_NONE, NULL);
-    display_info_vera(STATUS_NONE, NULL);
-    for(unsigned char rom_chip=0; rom_chip<8; rom_chip++) {
-        strcpy(&rom_release_text[rom_chip*13], "          " );
-        display_info_rom(rom_chip, STATUS_NONE, NULL);
-    }
+init();    
 
 #ifdef __INTRO
 
@@ -476,7 +459,7 @@ void main() {
     }
 
     // VA2 | SMC.BIN does not support ROM.BIN release | Display warning that SMC.BIN does not support the ROM.BIN release. Ask for user confirmation to continue flashing Y/N. If the users selects not to flash, set both the SMC and the ROM as an Issue and don't flash. | Issue
-    if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) && !smc_supported_rom(rom_release[0])) {
+    if(check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH) && !smc_supported_rom(rom_file_release[0])) {
         display_action_progress("Compatibility between ROM.BIN and SMC.BIN can't be assured!");
         display_progress_text(display_smc_unsupported_rom_text, display_smc_unsupported_rom_count);
         unsigned char ch = util_wait_key("Continue with flashing anyway? [Y/N]", "YN");
@@ -523,8 +506,6 @@ void main() {
         bank_set_brom(4);
         CLI();
         if(check_status_vera(STATUS_FLASH)) {
-            display_progress_text(display_jp1_spi_vera_text, display_jp1_spi_vera_count);
-            util_wait_space();
             main_vera_flash();
         }
         SEI();

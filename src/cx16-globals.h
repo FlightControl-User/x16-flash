@@ -29,7 +29,7 @@
 cx16_k_screen_mode_t screen_mode;
 
 char file[32];
-char info_text[80];
+char info_text[256];
 
 
 const char STATUS_NONE  = 0;
