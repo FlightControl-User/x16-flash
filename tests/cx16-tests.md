@@ -52,6 +52,7 @@ VA3 | SMC.BIN and CX16 ROM not Detected | Display issue and ask for a confirmati
 VA4 | SMC is Flash and CX16 is not Flash | Display CX16 ROM update issue and ask for a confirmation to proceed. | Issue or None
 VA5 | SMC is not Flash and CX16 is Flash | Display SMC update issue and ask for a confirmation to proceed. | Issue or None
 VA6 | no SMC.BIN and no CX16 ROM.BIN | No action for flashing. Both SMC and CX16 ROM should be set to Skip. | None
+VA7 | Version of CX16 main ROM and ROM.BIN are equal | Display that the versions are equal and skip flashing the CX16 main ROM. Set CX16 main ROM to Skip. | None
 VA99 | One of the components is Flash | Request to continue with flashing from the user Y/N. | None
 
 ## SF - Flash SMC, when SMC is Flash and CX16 ROM is Flash

@@ -482,11 +482,18 @@ init();
         }
     }
 
-    // VA1 | Version of SMC and SMC.BIN equal | Display that the SMC and SMC.BIN versions are equal and no flashing is required. Set SMC to Skip. | None
+    // VA1 | Version of SMC and SMC.BIN equal
     if(check_status_smc(STATUS_FLASH) && smc_release == smc_file_release && smc_major == smc_file_major && smc_minor == smc_file_minor) {
         display_action_progress("The SMC chip and SMC.BIN versions are equal, no flash required!");
         util_wait_space();
-        display_info_smc(STATUS_SKIP, "SMC.BIN and SMC equal.");
+        display_info_smc(STATUS_SKIP, NULL);
+    }
+
+    // VA7 | Version of CX16 main ROM and ROM.BIN are equal
+    if(check_status_cx16_rom(STATUS_FLASH) && rom_release[0] == rom_file_release[8] && strncmp(rom_github, rom_file_github, 7) == 0) {
+        display_action_progress("The CX16 main ROM and ROM.BIN versions are equal, no flash required!");
+        util_wait_space();
+        display_info_cx16_rom(STATUS_SKIP, NULL);
     }
 
 
