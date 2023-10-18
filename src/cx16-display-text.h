@@ -15,7 +15,6 @@
  *
  */
 
-#pragma code_seg(CodeIntro)
 #pragma data_seg(DataIntro)
 
 const char display_intro_briefing_count = 15;
@@ -57,8 +56,8 @@ const char* display_into_colors_text[16] = {
     "Errors can indicate J1 jumpers are not closed!"
 };
 
-//#pragma code_seg(CodeVera)
-//#pragma data_seg(DataVera)
+#pragma data_seg(DataVera)
+
 const char display_jp1_spi_vera_count = 16;
 const char* display_jp1_spi_vera_text[16] = {
     "The following steps are IMPORTANT to update the VERA:",
@@ -79,8 +78,6 @@ const char* display_jp1_spi_vera_text[16] = {
     "The program continues once the JP1 pins are opened/closed.",
 };
 
-#pragma code_seg(Code)
-#pragma data_seg(Data)
 const char display_no_valid_smc_bootloader_count = 9;
 const char* display_no_valid_smc_bootloader_text[9] = {
     "The SMC chip in your CX16 doesn't have a valid bootloader.",
@@ -118,8 +115,12 @@ const char* display_smc_unsupported_rom_text[7] = {
 };
 
 
-const char display_debriefing_count_smc = 14;
-const char* display_debriefing_text_smc[14] = {
+#pragma data_seg(Data)
+
+const char* TEXT_PROGRESS_FLASHING = "Flashing ... (-) equal, (+) flashed, (!) error.";
+
+const char display_debriefing_smc_count = 14;
+const char* display_debriefing_smc_text[14] = {
     "Your CX16 system has been successfully updated!",
     "",
     "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!",

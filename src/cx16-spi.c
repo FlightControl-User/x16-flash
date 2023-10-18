@@ -20,7 +20,7 @@
 
 #include "cx16-spi.h"
 
-//#pragma code_seg(CodeVera)
+#pragma code_seg(CodeVera)
 //#pragma data_seg(DataVera)
 
 __mem unsigned char spi_buffer[256];

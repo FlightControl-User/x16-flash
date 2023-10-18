@@ -529,7 +529,7 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     status_vera = info_status;
     display_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
-    printf("VERA %-9s SPI %0x %0x %0x              ", status_text[info_status], spi_manufacturer, spi_memory_type, spi_memory_capacity);
+    printf("VERA %-9s W25Q16", status_text[info_status]);
     if(info_text) {
         gotoxy(INFO_X+64-28, INFO_Y+1);
         printf("%-25s", info_text);
@@ -595,4 +595,9 @@ void display_action_text_flashing(unsigned long bytes, unsigned char* chip, bram
 void display_action_text_flashed(unsigned long bytes, unsigned char* chip) {
     sprintf(info_text, "Flashed %u bytes from RAM -> %s ... ", bytes, chip);
     display_action_text(info_text);
+}
+
+unsigned char* get_info_text_flashing(unsigned long flash_bytes) {
+    sprintf(info_text, "%u bytes flashed", flash_bytes);
+    return info_text;
 }

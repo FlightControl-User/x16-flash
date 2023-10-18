@@ -19,7 +19,7 @@
 #include "cx16-globals.h"
 
 #pragma code_seg(CodeVera)
-#pragma data_seg(DataVera)
+//#pragma data_seg(DataVera)
 
 #include "cx16-spi.h"
 
@@ -31,7 +31,7 @@ void w25q16_detect();
 unsigned char w25q16_preamable_RAM();
 unsigned char w25q16_preamable_SPI();
 unsigned long w25q16_read(unsigned char info_status);
-unsigned long w25q16_verify();
+unsigned long w25q16_verify(unsigned char verify);
 unsigned char w25q16_erase();
 unsigned long w25q16_flash();
 

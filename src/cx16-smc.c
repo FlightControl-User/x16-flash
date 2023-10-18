@@ -282,10 +282,10 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
     textcolor(WHITE);
     gotoxy(x, y);
 
-    unsigned int smc_bytes_flashed = 0;
+    unsigned int smc_flashed_bytes = 0;
     unsigned int smc_attempts_total = 0;
 
-    while(smc_bytes_flashed < smc_bytes_total) {
+    while(smc_flashed_bytes < smc_bytes_total) {
 
         unsigned char smc_attempts_flashed = 0;
         unsigned char smc_package_committed = 0;
@@ -295,7 +295,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
             unsigned char smc_bytes_checksum = 0;
             unsigned int smc_package_flashed = 0;
 
-            display_action_text_flashing(8, "SMC", smc_bram_bank, smc_bram_ptr, smc_bytes_flashed);
+            display_action_text_flashing(8, "SMC", smc_bram_bank, smc_bram_ptr, smc_flashed_bytes);
 
             while(smc_package_flashed < SMC_PROGRESS_CELL) {
                 unsigned char smc_byte_upload = *smc_bram_ptr;
@@ -319,7 +319,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
 
                 cputc('+');
 
-                smc_bytes_flashed += SMC_PROGRESS_CELL;
+                smc_flashed_bytes += SMC_PROGRESS_CELL;
                 smc_row_bytes += SMC_PROGRESS_CELL;
                 smc_attempts_total += smc_attempts_flashed;
 
@@ -330,15 +330,17 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
             }
         }
         if(smc_attempts_flashed >= 10) {
-            sprintf(info_text, "There were too many attempts trying to flash the SMC at location %04x", smc_bytes_flashed);
+            sprintf(info_text, "There were too many attempts trying to flash the SMC at location %04x", smc_flashed_bytes);
             display_action_text(info_text);
             return (unsigned int)0xFFFF;
         }
+
+        display_info_smc(STATUS_FLASHING, get_info_text_flashing(smc_flashed_bytes));
     }
+    display_action_text_flashed(smc_flashed_bytes, "SMC");
+    wait_moment(16);
 
-    display_action_text_flashed(smc_bytes_flashed, "SMC");
-
-    return smc_bytes_flashed;
+    return smc_flashed_bytes;
 }
 
 

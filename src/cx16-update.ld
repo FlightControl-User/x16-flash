@@ -7,7 +7,7 @@
                                      ]
 .segmentdef Basic                   [start=$0801]
 .segmentdef Code                    [start=%P]
-.segmentdef Data                    [startAfter="Code"]
+.segmentdef Data                    [startAfter="Code",max=$7800]
 .segmentdef CodeIntro               [startAfter="Data"] 
 .segmentdef CodeVera                [startAfter="CodeIntro"] 
 .segmentdef DataIntro               [startAfter="CodeVera"] 

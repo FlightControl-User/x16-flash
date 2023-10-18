@@ -53,3 +53,5 @@ void display_info_cx16_rom(unsigned char info_status, unsigned char* info_text);
 void display_action_text_flashing(unsigned long bytes, unsigned char* chip, bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned long address);
 void display_action_text_flashed(unsigned long bytes, unsigned char* chip);
 void display_action_text_reading(unsigned char* action, unsigned char* file, unsigned long bytes, unsigned long size, bram_bank_t bram_bank, bram_ptr_t bram_ptr);
+
+unsigned char* get_info_text_flashing(unsigned long flash_bytes);

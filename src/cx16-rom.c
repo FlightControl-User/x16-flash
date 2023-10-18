@@ -20,6 +20,7 @@
 #include "cx16-globals.h"
 #include "cx16-utils.h"
 #include "cx16-display.h"
+#include "cx16-display-text.h"
 #include "cx16-rom.h"
 
 // Globals
@@ -513,7 +514,7 @@ unsigned long rom_verify(
     unsigned int progress_row_current = 0;
     unsigned long rom_different_bytes = 0;
 
-    display_info_rom(rom_chip, STATUS_COMPARING, "Comparing ...");
+    display_info_rom(rom_chip, STATUS_COMPARING, "");
 
     gotoxy(x, y);
 
@@ -607,7 +608,7 @@ unsigned long rom_flash(
     bank_set_bram(bram_bank_sector);
 
     // Now we compare the RAM with the actual ROM contents.
-    display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
+    display_action_progress(TEXT_PROGRESS_FLASHING);
 
     unsigned long rom_address_sector = rom_address_from_bank(rom_bank_start);
     unsigned long rom_boundary = rom_address_sector + file_size;
@@ -615,9 +616,8 @@ unsigned long rom_flash(
     unsigned int progress_row_current = 0;
     unsigned long rom_flash_errors = 0;
 
-    display_info_rom(rom_chip, STATUS_FLASHING, "Flashing ...");
-
     unsigned long flash_errors = 0;
+    unsigned long flash_bytes = 0;
 
     while (rom_address_sector < rom_boundary) {
 
@@ -628,6 +628,7 @@ unsigned long rom_flash(
         if (equal_bytes != ROM_SECTOR) {
 
             unsigned int flash_errors_sector = 0;
+            unsigned int flash_bytes_sector = 0;
             unsigned char retries = 0;
 
             do {
@@ -667,6 +668,7 @@ unsigned long rom_flash(
                     }
                     ram_address += ROM_PROGRESS_CELL;
                     rom_address += ROM_PROGRESS_CELL;
+                    flash_bytes_sector += ROM_PROGRESS_CELL;
 
                     x++; // This should never exceed the 64 char boundary.
                 }
@@ -676,6 +678,7 @@ unsigned long rom_flash(
             } while (flash_errors_sector && retries <= 3);
 
             flash_errors += flash_errors_sector;
+            flash_bytes += flash_bytes_sector;
 
         } else {
             cputsxy(x_sector, y_sector, "--------");
@@ -701,12 +704,11 @@ unsigned long rom_flash(
             y_sector++;
         }
 
-        sprintf(info_text, "%u flash errors ...", flash_errors);
-        display_info_rom(rom_chip, STATUS_FLASHING, info_text);
+        display_info_rom(rom_chip, STATUS_FLASHING, get_info_text_flashing(flash_bytes));
     }
 
     display_action_text_flashed(rom_address_sector, "ROM");
-    wait_moment(32);
+    wait_moment(16);
 
     return flash_errors;
 }

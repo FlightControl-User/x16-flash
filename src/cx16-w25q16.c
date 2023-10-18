@@ -24,8 +24,9 @@
 #include "cx16-spi.h"
 #include "cx16-display.h"
 #include "cx16-utils.h"
+#include "cx16-display-text.h"
 
-//#pragma code_seg(CodeVera)
+#pragma code_seg(CodeVera)
 //#pragma data_seg(DataVera)
 
 __mem char* const vera_file_name = "VERA.BIN";
@@ -44,6 +45,7 @@ void w25q16_detect() {
     spi_memory_capacity = 0x03;
 #endif
 
+    spi_deselect();
     return;
 }
 
@@ -235,7 +237,7 @@ unsigned char w25q16_preamable_SPI() {
  * 
  * @return unsigned long The total different bytes identified.
  */
-unsigned long w25q16_verify() {
+unsigned long w25q16_verify(unsigned char verify) {
 
     unsigned char x = PROGRESS_X;
     unsigned char y = PROGRESS_Y;
@@ -247,12 +249,19 @@ unsigned long w25q16_verify() {
 
     unsigned int progress_row_current = 0;
 
-    display_info_vera(STATUS_COMPARING, "Comparing VERA ...");
+    unsigned char different_char = '*';
 
-    gotoxy(x, y);
+    if(verify) {
+        display_action_progress("Verifying VERA after VERA.BIN update ... (=) same, (!) error.");
+        different_char = '!';
+    } else {
+        display_action_progress("Comparing VERA with VERA.BIN ... (.) data, (=) same, (*) different.");
+    }
 
     unsigned long w25q16_address = 0;
     unsigned long w25q16_different_bytes = 0;
+
+    gotoxy(x, y);
 
     spi_read_flash(0UL); // Start the w26q16 flash memory read cycle from 0x0 using the spi interface
 
@@ -282,7 +291,7 @@ unsigned long w25q16_verify() {
         }
 
         if (w25q16_equal_bytes != w25q16_compare_size) {
-            cputc('*');
+            cputc(different_char);
         } else {
             cputc('=');
         }
@@ -323,12 +332,11 @@ unsigned char w25q16_erase() {
 
     while(vera_current_64k_block < vera_total_64k_blocks) {
 #ifdef __VERA_FLASH
-        if(!spi_wait_non_busy())
+        if(!spi_wait_non_busy()) {
             spi_block_erase(vera_address);
 #else
-        if(1)
+        if(1) {
 #endif
-        {
             vera_address += 0x10000;
             vera_current_64k_block++;
         } else {
@@ -351,12 +359,11 @@ unsigned long w25q16_flash() {
     bram_bank_t vera_bram_bank = 1;
     bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
 
-    // Now we compare the RAM with the actual ROM contents.
-    display_action_progress("Flashing ... (-) equal, (+) flashed, (!) error.");
+    display_action_progress(TEXT_PROGRESS_FLASHING);
 
     unsigned int progress_row_current = 0;
 
-    display_info_vera(STATUS_FLASHING, "Flashing ...");
+    unsigned long vera_flashed_bytes = 0;
 
     while (vera_address_page < vera_file_size) {
 
@@ -397,6 +404,7 @@ unsigned long w25q16_flash() {
                 vera_bram_ptr += VERA_PROGRESS_PAGE;
                 vera_address += VERA_PROGRESS_PAGE;
                 vera_address_page += VERA_PROGRESS_PAGE;
+                vera_flashed_bytes += VERA_PROGRESS_PAGE;
             }
         } else {
             // TODO: ERROR!!!
@@ -420,11 +428,11 @@ unsigned long w25q16_flash() {
             x_sector = PROGRESS_X;
             y_sector++;
         }
-
+        display_info_vera(STATUS_FLASHING, get_info_text_flashing(vera_flashed_bytes));
     }
 
     display_action_text_flashed(vera_address_page, "VERA");
-    wait_moment(32);
+    wait_moment(16);
 
     return vera_address_page;
 }

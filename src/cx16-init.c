@@ -27,6 +27,8 @@
 
 #include "cx16-init.h"
 
+#pragma code_seg(CodeIntro)
+
 void init() {
     display_frame_init_64(); // ST1 | Reset canvas to 64 columns
     display_frame_draw();
@@ -45,3 +47,7 @@ void init() {
     }
 
 }
+
+#pragma code_seg(Code)
+#pragma data_seg(Data)
+

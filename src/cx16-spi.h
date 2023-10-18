@@ -15,7 +15,7 @@
  *
  */
 
-//#pragma code_seg(CodeVera)
+#pragma code_seg(CodeVera)
 //#pragma data_seg(DataVera)
 
 

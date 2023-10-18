@@ -40,7 +40,6 @@
 #include "cx16-w25q16.h"
 
 #pragma code_seg(CodeIntro)
-#pragma data_seg(DataIntro)
 
 void main_intro() {
 
@@ -56,7 +55,7 @@ void main_intro() {
 }
 
 #pragma code_seg(CodeVera)
-#pragma data_seg(DataVera)
+//#pragma data_seg(DataVera)
 
 void main_vera_detect() {
 
@@ -140,10 +139,10 @@ void main_vera_flash() {
 
         // Now we compare the RAM with the actual VERA contents.
         display_action_progress("Comparing VERA ... (.) data, (=) same, (*) different.");
-        display_info_vera(STATUS_COMPARING, NULL);
+        display_info_vera(STATUS_COMPARING, "");
 
         // Verify VERA ...
-        unsigned long vera_differences = w25q16_verify();
+        unsigned long vera_differences = w25q16_verify(0);
         
         if (!vera_differences) {
             // VFL1 | VERA and VERA.BIN equal | Display that there are no differences between the VERA and VERA.BIN. Set VERA to Flashed. | None
@@ -167,12 +166,11 @@ void main_vera_flash() {
             __mem unsigned long vera_flashed = w25q16_flash();
             if (vera_flashed) {
                 // VFL3 | Flash VERA and all ok
-                sprintf(info_text, "%u bytes flashed!", vera_flashed);
-                display_info_vera(STATUS_FLASHED, info_text);
-                __mem unsigned long vera_differences = w25q16_verify();
+                display_info_vera(STATUS_FLASHED, NULL);
+                __mem unsigned long vera_differences = w25q16_verify(1);
                 if (vera_differences) {
                     sprintf(info_text, "%u differences!", vera_differences);
-                    display_info_vera(STATUS_FLASHED, info_text);
+                    display_info_vera(STATUS_ERROR, info_text);
                 }
             } else {
                 // VFL2 | Flash VERA resulting in errors
@@ -207,9 +205,13 @@ void main_vera_flash() {
 #endif
 
     }
+
     spi_deselect();
     wait_moment(16);
+
 }
+
+
 
 #pragma code_seg(Code)
 #pragma data_seg(Data)
@@ -539,7 +541,7 @@ init();
 #ifdef __SMC_CHIP_FLASH
 
         // Flash the SMC when it has the status!
-        if (check_status_smc(STATUS_FLASH) && check_status_cx16_rom(STATUS_FLASH)) {
+        if (check_status_smc(STATUS_FLASH) && !check_status_vera(STATUS_ERROR)) {
 
             display_action_progress("Reading SMC.BIN ... (.) data, ( ) empty");
             display_progress_clear();
@@ -553,7 +555,7 @@ init();
                 unsigned int flashed_bytes = smc_flash(smc_file_size);
                 if(flashed_bytes) {
                     // SFL1 | and POWER/RESET pressed
-                    display_info_smc(STATUS_FLASHED, "");
+                    display_info_smc(STATUS_FLASHED, NULL);
                 } else {
                     if(flashed_bytes == (unsigned int)0xFFFF) {
                         // SFL3 | errors during flash
@@ -577,64 +579,66 @@ init();
 #ifdef __ROM_CHIP_PROCESS
 #ifdef __ROM_CHIP_FLASH
 
-        // Flash the ROM chips. 
-        // We loop first all the ROM chips and read the file contents.
-        // Then we verify the file contents and flash the ROM only for the differences.
-        // If the file contents are the same as the ROM contents, then no flashing is required.
-        // IMPORTANT! We start to flash the ROMs on the extension card.
-        // The last ROM flashed is the CX16 ROM on the CX16 board!
-        for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--) {
+        if(!check_status_vera(STATUS_ERROR)) {
+            // Flash the ROM chips. 
+            // We loop first all the ROM chips and read the file contents.
+            // Then we verify the file contents and flash the ROM only for the differences.
+            // If the file contents are the same as the ROM contents, then no flashing is required.
+            // IMPORTANT! We start to flash the ROMs on the extension card.
+            // The last ROM flashed is the CX16 ROM on the CX16 board!
+            for(unsigned char rom_chip = 7; rom_chip != 255; rom_chip--) {
 
-            if(check_status_rom(rom_chip, STATUS_FLASH)) {
+                if(check_status_rom(rom_chip, STATUS_FLASH)) {
 
-                // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
-                if((rom_chip == 0 && (check_status_smc(STATUS_FLASHED) || check_status_smc(STATUS_SKIP))) || (rom_chip != 0)) {
+                    // IMPORTANT! We only flash the CX16 ROM chip if the SMC got flashed succesfully!
+                    if((rom_chip == 0 && (check_status_smc(STATUS_FLASHED) || check_status_smc(STATUS_SKIP))) || (rom_chip != 0)) {
 
-                    bank_set_brom(0);
+                        bank_set_brom(0);
 
-                    display_progress_clear();
+                        display_progress_clear();
 
-                    unsigned char rom_bank = rom_chip * 32;
-                    unsigned char* file = rom_file(rom_chip);
-                    sprintf(info_text, "Reading %s ... (.) data ( ) empty", file);
-                    display_action_progress(info_text);
+                        unsigned char rom_bank = rom_chip * 32;
+                        unsigned char* file = rom_file(rom_chip);
+                        sprintf(info_text, "Reading %s ... (.) data ( ) empty", file);
+                        display_action_progress(info_text);
 
-                    unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
+                        unsigned long rom_bytes_read = rom_read(rom_chip, file, STATUS_READING, rom_bank, rom_sizes[rom_chip]);
 
-                    // If the ROM file was correctly read, verify the file ...
-                    if(rom_bytes_read) {
+                        // If the ROM file was correctly read, verify the file ...
+                        if(rom_bytes_read) {
 
-                        // Now we compare the RAM with the actual ROM contents.
-                        display_action_progress("Comparing ... (.) data, (=) same, (*) different.");
-                        display_info_rom(rom_chip, STATUS_COMPARING, "");
+                            // Now we compare the RAM with the actual ROM contents.
+                            display_action_progress("Comparing ... (.) data, (=) same, (*) different.");
+                            display_info_rom(rom_chip, STATUS_COMPARING, "");
 
-                        // Verify the ROM...
-                        unsigned long rom_differences = rom_verify(
-                            rom_chip, rom_bank, file_sizes[rom_chip]);
-                        
-                        if (!rom_differences) {
-                            // RFL1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Flashed. | None
-                            display_info_rom(rom_chip, STATUS_SKIP, "No update required");
-                        } else {
-                            // 
-                            // If there are differences, the ROM needs to be flashed.
-                            sprintf(info_text, "%05x differences!", rom_differences);
-                            display_info_rom(rom_chip, STATUS_FLASH, info_text);
-                            
-                            unsigned long rom_flash_errors = rom_flash(
+                            // Verify the ROM...
+                            unsigned long rom_differences = rom_verify(
                                 rom_chip, rom_bank, file_sizes[rom_chip]);
-                            if(rom_flash_errors) {
-                                // RFL2 | Flash ROM resulting in errors
-                                sprintf(info_text, "%u flash errors!", rom_flash_errors);
-                                display_info_rom(rom_chip, STATUS_ERROR, info_text);
+                            
+                            if (!rom_differences) {
+                                // RFL1 | ROM and ROM.BIN equal | Display that there are no differences between the ROM and ROM.BIN. Set ROM to Flashed. | None
+                                display_info_rom(rom_chip, STATUS_SKIP, "No update required");
                             } else {
-                                // RFL3 | Flash ROM and all ok
-                                display_info_rom(rom_chip, STATUS_FLASHED, NULL);
+                                // 
+                                // If there are differences, the ROM needs to be flashed.
+                                sprintf(info_text, "%05x differences!", rom_differences);
+                                display_info_rom(rom_chip, STATUS_FLASH, info_text);
+                                
+                                unsigned long rom_flash_errors = rom_flash(
+                                    rom_chip, rom_bank, file_sizes[rom_chip]);
+                                if(rom_flash_errors) {
+                                    // RFL2 | Flash ROM resulting in errors
+                                    sprintf(info_text, "%u flash errors!", rom_flash_errors);
+                                    display_info_rom(rom_chip, STATUS_ERROR, info_text);
+                                } else {
+                                    // RFL3 | Flash ROM and all ok
+                                    display_info_rom(rom_chip, STATUS_FLASHED, NULL);
+                                }
                             }
                         }
+                    } else {
+                        display_info_rom(rom_chip, STATUS_ISSUE, "SMC Update failed!");
                     }
-                } else {
-                    display_info_rom(rom_chip, STATUS_ISSUE, "SMC Update failed!");
                 }
             }
         }
@@ -668,9 +672,6 @@ init();
         return;
     }
 
-
-
-
     if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
        (check_status_roms_less(STATUS_SKIP)) ) {
@@ -682,7 +683,9 @@ init();
             // DE2 | There is an error with one of the components
             vera_display_set_border_color(RED);
             display_action_progress("Update Failure! Your CX16 may no longer boot!");
-            display_action_text("Take a photo of this screen, shut down power and retry!");
+            display_action_text("Take a photo of this screen and wait at leaast 60 seconds.");
+            wait_moment(250);
+            smc_reset();
             while(1);
         } else {
             if(check_status_smc(STATUS_ISSUE) || check_status_vera(STATUS_ISSUE) || check_status_roms(STATUS_ISSUE)) {
@@ -700,7 +703,7 @@ init();
                     if(smc_bootloader == 1)
                         smc_reset();
 
-                    display_progress_text(display_debriefing_text_smc, display_debriefing_count_smc);
+                    display_progress_text(display_debriefing_smc_text, display_debriefing_smc_count);
 
                     textcolor(PINK);
                     display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!");
