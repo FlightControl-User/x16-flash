@@ -263,6 +263,8 @@ unsigned long w25q16_verify(unsigned char verify) {
 
     gotoxy(x, y);
 
+    wait_moment(16);
+    spi_wait_non_busy();
     spi_read_flash(0UL); // Start the w26q16 flash memory read cycle from 0x0 using the spi interface
 
     while (w25q16_address < vera_file_size) {
@@ -329,6 +331,8 @@ unsigned char w25q16_erase() {
 
     unsigned char vera_total_64k_blocks = BYTE2(vera_file_size)+1;
     unsigned char vera_current_64k_block = 0;
+
+    spi_select();
 
     while(vera_current_64k_block < vera_total_64k_blocks) {
 #ifdef __VERA_FLASH

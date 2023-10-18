@@ -27,6 +27,8 @@ void system_reset() {
     bank_set_bram(0);
     bank_set_brom(0);
 
+    *((char*)0x9F25) = 0x80;
+
 #ifndef __INTELLISENSE__
     asm {
         jmp ($FFFC)
