@@ -7,6 +7,13 @@ ID | Test Case | Action Description | Error Level
 ST1 | Reset canvas to 64 columns | Ensure that the scree mode is properly set. Disable sprites, disable layer 0, activate layer 1, set borders, set screen text white with blue background. | None
 ST2 | Ensure correct version | Ensure that the title contains the correct release, major, minor numbers.
 
+## VD - VERA chip Detection.
+
+ID | Test Case | Action Description | Error Level
+--- | --- | --- | ---
+VD1 | VERA version detected | Display VERA chip firmware release number. Set to Detected | None
+
+
 ## SD - SMC chip Detection.
 
 ID | Test Case | Action Description | Error Level

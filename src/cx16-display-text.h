@@ -15,7 +15,7 @@
  *
  */
 
-#pragma data_seg(DataIntro)
+#pragma data_seg(DataOverwrite)
 
 const char display_intro_briefing_count = 15;
 const char* display_into_briefing_text[15] = {
@@ -56,7 +56,7 @@ const char* display_into_colors_text[16] = {
     "Errors can indicate J1 jumpers are not closed!"
 };
 
-#pragma data_seg(DataVera)
+#pragma data_seg(DataOverwrite)
 
 const char display_jp1_spi_vera_count = 16;
 const char* display_jp1_spi_vera_text[16] = {
@@ -105,13 +105,29 @@ const char* display_smc_rom_issue_text[8] = {
 
 const char display_smc_unsupported_rom_count = 7;
 const char* display_smc_unsupported_rom_text[7] = {
-    "There is an issue with the CX16 SMC or ROM flash versions.",
+    "There is an issue with the CX16 SMC or ROM versions.",
     "",
     "Both the SMC and the main ROM must be updated together,",
     "to avoid possible conflicts, risking bricking your CX16.",
     "",
     "The SMC.BIN and ROM.BIN found on your SDCard may not be",
     "mutually compatible. Update the CX16 at your own risk!"
+};
+
+const char display_vera_unsupported_rom_bin_count = 7;
+const char* display_vera_unsupported_rom_bin_text[7] = {
+    "There is an issue with the CX16 VERA or ROM versions.",
+    "",
+    "The VERA.BIN found on your SDCard may not be",
+    "compatible with the ROM.BIN!"
+};
+
+const char display_vera_unsupported_rom_count = 7;
+const char* display_vera_unsupported_rom_text[7] = {
+    "There is an issue with the CX16 VERA or ROM versions.",
+    "",
+    "The VERA.BIN found on your SDCard may not be",
+    "compatible with the ROM!"
 };
 
 

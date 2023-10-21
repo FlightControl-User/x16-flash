@@ -1,0 +1,8 @@
+{
+    "logViewer.watch": [
+        {
+            "title": "KickC Compile",
+            "pattern": "*.log"
+        }
+    ]
+}

@@ -26,12 +26,24 @@
 #include "cx16-utils.h"
 #include "cx16-display-text.h"
 
-#pragma code_seg(CodeVera)
-//#pragma data_seg(DataVera)
+#pragma code_seg(CodeOverwrite)
+#pragma data_seg(DataOverwrite)
 
 __mem char* const vera_file_name = "VERA.BIN";
 __mem unsigned long vera_file_size = 0;
 __mem unsigned long const vera_size = (unsigned long)0x20000;
+
+__mem unsigned char vera_file_header[32];
+
+__mem unsigned char vera_release;
+__mem unsigned char vera_major;
+__mem unsigned char vera_minor;
+
+__mem unsigned char vera_file_release;
+__mem unsigned char vera_file_major;
+__mem unsigned char vera_file_minor;
+
+__mem unsigned char vera_version_text[16];
 
 
 void w25q16_detect() {
@@ -56,6 +68,69 @@ void vera_get_device_text(unsigned char* device_text, unsigned char manufacturer
     return;
 }
 
+
+/**
+ * @brief Search in the VERA.BIN header for supported ROM.BIN releases.
+ * The first 3 bytes of the VERA.BIN header contain the VERA.BIN version, major and minor numbers.
+ * 
+ * @param rom_release The ROM release to search for.
+ * @return unsigned char true if found.
+ */
+unsigned char vera_supported_rom(unsigned char rom_release) {
+    for(unsigned char i=31; i>3; i--) {
+        if(vera_file_header[i] == rom_release)
+            return 1;
+    }
+    return 0;
+}
+
+
+/**
+ * @brief Open the VERA.BIN file.
+ * If there is a header, read the header in vera_file_header.
+ * Otherwise blank the vera_file_header.
+ * If the file is of size 0, close the FP and return NULL;
+ * 
+ * @param file_name The name of the file.
+ * @return FILE* The opened file handle. NULL is returned if there is an error.
+ */
+FILE* fopen_vera_bin(unsigned char* file_name) {
+    
+    FILE *fp = fopen(file_name, "r");
+    if (fp) {
+
+        // Check if there is a header.
+        unsigned char vera_file_has_header = 0;
+
+        // Read the version and the compatible ROM releases from the VERA.BIN header first.
+        unsigned int vera_file_read = fgets(vera_file_header, 32, fp);
+        // Has the header been read, all ok, otherwise the file size is wrong!
+        if(vera_file_read) {
+            // Now we validate if the header was present.
+            // If it wasn't, then 0xFF would have been read as the first byte.
+            if(*((char*)0x0400) == 0xFF) {
+                memset_fast(vera_file_header, 0x00, 32);
+                // Now we must close the file, and open it again!
+                fclose(fp);
+                fp = fopen(file_name, "r");
+            }
+        } else {
+            // The file size is zero, must exit ...
+            vera_file_size = 0;
+            fclose(fp);
+            fp = NULL;
+        }
+    }
+    return fp;
+}
+
+/**
+ * @brief Read or check the vera file. Check if there is a header present.
+ * Read the whole file and set the global variable vera_file_size.
+ *  
+ * @param info_status STATUS_CHECKING if checking the file, STATUS_READ if reading the file into RAM.
+ * @return unsigned long The size of the file read.
+ */
 unsigned long w25q16_read(unsigned char info_status) {
 
     unsigned char x = PROGRESS_X;
@@ -84,7 +159,8 @@ unsigned long w25q16_read(unsigned char info_status) {
 
     display_action_text("Opening VERA.BIN from SD card ...");
 
-    FILE *fp = fopen("VERA.BIN", "r");
+    // Now we read the file for real.
+    FILE *fp = fopen_vera_bin("VERA.BIN");
     if (fp) {
 
         gotoxy(x, y);
@@ -94,14 +170,12 @@ unsigned long w25q16_read(unsigned char info_status) {
             if(info_status == STATUS_CHECKING) {
                 vera_bram_ptr = (bram_ptr_t)0x0400; // When we check the file, we don't read in RAM yet.
             } 
+
             display_action_text_reading(vera_action_text, "VERA.BIN", vera_file_size, vera_size, vera_bram_bank, vera_bram_ptr);
-
-            // __DEBUG
-
             bank_set_bram(vera_bram_bank);
 
-            unsigned int vera_package_read = fgets(vera_bram_ptr, VERA_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
-            if (!vera_package_read) {
+            unsigned int vera_file_read = fgets(vera_bram_ptr, VERA_PROGRESS_CELL, fp); // this will load b bytes from the rom.bin file or less if EOF is reached.
+            if (!vera_file_read) {
                 break;
             }
 
@@ -113,10 +187,10 @@ unsigned long w25q16_read(unsigned char info_status) {
             if(info_status == STATUS_READING)
                 cputc('.');
 
-            vera_bram_ptr += vera_package_read;
-            vera_address += vera_package_read;
-            vera_file_size += vera_package_read;
-            progress_row_current += vera_package_read;
+            vera_bram_ptr += vera_file_read;
+            vera_address += vera_file_read;
+            vera_file_size += vera_file_read;
+            progress_row_current += vera_file_read;
 
             if (vera_bram_ptr == (bram_ptr_t)BRAM_HIGH) {
                 vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
@@ -128,7 +202,6 @@ unsigned long w25q16_read(unsigned char info_status) {
                 vera_bram_bank = 1; // This is required to continue the reading into bram from bank 1.
             }
         }
-
         fclose(fp);
     }
 
@@ -158,79 +231,6 @@ inline unsigned char w25q16_compare(bram_bank_t bank_ram, bram_ptr_t bram_ptr, u
     
 }
 
-unsigned char w25q16_preamable_RAM() {
-
-    unsigned char x = PROGRESS_X;
-    unsigned char y = PROGRESS_Y;
-    unsigned char w = PROGRESS_W;
-
-    bram_bank_t vera_bram_bank = 1;
-    bram_ptr_t vera_bram_ptr = (bram_ptr_t)BRAM_LOW;
-    bank_set_bram(vera_bram_bank);
-
-    unsigned long vera_address = 0;
-
-    unsigned int progress_row_current = 0;
-    unsigned long vera_different_bytes = 0;
-
-    gotoxy(x, y);
-
-    // Display the header until the preamable has been found.
-
-    unsigned char* ram_preamable_byte = (bram_ptr_t)BRAM_LOW; 
-
-    unsigned char vera_file_preamable_pos = 0;
-    unsigned int ram_pos = 0;
-    unsigned char vera_file_preamable[4] = {0x7E, 0xAA, 0x99, 0x7E};
-
-    if(*ram_preamable_byte == 0xFF) {
-        // sprintf(info_text, "Premable byte %p: %x", ram_preamable_byte, *ram_preamable_byte);
-        // display_action_text(info_text);
-        while(vera_address <= vera_file_size) {
-            ram_preamable_byte++;
-            ram_pos++;
-            vera_address++;
-            // sprintf(info_text, "Premable byte %02p: %02x(%01u)",  ram_preamable_byte, *ram_preamable_byte, vera_file_preamable_pos);
-            // display_action_text(info_text);
-            if(vera_file_preamable_pos < 4 && *ram_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
-                if(vera_file_preamable_pos == 3) { 
-                    break; // The preamable has been found ...
-                } else {
-                    vera_file_preamable_pos++;
-                }
-            } else {
-                vera_file_preamable_pos = 0;
-                if(*ram_preamable_byte == vera_file_preamable[vera_file_preamable_pos]) {
-                    vera_file_preamable_pos++;
-                }
-            }
-            if(*ram_preamable_byte) {
-                if(*ram_preamable_byte >= 20 && *ram_preamable_byte <= 0x7F)
-                    // cputcxy(x, y, *ram_preamable_byte);
-                    x++;
-            } else {
-                y++;
-                x = PROGRESS_X;
-            }
-        }
-    } else {
-        return 0; // No pre-fix byte 0xff
-    }
-
-    return 1;
-
-}
-
-
-unsigned char w25q16_preamable_SPI() {
-
-    unsigned char x = PROGRESS_X;
-    unsigned char y = PROGRESS_Y;
-    unsigned char w = PROGRESS_W;
-
-
-    return 1;
-}
 
 /**
  * @brief Verify the w25q16 flash memory contents with the VERA.BIN file contents loaded from RAM $01:A000.
@@ -252,10 +252,10 @@ unsigned long w25q16_verify(unsigned char verify) {
     unsigned char different_char = '*';
 
     if(verify) {
-        display_action_progress("Verifying VERA after VERA.BIN update ... (=) same, (!) error.");
+        display_action_progress("Verifying VERA with RAM after update ... (=) same, (!) error.");
         different_char = '!';
     } else {
-        display_action_progress("Comparing VERA with VERA.BIN ... (.) data, (=) same, (*) different.");
+        display_action_progress("Comparing VERA with RAM ... (.) data, (=) same, (*) different.");
     }
 
     unsigned long w25q16_address = 0;

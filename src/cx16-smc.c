@@ -68,16 +68,6 @@ unsigned int smc_detect() {
     return smc_bootloader_version;
 }
 
-/**
- * @brief Detect and write the SMC version number into the info_text.
- * 
- * @param version_string The string containing the SMC version filled upon return.
- */
-unsigned long smc_get_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor) {
-
-    sprintf(version_string, "%u.%u.%u", release, major, minor);
-    return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, release));
-}
 
 /**
  * @brief Search in the smc file header for supported ROM.BIN releases.
@@ -238,7 +228,11 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
 
     display_action_progress("To start the SMC update, do the following ...");
 
+#ifdef __SMC_FLASH
     unsigned char smc_bootloader_start = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_BOOTLOADER_RESET, 0x31);
+#else
+    unsigned char smc_bootloader_start = 0;
+#endif
     if(smc_bootloader_start) {
         sprintf(info_text, "There was a problem starting the SMC bootloader: %x", smc_bootloader_start);
         display_action_text(info_text);
@@ -247,10 +241,21 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
         return 0;
     }
 
+#ifdef __SMC_FLASH
     unsigned char smc_bootloader_activation_countdown = 128;
+#else
+    unsigned char smc_bootloader_activation_countdown = 16;
+#endif
     unsigned int smc_bootloader_not_activated = 0xFF;
     while(smc_bootloader_activation_countdown) {
+#ifdef __SMC_FLASH
         unsigned int smc_bootloader_not_activated = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
+#else
+        unsigned int smc_bootloader_not_activated = 1;
+        if(smc_bootloader_activation_countdown==3) {
+            smc_bootloader_not_activated = 0;
+        }
+#endif
         if(smc_bootloader_not_activated) {
             wait_moment(1);
             sprintf(info_text, "[%03u] Press POWER and RESET on the CX16 to start the SMC update!", smc_bootloader_activation_countdown);
@@ -270,7 +275,11 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
         smc_bootloader_activation_countdown--;
     }
 
+#ifdef __SMC_FLASH
     smc_bootloader_not_activated = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_OFFSET);
+#else
+    smc_bootloader_not_activated = 0;
+#endif
     if(smc_bootloader_not_activated) {
         sprintf(info_text, "There was a problem activating the SMC bootloader: %x", smc_bootloader_not_activated);
         display_action_text(info_text);
@@ -302,15 +311,23 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
                 smc_bram_ptr++;
                 smc_bytes_checksum += smc_byte_upload;
                 // Upload byte
+#ifdef __SMC_FLASH
                 unsigned char smc_upload_result = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_UPLOAD, smc_byte_upload);
+#endif
                 smc_package_flashed++;
             }
 
             // 8 bytes have been uploaded, now send the checksum byte, in 1 complement.
+#ifdef __SMC_FLASH
             unsigned char smc_checksum_result = cx16_k_i2c_write_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_UPLOAD, (smc_bytes_checksum ^ 0xFF)+1);
+#endif
 
             // Now send the commit command.
+#ifdef __SMC_FLASH
             unsigned int smc_commit_result = cx16_k_i2c_read_byte(FLASH_I2C_SMC_DEVICE, FLASH_I2C_SMC_COMMIT);
+#else
+            unsigned int smc_commit_result = 1;
+#endif
             if(smc_commit_result == 1) {
                 if (smc_row_bytes == SMC_PROGRESS_ROW) {
                     gotoxy(x, ++y);
@@ -330,7 +347,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
             }
         }
         if(smc_attempts_flashed >= 10) {
-            sprintf(info_text, "There were too many attempts trying to flash the SMC at location %04x", smc_flashed_bytes);
+            sprintf(info_text, "There is an error flashing the SMC at location %04x", smc_flashed_bytes);
             display_action_text(info_text);
             return (unsigned int)0xFFFF;
         }

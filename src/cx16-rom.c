@@ -307,8 +307,8 @@ void rom_detect() {
         // Ensure the ROM is set to BASIC.
         bank_set_brom(4);
 
-        gotoxy(rom_chip*3+40, 1);
-        printf("%02x", rom_device_ids[rom_chip]);
+        // gotoxy(rom_chip*3+40, 1);
+        // printf("%02x", rom_device_ids[rom_chip]);
 
         switch (rom_device_ids[rom_chip]) {
         case SST39SF010A:

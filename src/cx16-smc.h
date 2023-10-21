@@ -48,7 +48,7 @@ extern unsigned char smc_file_minor;
 
 
 unsigned int smc_detect();
-unsigned long smc_get_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor);
+unsigned long util_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor);
 void smc_reset();
 unsigned int smc_flash_block(bram_ptr_t ram_ptr);
 unsigned int smc_read(unsigned char info_status);

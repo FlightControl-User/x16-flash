@@ -18,7 +18,7 @@
 #define __DEBUG  {asm{.byte $db}};
 // #define __DEBUG_FILE
 
-#define __STDIO_FILECOUNT 2
+#define __STDIO_FILECOUNT 1
 
 // Some addressing constants.
 #define RAM_BASE                ((unsigned int)0x7800)

@@ -1,6 +1,1 @@
-*.vs
-*.sym
-*.dbg
-
-ROM*.BIN
-\target\**
+target/**

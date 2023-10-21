@@ -21,7 +21,10 @@
 #include "cx16-smc.h"
 #include "cx16-rom.h"
 #include "cx16-status.h"
-#include "cx16-vera.h"
+#include "cx16-w25q16.h"
+
+#pragma code_seg(CodeOverwrite)
+#pragma data_seg(DataOverwrite)
 
 /**
  * @brief 
@@ -228,6 +231,14 @@ void display_frame_title(unsigned char* title_text) {
     printf("%-65s", title_text);
 }
 
+void display_info_SMC_bootloader() {
+    gotoxy(48,1);
+    printf("SMC BOOTLOADER: %u", smc_bootloader);
+}
+
+#pragma code_seg(Code)
+#pragma data_seg(Data)
+
 /**
  * @brief Print one line of a chip figure.
  * 
@@ -257,6 +268,9 @@ void display_chip_line(char x, char y, char w, char c) {
     textcolor(WHITE);
     bgcolor(BLACK);
     cputcxy(x+2, y, c);
+
+    textcolor(WHITE);
+    bgcolor(BLUE);
 }
 
 /**
@@ -283,6 +297,9 @@ void display_chip_end(char x, char y, char w) {
     textcolor(GREY);
     bgcolor(BLUE);
     cputc(VERA_CHR_UL);
+
+    textcolor(WHITE);
+    bgcolor(BLUE);
 }
 
 /**
@@ -510,7 +527,7 @@ void display_info_smc(unsigned char info_status, unsigned char* info_text) {
     status_smc = info_status;
     display_smc_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y);
-    printf("SMC  %-9s ATTiny %-8s BL:%u ", status_text[info_status], smc_version_text, smc_bootloader);
+    printf("SMC  %-9s ATTiny %-8s ", status_text[info_status], smc_version_text);
     if(info_text) {
         gotoxy(INFO_X+64-28, INFO_Y);
         printf("%-25s", info_text);
@@ -529,7 +546,7 @@ void display_info_vera(unsigned char info_status, unsigned char* info_text) {
     status_vera = info_status;
     display_vera_led(status_color[info_status]);
     gotoxy(INFO_X, INFO_Y+1);
-    printf("VERA %-9s W25Q16", status_text[info_status]);
+    printf("VERA %-9s W25Q16 %s", status_text[info_status], vera_version_text);
     if(info_text) {
         gotoxy(INFO_X+64-28, INFO_Y+1);
         printf("%-25s", info_text);

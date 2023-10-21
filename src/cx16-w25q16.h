@@ -18,8 +18,8 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
-#pragma code_seg(CodeVera)
-//#pragma data_seg(DataVera)
+#pragma code_seg(CodeOverwrite)
+#pragma data_seg(DataOverwrite)
 
 #include "cx16-spi.h"
 
@@ -27,9 +27,21 @@ extern char* const vera_file_name;
 extern unsigned long vera_file_size;
 extern unsigned long const vera_size;
 
+extern unsigned char vera_file_header[32];
+
+extern unsigned char vera_release;
+extern unsigned char vera_major;
+extern unsigned char vera_minor;
+
+extern unsigned char vera_file_release;
+extern unsigned char vera_file_major;
+extern unsigned char vera_file_minor;
+
+extern unsigned char vera_version_text[16];
+
+
 void w25q16_detect();
-unsigned char w25q16_preamable_RAM();
-unsigned char w25q16_preamable_SPI();
+unsigned char vera_supported_rom(unsigned char rom_release);
 unsigned long w25q16_read(unsigned char info_status);
 unsigned long w25q16_verify(unsigned char verify);
 unsigned char w25q16_erase();

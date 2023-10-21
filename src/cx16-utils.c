@@ -18,6 +18,8 @@
 #include "cx16-defines.h"
 #include "cx16-globals.h"
 
+#include "cx16-display.h"
+
 /**
  * @brief 
  * 
@@ -74,11 +76,14 @@ unsigned char util_wait_key(unsigned char* info_text, unsigned char* filter) {
     bank_set_bram(bram);
     bank_set_brom(brom);
 
+    display_action_text("");
+
     return ch;
 }
 
 void util_wait_space() {
     util_wait_key("Press [SPACE] to continue ...", " ");
+    display_action_text("");
 }
 
 /**
@@ -88,4 +93,15 @@ void util_wait_space() {
 void wait_moment(unsigned char w) {
     for(unsigned char j=0; j<w; j++)
         for(unsigned int i=65535; i>0; i--);
+}
+
+/**
+ * @brief Detect and write the SMC version number into the info_text.
+ * 
+ * @param version_string The string containing the SMC version filled upon return.
+ */
+unsigned long util_version_text(unsigned char* version_string, unsigned char release, unsigned char major, unsigned char minor) {
+
+    sprintf(version_string, "v%u.%u.%u", release, major, minor);
+    return MAKELONG(MAKEWORD(minor, major), MAKEWORD(0, release));
 }
