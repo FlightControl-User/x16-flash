@@ -15,16 +15,16 @@ Basic-segment:
   $0801-$080c Basic
 
 Code-segment:
-  $080d-$4e8e Code
+  $080d-$4e9b Code
 
 Data-segment:
-  $4e8f-$6e61 Data
+  $4e9c-$6e34 Data
 
 CodeOverwrite-segment:
-  $6e62-$87e6 CodeOverwrite
+  $6e35-$87b9 CodeOverwrite
 
 DataOverwrite-segment:
-  $87e7-$8d8c DataOverwrite
+  $87ba-$8d5f DataOverwrite
 
 Writing Vice symbol file: cx16-update.vs
 Writing Symbol file: cx16-update.sym

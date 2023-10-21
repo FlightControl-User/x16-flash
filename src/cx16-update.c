@@ -543,6 +543,7 @@ void main_debriefing() {
                     smc_reset(); // This call will reboot the SMC, which will reset the CX16 if bootloader R2.
                     while(1); // Wait until CX16 is disconnected from power or shuts down.
                 } else {
+                    vera_display_set_border_color(GREEN);
                     display_progress_text(display_debriefing_text_rom, display_debriefing_count_rom);
                 }
             }

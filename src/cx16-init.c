@@ -32,7 +32,7 @@
 void init() {
     display_frame_init_64(); // ST1 | Reset canvas to 64 columns
     display_frame_draw();
-    display_frame_title("Commander X16 Update Utility (v2.2.1) "); // ST2 | Ensure correct version
+    display_frame_title("Commander X16 Update Utility (v3.0.0) "); // ST2 | Ensure correct version
     display_info_title();
     display_action_progress("Introduction, please read carefully the below!");
     display_progress_clear();

@@ -159,6 +159,5 @@ const char* display_debriefing_text_rom[6] = {
     "",
     "",
     "",
-    "Since your CX16 system SMC chip has not been updated",
-    "your CX16 will just reset automatically after count down."
+    "Your CX16 will reset automatically after count down."
 };
