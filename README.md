@@ -272,14 +272,17 @@ The program will now update the SMC (if needed).
 
 The SMC update is straightforward. 
 
-|   |   |
-| --- | --- |
-| It will first read the `SMC.BIN` into internal memory. | |
-| Then, the program asks you to press the `POWER` and the `RESET` button at the same time on the CX16 board. | ![POWER-RESET-SCREEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET-SCREEN.jpg) |
-| Do so on the CX16 board. | ![POWER-RESET](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg) |
-| When the POWER-RESET button is not pressed in time (there is a countdown), the program will cancel the update of the SMC but will continue updating any other component. The update of the ROM will be skipped, though! The cancellation of the SMC update results in a reported issue, as the SMC and the ROM must be flashed together. | ![SMC-ROM-ISSUE](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-ISSUE.jpg) |
+|   |
+| --- |
+| It will first read the `SMC.BIN` into internal memory. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET-SCREEN.jpg" width="50%"/> Then, the program asks you to press the `POWER` and the `RESET` button at the same time on the CX16 board. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg" width="50%"/> Do so on the CX16 board. |
+
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-ISSUE.jpg" width="50%"/> When the POWER-RESET button is not pressed in time (there is a countdown), the program will cancel the update of the SMC but will continue updating any other component. The update of the ROM will be skipped, though! The cancellation of the SMC update results in a reported issue, as the SMC and the ROM must be flashed together. |
+
 | When POWER-RESET is pressed, the program will update your SMC. Don't interrupt the process! It is essential at this stage that you don't shut down your CX16! | |
-| To ensure that your SMC has been properly updated, the SMC will show as a **GREEN** led and status `Updated`. | |
+
+> To ensure that your SMC has been properly updated, the SMC will show as a **GREEN** led and status `Updated`.
 
  
 > **VERY IMPORTANT: Once your SMC is updated, you MUST wait till the end of the program to continue to update process, or your CX16 will be BRICKED!!!**
@@ -289,10 +292,10 @@ The SMC update is straightforward.
 
 |   |   |
 | --- | --- |
-| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000146916.png" width="60%"/> For each `ROMn.BIN` file found, the respective ROM wil be updated. The update process will start with the ROM with the highest number until the main CX16 ROM is updated. |
-| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000173909.png" width="60%"/> The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $2000 bytes are loaded in low RAM, while the remainder of the `ROMn.BIN` file is loaded in high RAM. Each $200 bytes loaded will be shown on the screen as a (`.`) in the memory matrix. Each row in the matrix represents $8000 bytes. A ROM can have a maximum of 512K, so there are maximum 16 rows possible to be shown in the matrix, and will be fully loaded into RAM on the Commander X16 before the update process starts! |
-| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000178917.png" width="60%"/> Once the `ROMn.BIN` file has been loaded into RAM, the program will compare the RAM contents with the ROM contents. Data blocks not yet compared are shown with a (`.`). Data blocks which bytes are completely equal, are shown as (`=`), while data blocks which are different are shown with a (`*`) |
-| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000207942.png" width="60%"/> The update process is started if the comparison result shows differences between ROM and the `ROMn.BIN` file from RAM. Each block is sequentially updated one by one. Once a whole block has been updated, the block is indicated with a (`+`). Equal blocks are in principle not updated, however, the ROM update process requires updates to be done in larger sectors. So if there are equal blocks in the same large sector, then these will also be updated again and will show with a (`+`) also. Sectors that are completely equal will show with a (`-`). If there is any error during the update process, then a (`!`) will be shown! |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000146916.png" width="50%"/> For each `ROMn.BIN` file found, the respective ROM wil be updated. The update process will start with the ROM with the highest number until the main CX16 ROM is updated. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000173909.png" width="50%"/> The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $2000 bytes are loaded in low RAM, while the remainder of the `ROMn.BIN` file is loaded in high RAM. Each $200 bytes loaded will be shown on the screen as a (`.`) in the memory matrix. Each row in the matrix represents $8000 bytes. A ROM can have a maximum of 512K, so there are maximum 16 rows possible to be shown in the matrix, and will be fully loaded into RAM on the Commander X16 before the update process starts! |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000178917.png" width="50%"/> Once the `ROMn.BIN` file has been loaded into RAM, the program will compare the RAM contents with the ROM contents. Data blocks not yet compared are shown with a (`.`). Data blocks which bytes are completely equal, are shown as (`=`), while data blocks which are different are shown with a (`*`) |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000207942.png" width="50%"/> The update process is started if the comparison result shows differences between ROM and the `ROMn.BIN` file from RAM. Each block is sequentially updated one by one. Once a whole block has been updated, the block is indicated with a (`+`). Equal blocks are in principle not updated, however, the ROM update process requires updates to be done in larger sectors. So if there are equal blocks in the same large sector, then these will also be updated again and will show with a (`+`) also. Sectors that are completely equal will show with a (`-`). If there is any error during the update process, then a (`!`) will be shown! |
 
 > Once the whole update process is finished, then the next `ROM.BIN` file is read into internal memory. This process is repeated until the main CX16 ROM is updated with it's corresponding `ROM.BIN` file!
 
@@ -301,7 +304,7 @@ The SMC update is straightforward.
 
 ||
 |---|
-| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000211942.png" width="60%"/> Once all your components are updated you should see a debriefing screen with a green border. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000211942.png" width="50%"/> Once all your components are updated you should see a debriefing screen with a green border. |
 
 If you have updated your SMC, the debriefing screen will instruct you a specific process to follow to finalise the update. Depending on the boot loader version, which can be one or two, the exit procedure differs:
 
