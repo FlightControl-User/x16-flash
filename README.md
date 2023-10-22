@@ -285,24 +285,31 @@ The SMC update is straightforward.
 > **VERY IMPORTANT: Once your SMC is updated, you MUST wait till the end of the program to continue to update process, or your CX16 will be BRICKED!!!**
 
 
-
 ### 2.2.3 The ROM update process
 
 |   |   |
 | --- | --- |
-| For each `ROMn.BIN` file found, the respective ROM wil be updated. The update process will start with the ROM with the highest number until the main CX16 ROM is updated. |   |
-| The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $2000 bytes are loaded in low RAM, while the remainder of the `ROMn.BIN` file is loaded in high RAM. Each $200 bytes loaded will be shown on the screen as a (`.`) in the memory matrix. Each row in the matrix represents $8000 bytes. A ROM can have a maximum of 512K, so there are maximum 16 rows possible to be shown in the matrix, and will be fully loaded into RAM on the Commander X16 before the update process starts! |   | 
-| Once the `ROMn.BIN` file has been loaded into RAM, the program will compare the RAM contents with the ROM contents. Data blocks not yet compared are shown with a (`.`). Data blocks which bytes are completely equal, are shown as (`=`), while data blocks which are different are shown with a (`*`) |   |
-| The update process is started if the comparison result shows differences between ROM and the `ROMn.BIN` file from RAM. Each block is sequentially updated one by one. Once a whole block has been updated, the block is indicated with a (`+`). Equal blocks are in principle not updated, however, the ROM update process requires updates to be done in larger sectors. So if there are equal blocks in the same large sector, then these will also be updated again and will show with a (`+`) also. Sectors that are completely equal will show with a (`-`). If there is any error during the update process, then a (`!`) will be shown! |  |
-| Once the whole update process is finished, then the next `ROM.BIN` file is read into internal memory. This process is repeated until the main CX16 ROM is updated with it's corresponding `ROM.BIN` file! |   |
+| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000146916.png" width="60%"/> For each `ROMn.BIN` file found, the respective ROM wil be updated. The update process will start with the ROM with the highest number until the main CX16 ROM is updated. |
+| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000173909.png" width="60%"/> The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $2000 bytes are loaded in low RAM, while the remainder of the `ROMn.BIN` file is loaded in high RAM. Each $200 bytes loaded will be shown on the screen as a (`.`) in the memory matrix. Each row in the matrix represents $8000 bytes. A ROM can have a maximum of 512K, so there are maximum 16 rows possible to be shown in the matrix, and will be fully loaded into RAM on the Commander X16 before the update process starts! |
+| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000178917.png" width="60%"/> Once the `ROMn.BIN` file has been loaded into RAM, the program will compare the RAM contents with the ROM contents. Data blocks not yet compared are shown with a (`.`). Data blocks which bytes are completely equal, are shown as (`=`), while data blocks which are different are shown with a (`*`) |
+| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000207942.png" width="60%"/> The update process is started if the comparison result shows differences between ROM and the `ROMn.BIN` file from RAM. Each block is sequentially updated one by one. Once a whole block has been updated, the block is indicated with a (`+`). Equal blocks are in principle not updated, however, the ROM update process requires updates to be done in larger sectors. So if there are equal blocks in the same large sector, then these will also be updated again and will show with a (`+`) also. Sectors that are completely equal will show with a (`-`). If there is any error during the update process, then a (`!`) will be shown! |
+
+> Once the whole update process is finished, then the next `ROM.BIN` file is read into internal memory. This process is repeated until the main CX16 ROM is updated with it's corresponding `ROM.BIN` file!
 
 
 ## 2.3 Debriefing
 
-Once all your components are updated you should see a debriefing screen with a green border. 
+||
+|---|
+| <img style=float:right; src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000211942.png" width="60%"/> Once all your components are updated you should see a debriefing screen with a green border. |
 
 If you have updated your SMC, the debriefing screen will instruct you a specific process to follow to finalise the update. Depending on the boot loader version, which can be one or two, the exit procedure differs:
+
 -  When your commander X16 contains bootloader one, you need to stay and wait patiently until the counter finishes to zero. Next you will be instructed to disconnect the power cable from your commander X16. Don't worry that process is perfectly fine. You won't be able to shut down your commander X16 because the power button will not be functional. Next you reconnect your power cable to the commander X16 and power up the computer.
+
+- When your commander X16 contains bootloader two, once the counter finishes to zero, the computer will automatically shut down. Just start the commander X16 with the power button.
+
+
 
 # 3 ISSUES AND RESOLUTIONS
 
