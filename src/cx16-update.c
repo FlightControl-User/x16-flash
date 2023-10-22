@@ -1,5 +1,5 @@
 /**
- * @file cx16-w25q16.c
+ * @file cx16-update.c
  * 
  * @author Wavicle from CX16 community (https://gist.github.com/jburks) -- Advice and outline of the ROM update logic & overall support and test assistance of this program.
  * @author MooingLemur from CX16 community (https://github.com/mooinglemur) -- Advice and outline of the main SPI and W25Q16 update logic, and supply of new VERA firmware.
@@ -48,7 +48,7 @@ void main_intro() {
 
     display_progress_text(display_into_colors_text, display_intro_colors_count);
     for(unsigned char intro_status=0; intro_status<11; intro_status++) {
-        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status], BLUE);
+        display_info_led(PROGRESS_X + 3, PROGRESS_Y + 3 + intro_status, status_color[intro_status]);
     }
     util_wait_space();
     display_progress_clear();
@@ -121,13 +121,15 @@ void main_vera_flash() {
     // If the ROM file was correctly read, verify the file ...
     if(vera_bytes_read) {
 
-#ifdef __VERA_JP1_DETECT
+#ifdef __VERA_CHIP_DETECT
+
         // Now we loop until jumper JP1 has been placed!
         display_action_progress("CLOSE the JP1 jumper header on the VERA board!");
         unsigned char spi_ensure_detect = 0;
         util_wait_space();
         while(spi_ensure_detect < 16) {
             w25q16_detect();
+            spi_deselect();
             wait_moment(1);
             if(spi_manufacturer == 0xEF && spi_memory_type == 0x40 && spi_memory_capacity == 0x15) {
                 spi_ensure_detect++;
@@ -171,10 +173,12 @@ void main_vera_flash() {
                 // VFL3 | Flash VERA and all ok
                 display_info_vera(STATUS_FLASHED, NULL);
                 __mem unsigned long vera_differences = w25q16_verify(1);
+#ifdef __FLASH_ERROR_DETECT
                 if (vera_differences) {
                     sprintf(info_text, "%u differences!", vera_differences);
                     display_info_vera(STATUS_ERROR, info_text);
                 }
+#endif
             } else {
                 // VFL2 | Flash VERA resulting in errors
                 display_info_vera(STATUS_ERROR, info_text);
@@ -190,13 +194,15 @@ void main_vera_flash() {
         }
 
 
-#ifdef __VERA_JP1_DETECT
+#ifdef __VERA_CHIP_DETECT
+
         // Now we loop until jumper JP1 is open again!
         display_action_progress("OPEN the JP1 jumper header on the VERA board!");
         spi_ensure_detect = 0;
         util_wait_space();
         while(spi_ensure_detect < 16) {
             w25q16_detect();
+            spi_deselect();
             wait_moment(1);
             if(spi_manufacturer != 0xEF && spi_memory_type != 0x40 && spi_memory_capacity != 0x15) {
                 spi_ensure_detect++;
@@ -210,7 +216,7 @@ void main_vera_flash() {
 
     }
 
-    spi_deselect();
+    spi_select();
     wait_moment(16);
 
 }
@@ -409,7 +415,8 @@ void main_rom_flash() {
 }
 
 void main_rom_check() {
-        SEI();
+
+    SEI();
 
     // We loop all the possible ROM chip slots on the board and on the extension card,
     // and we check the file contents.
@@ -475,8 +482,8 @@ void main_debriefing() {
         CLI();
 
         vera_display_set_border_color(RED);
-        textcolor(WHITE);
-        bgcolor(BLUE);
+        textcolor(DISPLAY_FG_COLOR);
+        bgcolor(DISPLAY_BG_COLOR);
         clrscr();
 
         printf("There was a severe error updating your VERA!");
@@ -489,6 +496,8 @@ void main_debriefing() {
         system_reset();
         return;
     }
+
+
 
     if((check_status_smc(STATUS_SKIP) || check_status_smc(STATUS_NONE)) && 
        (check_status_vera(STATUS_SKIP) || check_status_vera(STATUS_NONE)) && 
@@ -521,15 +530,24 @@ void main_debriefing() {
                     if(smc_bootloader == 1)
                         smc_reset();
 
-                    display_progress_text(display_debriefing_smc_text, display_debriefing_smc_count);
+                    unsigned char smc_power_down_timer = 120;
+
+                    if(smc_bootloader == 1) {
+                        display_progress_text(display_debriefing_smcbl1_text, display_debriefing_smcbl1_count);
+                    }
+
+                    if(smc_bootloader == 2) {
+                        smc_power_down_timer = 60;
+                        display_progress_text(display_debriefing_smcbl2_text, display_debriefing_smcbl2_count);
+                    }
 
                     textcolor(PINK);
                     display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!");
-                    textcolor(WHITE);
+                    textcolor(DISPLAY_FG_COLOR);
 
-                    for (unsigned char w=120; w>0; w--) {
+                    for (; smc_power_down_timer>0; smc_power_down_timer--) {
                         wait_moment(1);
-                        sprintf(info_text, "[%03u] Please read carefully the below ...", w);
+                        sprintf(info_text, "[%03u] Please read carefully the below ...", smc_power_down_timer);
                         display_action_text(info_text);
                     }
 
@@ -543,7 +561,6 @@ void main_debriefing() {
                     smc_reset(); // This call will reboot the SMC, which will reset the CX16 if bootloader R2.
                     while(1); // Wait until CX16 is disconnected from power or shuts down.
                 } else {
-                    vera_display_set_border_color(GREEN);
                     display_progress_text(display_debriefing_text_rom, display_debriefing_count_rom);
                 }
             }
@@ -554,7 +571,7 @@ void main_debriefing() {
         // DE6 | Wait until reset
         textcolor(PINK);
         display_progress_line(2, "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!");
-        textcolor(WHITE);
+        textcolor(DISPLAY_FG_COLOR);
 
         for (unsigned char w=120; w>0; w--) {
             wait_moment(1);

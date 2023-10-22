@@ -135,22 +135,31 @@ const char* display_vera_unsupported_rom_text[7] = {
 
 const char* TEXT_PROGRESS_FLASHING = "Flashing ... (-) equal, (+) flashed, (!) error.";
 
-const char display_debriefing_smc_count = 14;
-const char* display_debriefing_smc_text[14] = {
+const char display_debriefing_smcbl1_count = 12;
+const char* display_debriefing_smcbl1_text[12] = {
     "Your CX16 system has been successfully updated!",
     "",
-    "DON'T DO ANYTHING UNTIL COUNTDOWN FINISHES!",
     "",
-    "Because your SMC chipset has been updated,",
-    "the restart process differs, depending on the",
-    "SMC boootloader version installed on your CX16 board:",
     "",
-    "- SMC bootloader v2.0: your CX16 will automatically shut down.",
+    "IMPORTANT: Your CX16 has SMC bootloader v1.0.",
+    "           The power-off button won't work!",
     "",
-    "- SMC bootloader v1.0: you need to ",
-    "  COMPLETELY DISCONNECT your CX16 from the power source!",
-    "  The power-off button won't work!",
-    "  Then, reconnect and start the CX16 normally."
+    "           You need to disconnect your CX16 from the power",
+    "           source (plug) once the counter reaches zero.",
+    "",
+    "           Then, reconnect the power source and start", 
+    "           your CX16 normally pressing the power button."
+};
+
+const char display_debriefing_smcbl2_count = 7;
+const char* display_debriefing_smcbl2_text[7] = {
+    "Your CX16 system has been successfully updated!",
+    "",
+    "",
+    "",
+    "IMPORTANT: Your CX16 has SMC bootloader v2.0.",
+    "           Your CX16 will automatically shut down",
+    "           once the counter reaches zero."
 };
 
 const char display_debriefing_count_rom = 6;

@@ -152,7 +152,7 @@ unsigned int smc_read(unsigned char info_status) {
     // We start for SMC from 0x1:0xA000.
     bank_set_bram(smc_bram_bank);
 
-    textcolor(WHITE);
+    textcolor(DISPLAY_FG_COLOR);
     gotoxy(x, y);
 
     unsigned int smc_file_read = 0;
@@ -288,7 +288,7 @@ unsigned int smc_flash(unsigned int smc_bytes_total) {
 
     display_action_progress("Updating SMC firmware ... (+) Updated");
 
-    textcolor(WHITE);
+    textcolor(DISPLAY_FG_COLOR);
     gotoxy(x, y);
 
     unsigned int smc_flashed_bytes = 0;

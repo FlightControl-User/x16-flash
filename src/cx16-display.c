@@ -172,8 +172,8 @@ void display_frame(unsigned char x0, unsigned char y0, unsigned char x1, unsigne
  * @brief Create the CX16 update frame for X = 64, Y = 40 positions.
  */
 void display_frame_draw() {
-    textcolor(LIGHT_BLUE);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_FR_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
 
     clrscr();
     display_frame(0, 0, 67, 14);
@@ -197,13 +197,14 @@ void display_frame_draw() {
     display_frame(0, PROGRESS_Y-5, 67, PROGRESS_Y-2);
     display_frame(0, PROGRESS_Y-2, 67, 49);
 
-    textcolor(WHITE);
+    textcolor(DISPLAY_FG_COLOR);
 }
 
 /**
  * @brief Initialize the display and size the borders for 64 characters horizontally.
  */
 void display_frame_init_64() {
+    vera_display_set_border_color(BLUE);
     cx16_k_screen_set_mode(0);  // Default 80 columns mode.
     screenlayer1(); // Reset the screen layer values for conio.
     cx16_k_screen_set_charset(3, (char *)0);  // Lower case characters.
@@ -214,8 +215,8 @@ void display_frame_init_64() {
     vera_sprites_hide();  // Hide sprites.
     vera_layer0_hide();  // Layer 0 deactivated.
     vera_layer1_show();  // Layer 1 is the current text canvas.
-    textcolor(WHITE);  // Default text color is white.
-    bgcolor(BLUE);  // With a blue background.
+    textcolor(DISPLAY_FG_COLOR);  // Text color.
+    bgcolor(DISPLAY_BG_COLOR);  // With a background.
     // cx16-conio.c won't compile scrolling code for this program with the underlying define, resulting in less code overhead!
     #define __CONIO_NOSCROLL
     clrscr(); 
@@ -251,26 +252,26 @@ void display_chip_line(char x, char y, char w, char c) {
 
     gotoxy(x, y);
 
-    textcolor(GREY);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_PIN_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
     cputc(VERA_CHR_UR);
 
-    textcolor(WHITE);
-    bgcolor(BLACK);
+    textcolor(DISPLAY_FG_COLOR);
+    bgcolor(DISPLAY_CHIP_COLOR);
     for(char i=0; i<w; i++) {
         cputc(VERA_CHR_SPACE);
     }
 
-    textcolor(GREY);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_PIN_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
     cputc(VERA_CHR_UL);
 
-    textcolor(WHITE);
-    bgcolor(BLACK);
+    textcolor(DISPLAY_FG_COLOR);
+    bgcolor(DISPLAY_CHIP_COLOR);
     cputcxy(x+2, y, c);
 
-    textcolor(WHITE);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_FG_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
 }
 
 /**
@@ -284,22 +285,22 @@ void display_chip_end(char x, char y, char w) {
 
     gotoxy(x, y);
 
-    textcolor(GREY);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_PIN_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
     cputc(VERA_CHR_UR);
 
-    textcolor(BLUE);
-    bgcolor(BLACK);
+    textcolor(DISPLAY_BG_COLOR);
+    bgcolor(DISPLAY_CHIP_COLOR);
     for(char i=0; i<w; i++) {
         cputc(VERA_CHR_HL);
     }
 
-    textcolor(GREY);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_PIN_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
     cputc(VERA_CHR_UL);
 
-    textcolor(WHITE);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_FG_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
 }
 
 /**
@@ -311,10 +312,9 @@ void display_chip_end(char x, char y, char w) {
  * @param tc Fore color
  * @param bc Back color
  */
-void display_chip_led(char x, char y, char w, char tc, char bc) {
+void display_chip_led(char x, char y, char w, char tc) {
 
     textcolor(tc);
-    bgcolor(bc);
 
     do {
         cputcxy(x, y, 0x6F);
@@ -322,8 +322,7 @@ void display_chip_led(char x, char y, char w, char tc, char bc) {
         x++;
     } while(--w);
 
-    textcolor(WHITE);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_FG_COLOR);
 }
 
 /**
@@ -334,10 +333,10 @@ void display_chip_led(char x, char y, char w, char tc, char bc) {
  * @param tc Fore color
  * @param bc Back color
  */
-void display_info_led(char x, char y, char tc, char bc) {
-    textcolor(tc); bgcolor(bc);
+void display_info_led(char x, char y, char tc) {
+    textcolor(tc);
     cputcxy(x, y, VERA_CHR_UR);
-    textcolor(WHITE);
+    textcolor(DISPLAY_FG_COLOR);
 }
 
 /**
@@ -367,12 +366,12 @@ void display_print_chip(unsigned char x, unsigned char y, unsigned char w, unsig
  * @param c Led color
  */
 void display_smc_led(unsigned char c) {
-    display_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c, BLUE);
-    display_info_led(INFO_X-2, INFO_Y, c, BLUE);
+    display_chip_led(CHIP_SMC_X+1, CHIP_SMC_Y, CHIP_SMC_W, c);
+    display_info_led(INFO_X-2, INFO_Y, c);
 }
 
 void display_chip_smc() {
-    display_smc_led(GREY);
+    display_smc_led(DISPLAY_PIN_COLOR);
     display_print_chip(CHIP_SMC_X, CHIP_SMC_Y+2, CHIP_SMC_W, "SMC     ");
 }
 
@@ -382,12 +381,12 @@ void display_chip_smc() {
  * @param c Led color
  */
 void display_vera_led(unsigned char c) {
-    display_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c, BLUE);
-    display_info_led(INFO_X-2, INFO_Y+1, c, BLUE);
+    display_chip_led(CHIP_VERA_X+1, CHIP_VERA_Y, CHIP_VERA_W, c);
+    display_info_led(INFO_X-2, INFO_Y+1, c);
 }
 
 void display_chip_vera() {
-    display_vera_led(GREY);
+    display_vera_led(DISPLAY_PIN_COLOR);
     display_print_chip(CHIP_VERA_X, CHIP_VERA_Y+2, CHIP_VERA_W, "VERA     ");
 }
 
@@ -398,8 +397,8 @@ void display_chip_vera() {
  * @param c Led color
  */
 void display_rom_led(unsigned char chip, unsigned char c) {
-    display_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c, BLUE);
-    display_info_led(INFO_X-2, INFO_Y+chip+2, c, BLUE);
+    display_chip_led(CHIP_ROM_X+chip*6+1, CHIP_ROM_Y, CHIP_ROM_W, c);
+    display_info_led(INFO_X-2, INFO_Y+chip+2, c);
 }
 
 /**
@@ -415,7 +414,7 @@ void display_chip_rom() {
         if(r) {
             *(rom+3) = r+'0';
         }
-        display_rom_led(r, GREY);
+        display_rom_led(r, DISPLAY_PIN_COLOR);
         display_print_chip(CHIP_ROM_X+r*6, CHIP_ROM_Y+2, CHIP_ROM_W, rom);
     }
 }
@@ -428,7 +427,7 @@ void display_chip_rom() {
  * @param i2c_address The I2C address where the I2C is flashed.
  */
 void print_i2c_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned int i2c_address) {
-    textcolor(WHITE);
+    textcolor(DISPLAY_FG_COLOR);
     gotoxy(43, 1);
     printf("ram = %2x/%4p, i2c = %4x", bram_bank, bram_ptr, i2c_address);
 }
@@ -437,8 +436,8 @@ void print_i2c_address(bram_bank_t bram_bank, bram_ptr_t bram_ptr, unsigned int 
  * @brief Clean the progress area for the flashing.
  */
 void display_progress_clear() {
-    textcolor(WHITE);
-    bgcolor(BLUE);
+    textcolor(DISPLAY_FG_COLOR);
+    bgcolor(DISPLAY_BG_COLOR);
 
     unsigned char h = PROGRESS_Y + PROGRESS_H;
     unsigned char y = PROGRESS_Y;

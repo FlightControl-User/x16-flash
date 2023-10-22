@@ -51,13 +51,13 @@ void w25q16_detect() {
 // This conditional compilation ensures that only the detection interpretation happens if it is switched on.
 #ifdef __VERA_CHIP_DETECT
     spi_get_jedec();
+    spi_deselect();
 #else
     spi_manufacturer = 0x01;
     spi_memory_type = 0x02;
     spi_memory_capacity = 0x03;
 #endif
 
-    spi_deselect();
     return;
 }
 

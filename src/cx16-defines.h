@@ -28,9 +28,6 @@
 
 // These pre-processor directives allow to disable specific ROM flashing functions (for emulator development purposes).
 // Normally they should be all activated.
-#define __COLS_40
-#define __COLS_80
-
 #define __INTRO
 
 #define __VERA_CHIP_PROCESS
@@ -38,7 +35,6 @@
 #define __ROM_CHIP_PROCESS
 
 
-#define __VERA_JP1_DETECT
 #define __VERA_FLASH
 #define __SMC_FLASH
 #define __ROM_FLASH
@@ -95,3 +91,9 @@ const char PROGRESS_H = 16;
 #define INFO_Y 17
 #define INFO_W 64
 #define INFO_H 10
+
+#define DISPLAY_BG_COLOR BLUE
+#define DISPLAY_FG_COLOR WHITE
+#define DISPLAY_FR_COLOR LIGHT_BLUE
+#define DISPLAY_CHIP_COLOR BLACK
+#define DISPLAY_PIN_COLOR GREY

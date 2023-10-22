@@ -131,8 +131,8 @@ void main() {
     vera_sprites_hide();  // Hide sprites.
     vera_layer0_hide();  // Layer 0 deactivated.
     vera_layer1_show();  // Layer 1 is the current text canvas.
-    textcolor(WHITE);  // Default text color is white.
-    bgcolor(BLUE);  // With a blue background.
+    textcolor(DISPLAY_FG_COLOR);  // Default text color is white.
+    bgcolor(DISPLAY_BG_COLOR);  // With a blue background.
     clrscr(); 
 
     printf("\n\n\n\nCommander X16 checksum calculator and validator of .BIN files.\n\n");

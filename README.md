@@ -16,10 +16,10 @@ This program allows you to upgrade (or downgrade) the firmware of your CX16 inte
 
 # Table of contents:
 
-### 1 [User Manual](#1-user-manual)
-### 2 [Run the CX16 update program](#2-run-the-cx16-update-program)
-### 3 [Issues and Resolutions](#3-issues-and-resolutions)
-### 4 [Recovery from a bricked CX16](#4-recovery-from-bricked-cx16)
+1 [User Manual](#1-user-manual)
+2 [Run the CX16 update program](#2-run-the-cx16-update-program)
+3 [Issues and Resolutions](#3-issues-and-resolutions)
+4 [Recovery from a bricked CX16](#4-recovery-procedures-from-a-bricked-cx16)
 
 
 # Notice of caution

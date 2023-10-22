@@ -30,7 +30,7 @@ __mem unsigned char status_rom[8] = {0};
  * @param status The status to be checked.
  * @return unsigned char true if the status is equal.
  */
-unsigned char check_status_smc(unsigned char status) {
+inline unsigned char check_status_smc(unsigned char status) {
     return (unsigned char)(status_smc == status);
 }
 
@@ -61,7 +61,7 @@ unsigned char check_status_rom(unsigned char rom_chip, unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if the status is equal.
  */
-inline unsigned char check_status_cx16_rom(unsigned char status) {
+unsigned char check_status_cx16_rom(unsigned char status) {
     return check_status_rom(0, status);
 }
 
@@ -71,7 +71,7 @@ inline unsigned char check_status_cx16_rom(unsigned char status) {
  * @param status The status to be checked.
  * @return unsigned char true if one chip is equal to the status.
  */
-unsigned char check_status_card_roms(unsigned char status) {
+char check_status_card_roms(unsigned char status) {
     for(unsigned char rom_chip = 1; rom_chip < 8; rom_chip++) {
         if(check_status_rom(rom_chip, status)) {
             return 1;
