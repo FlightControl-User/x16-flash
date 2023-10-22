@@ -110,8 +110,6 @@ Updating the **external** VERA card won't require you to follow this process.
 
 ### 1.3.3 Prepare: CLOSE Main CX16 ROM J1 jumper pins!
 
-
-
 |   |   |
 | --- | --- |
 | Ensure that the J1 jumper pins on the Commander X16 main board are **closed**, to **remove the write protection** of the main CX16 ROM.  If the J1 jumper pins are **not closed**, the **main CX16 ROM will not be detected** by the update program! | ![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg) |
@@ -196,6 +194,11 @@ Please read through the following checklist before you commence running the CX16
 The update program is very user friendly and walks you through the different steps.
 Please find below a detailed description of the complete process.
 
+For each component, the program will first detect each component and will search for the corresponding file names.
+It will read each file and check the contents before it will use the files to update your components.
+Once all the files have been checked, it will update your VERA card, then it will update the SMC and then the ROM(s).
+If there are ROMs on an external cardridge detected, then those roms will be installed first before the main CX16 ROM is updated.
+
 ## 2.1.1 Introduction and briefing screens
 
 | Step  | Picture  |
@@ -213,19 +216,17 @@ Please find below a detailed description of the complete process.
 The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips.
 
 - Each component detected will be highlighted with a Detected status and a **WHITE** led. The capacity of each detected ROM is shown in KBytes. 
-
 - Other components that are not detected are highlighed with a None staus and a **BLACK** led. These ROMs won't be considered for flashing.
 
-### 2.1.3 File presence and validation
+### 2.1.3 File presence and validation for each detected component.
 
 |  |  |
 | --- | --- |
 | After component detection, the program will immediately search for file presence for **each detected component** and will validate it. The program will read each file and check on data size and any validation content to be used before flashing.  | ![CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CHECK.jpg) |
 
-
 - Detected and valid files will result in the status of the component in a **PURPLE** led and status `Update`.
-
 - Files that are not present, will result in the component not to be updated. The component will get a GREY led and status `Skipped`.
+
 
 ### 2.1.4 Pre-Update conditions.
 
@@ -234,11 +235,9 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 | Before the update commences, there are important conditions vaidated to ensure that any upgrade file or component compatibility risk or issues, potentially corrupting your CX16, are properly mitigated. |  |
 
 
-1. SMC and ROM must be flashed together: To avoid an SMC update corrupting your CX16 because it is not supportive or compatible with your ROM. The SMC file contains flags to ensure the compatibility between the SMC and the ROM.
-
-2. An SMC not detected will stop the update process.
-
-3. The main CX16 ROM not detected will stop the update process.
+1. VERA and ROM versions are validated in terms of compatibility, to ensure that the ROM functions can be supported by the VERA card.
+2. SMC and ROM versions are validated, to ensure that they are "compatible": To avoid an SMC update corrupting your CX16 because it is not supportive or compatible with your ROM.
+3. File versions that are equal to the installed component versions will be skipped.
 
 |  |  |
 | --- | --- |
@@ -249,8 +248,7 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 The CX16 update program will update each component that has status `Update`.
 
-For each component, program will read the firmware data into RAM memory first, and will then use the data stored in RAM to update your CX16 component.
-The program guides you through the update process for each component in a very user friendly way, but mistakes are always possible, to please read carefully the below explanation. However, the **component update process differs for each component type**, so be aware! 
+For each component, program will read the firmware data into RAM memory first, and will then use the data stored in RAM to update your CX16 component. The program guides you through the update process for each component in a very user friendly way, but mistakes are always possible, to please read carefully the below explanation. However, the **component update process differs for each component type**, so be aware! 
 
 ### 2.2.1 The VERA update process
 
@@ -260,13 +258,15 @@ The program guides you through the update process for each component in a very u
 | You will be presented with this briefing, that explains the importance of the JP1 jumper pins manual handing during the update process (Picture above). Press SPACE on the CX16 keyboard to continue. | ![VERA-UPDATE-BRIEFING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-BRIEFING.jpg) |
 | The program will then read the VERA.BIN file contents into RAM. | ![VERA-UPDATE-READING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-READING.jpg) |
 | Then you will be asked to place the JP1 jumper cap onto the JP1 jumper pins, thus closing the JP1 jumper pins, in order to instruct VERA to direct its instructions to the SPI IC (instead of the SD card). | ![VERA-UPDATE-READING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-READING.jpg) |
-| Place the JP1 jumper cap, closing the JP1 jumper pins on the VERA board. | ![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg) |
-| Before the program updates your VERA firmware, it will compare the contents of the current VERA firmware with the contents of the VERA.BIN, which was read into RAM. | ![VERA-UPDATE-COMPARING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-COMPARING.jpg) |
-| Once all the data has been compared, it will update your firmware if the compare results show differences. | ![VERA-UPDATE-FLASHING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-FLASHING.jpg) |
+| Place the JP1 jumper cap, closing the JP1 jumper pins on the VERA board. Press SPACE to continue when finished. | ![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg) |
+| Before the program updates your VERA firmware, it will compare the contents of the current VERA firmware with the contents of the VERA.BIN from RAM. | ![VERA-UPDATE-COMPARING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-COMPARING.jpg) |
+| Once all the data has been compared, it will update your firmware if the compare results shows differences. | ![VERA-UPDATE-FLASHING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-FLASHING.jpg) |
 | After the program has flashed your new VERA firmware, the program will compare the contents of the new VERA firmware flashed with the RAM contents. The comparison result should be equal. | ![VERA-UPDATE-COMPARING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-COMPARING.jpg) |
 | Once all VERA flashing and verification processes are complete, the program will ask you to remove the JP1 jumper cap from the JP1 jumper pins, thus opening the JP1 jumper pins to instruct VERA to direct its instructions back to the SD card. | ![VERA-UPDATE-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-JP1-OPEN.jpg) |
-| Remove the JP1 jumper cap from the JP1 jumper pins on the VERA board. | ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg) |
+| Remove the JP1 jumper cap from the JP1 jumper pins on the VERA board. Press SPACE to continue. | ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg) |
 | When the comparison result is equal, the VERA led whill show a **GREEN** color and the status will show `Flashed`. |  |
+
+The program will now update the SMC (if needed).
 
 ### 2.2.2 The SMC update process
 
@@ -278,30 +278,31 @@ The SMC update is straightforward.
 | Then, the program asks you to press the `POWER` and the `RESET` button at the same time on the CX16 board. | ![POWER-RESET-SCREEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET-SCREEN.jpg) |
 | Do so on the CX16 board. | ![POWER-RESET](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg) |
 | When the POWER-RESET button is not pressed in time (there is a countdown), the program will cancel the update of the SMC but will continue updating any other component. The update of the ROM will be skipped, though! The cancellation of the SMC update results in a reported issue, as the SMC and the ROM must be flashed together. | ![SMC-ROM-ISSUE](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-ISSUE.jpg) |
-| When POWER-RESET is pressed, the program will flash your SMC. Don't interrupt the process. | |
+| When POWER-RESET is pressed, the program will update your SMC. Don't interrupt the process! It is essential at this stage that you don't shut down your CX16! | |
 | To ensure that your SMC has been properly updated, the SMC will show as a **GREEN** led and status `Updated`. | |
 
  
-**VERY IMPORTANT:**
-
-**Once your SMC is updated, you MUST wait till the end of the program to continue to update process, or your CX16 will be BRICKED!!!**
-
-
-### 2.2.3 The main CX16 ROM update process
+> **VERY IMPORTANT: Once your SMC is updated, you MUST wait till the end of the program to continue to update process, or your CX16 will be BRICKED!!!**
 
 
 
-### 2.2.4 The external cardridge ROMs update process
+### 2.2.3 The ROM update process
 
-The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $4000 bytes are loaded in low RAM, while the remainder of the ROM[N].BIN file is loaded in high RAM. This is nothing for you to be concerned about, just explaining how the program works. But note that a ROM[N].BIN file that is 512KB large, will be fully loaded into RAM on the Commander X16!
+|   |   |
+| --- | --- |
+| For each `ROMn.BIN` file found, the respective ROM wil be updated. The update process will start with the ROM with the highest number until the main CX16 ROM is updated. |   |
+| The loading process is seamless, if there is a file, each byte in the file is loaded into low and high RAM. The first $2000 bytes are loaded in low RAM, while the remainder of the `ROMn.BIN` file is loaded in high RAM. Each $200 bytes loaded will be shown on the screen as a (`.`) in the memory matrix. Each row in the matrix represents $8000 bytes. A ROM can have a maximum of 512K, so there are maximum 16 rows possible to be shown in the matrix, and will be fully loaded into RAM on the Commander X16 before the update process starts! |   | 
+| Once the `ROMn.BIN` file has been loaded into RAM, the program will compare the RAM contents with the ROM contents. Data blocks not yet compared are shown with a (`.`). Data blocks which bytes are completely equal, are shown as (`=`), while data blocks which are different are shown with a (`*`) |   |
+| The update process is started if the comparison result shows differences between ROM and the `ROMn.BIN` file from RAM. Each block is sequentially updated one by one. Once a whole block has been updated, the block is indicated with a (`+`). Equal blocks are in principle not updated, however, the ROM update process requires updates to be done in larger sectors. So if there are equal blocks in the same large sector, then these will also be updated again and will show with a (`+`) also. Sectors that are completely equal will show with a (`-`). If there is any error during the update process, then a (`!`) will be shown! |  |
+| Once the whole update process is finished, then the next `ROM.BIN` file is read into internal memory. This process is repeated until the main CX16 ROM is updated with it's corresponding `ROM.BIN` file! |   |
 
-<img width="634" alt="FLASH-LOAD" src="https://user-images.githubusercontent.com/13690775/225111367-df29cf5b-eeeb-4c5a-8a2a-1366345086a8.png">
 
-Each $100 bytes loaded will be shown on the screen as a '.' in the memory matrix. Each row in the matrix represents $4000 bytes. There are $40 possible blocks of $100 bytes each in each row. A ROM can have a maximum of 512K, so there are maximum 32 rows possible to be shown in the matrix.
+## 2.3 Debriefing
 
-The ROM address ranges being processed are shown. The first column shows the ROM bank being processed, while the 2nd column indicates the "relative" ROM addres for each row. 
+Once all your components are updated you should see a debriefing screen with a green border. 
 
-Loading and Comparing in progress is highlighted with a CYAN led on top of the ROM chip. 
+If you have updated your SMC, the debriefing screen will instruct you a specific process to follow to finalise the update. Depending on the boot loader version, which can be one or two, the exit procedure differs:
+-  When your commander X16 contains bootloader one, you need to stay and wait patiently until the counter finishes to zero. Next you will be instructed to disconnect the power cable from your commander X16. Don't worry that process is perfectly fine. You won't be able to shut down your commander X16 because the power button will not be functional. Next you reconnect your power cable to the commander X16 and power up the computer.
 
 # 3 ISSUES AND RESOLUTIONS
 
@@ -320,65 +321,3 @@ Loading and Comparing in progress is highlighted with a CYAN led on top of the R
 
 ----
 
-# OLD
-
-### 3.3. ROM[N].BIN file changes
-
-Once the ROM[N].BIN file has been loaded into RAM, the program will compare the RAM contents with the ROM contents.
-
-<img width="642" alt="FLASH-CHANGES" src="https://user-images.githubusercontent.com/13690775/225111444-a87165cb-891c-4d63-a2a7-f6370c73c94d.png">
-
-Equal blocks are shown with a '.', while different blocks are shown with a '*'. This provides the user a good idea of where the changes are, and more important, in which ROM banks!
-
-Loading and Comparing in progress is highlighted with a CYAN led on top of the ROM chip. 
-
-### 3.4. ROM[N].BIN file flashing
-
-Once the user understands the changes and wants to continue with flashing, a key needs to be pressed.
-
-The flashing is straightforward, but there is something that needs to be explained. The program will only flash the areas that have changes, and tries to do this in the most efficient way. Unfortunately, before flashing a byte in the ROM, the program need to execute an erase process for each byte that has changed in a 4K block. 
-
-<img width="642" alt="FLASH-INPROGRESS" src="https://user-images.githubusercontent.com/13690775/225111500-4157374a-2e25-4f0d-9574-e7479cee0ae1.png">
-
-So in other words, areas of 4K that are unchanged will be skipped, but if there are areas where 1 bit of a whole 4K block has changed, then this whole 4K block will be reased and re-flashed.
-
-A 4K block being erased is indicated with ".". Each block of $100 bytes that is flashed is also verified to ensure that the ROM has correctly processed the flash!
-
-Blocks of $100 bytes that have been correctly flashed, are indicated with a "+". Blocks of $100 bytes that have been skipped, are indicated with "-".
-
-$100 byte blocks that have errors (after 3x retry) are indicated with a "!". Note that in the case of errors, it is highly likely that your ROM needs to be replaced and an emergency procedure is to be started.
-
-Flashing in progress is highlighted with a PURPLE led. 
-
-Successful flashed ROMs are highlighted with a GREEN led. 
-
-Faulty flashed ROMs are highlighted with a RED led.
-
-### 3.5. Each of the identified ROMs will be flashed
-
-Once the ROM has been flashed, the next identified ROM is considered flashing, which has a lower sequence number than the one flashed. The last ROM that is considered for flashing is the on-board ROM (if identified).
-
-### End of the flashing process
-
-If there are no more ROMs identified to be flashed, the program will reset automatically.
-
-<img width="642" alt="FLASH-RESET" src="https://user-images.githubusercontent.com/13690775/225111551-1df63cad-7c16-4aaf-a793-c6d29defeb16.png">
-
-## Testing and next steps
-
-Ensure that your ROM has been correctly flashed by testing your program or testing the onboard rom upgrade!
-
-If you have an issue after a ROM upgrade, you always have the possibility to downgrade the ROM version if needed by reflashing an older version of a ROM.BIN file. However, since ROMs cannot be endlessly re-flashed it is highly recommended to first test your programs using the available emulators.
-
-
-
-
-
-
-The identified ROMs for flashing will be flashed from the highest ROM# number to the lowest ROM number. The last ROM that is considered for flashing is the on-board ROM.
-
-The reason why this sequence was chosen, is to ensure that the program has the ROM routines available for allowing the user to view the flashing results and press the keyboard to continue the process.
-
-Once the onboard ROM has been flashed, the program will automatically reset the computer.
-
-Please find in more details this sequence explained visually, with an explanation of the screens and the meaning of the symbols/colors.
