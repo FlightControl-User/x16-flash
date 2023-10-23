@@ -10,7 +10,7 @@ This program allows you to upgrade (or downgrade) the firmware of your CX16 inte
 | **VERA**  | external VERA cardridge | This cardridge allows to connect an extra monitor to your CX16, and has a separate graphics engine! | `VERA1.BIN` | 128KB |
 | **SMC**   | internal CX16 board | This microcontroller handles your mouse, keyboard and timer. It is essential to boot your CX16. | `SMC.BIN` | 2KB |
 | **ROM**   | internal CX16 board | The main CX16 ROM contains the DOS and KERNAL to run your CX16. | `ROM.BIN` | 512KB |
-| **ROM** | external CX16 cardridge |  This cardridge allows you to extend the memory of your CX16 with (7) extra ROM or RAM ICs, fitted into a PCI slot on your CX16 board. | `ROMn.BIN` | 7x512KB |
+| **ROM** | external CX16 cardridge |  This cardridge allows you to extend the memory of your CX16 with (7) extra ROM or RAM ICs, fitted into a PCI slot on your CX16 board. | `ROMn.BIN` | 7x512KB | 
 
 > [!IMPORTANT]
 **There are manual actions or preparations needed to update your CX16 components! So don't just run this program but first carefully read this User Manual!**
@@ -101,7 +101,11 @@ So in summary, remember the following:
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg" width="50%"/> During the update process, the program will ask you to place a jumper cap, **CLOSING** the JP1 jumper pins (picture above). This is necessary to instruct VERA to address any memory instruction to the SPI IC, in order to allow for the memory flashing of the VERA.BIN file now stored in RAM, onto the SPI IC memory (only the first 128KB will be updated). |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg" width="50%"/> Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, **opening** the pins again. This is necessary to direct VERA to address the SD card again for further file reads. |
 
+<<<<<<< HEAD
 > [!WARNING]
+=======
+> [!IMPORTANT]
+>>>>>>> fa8d82da518198b561cbac38b37a66e0c575c6b4
 > This will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!**
 
 > [!NOTE]
