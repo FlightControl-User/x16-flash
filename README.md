@@ -211,8 +211,7 @@ If there are ROMs on an external cardridge detected, then those roms will be ins
 
 |  |
 | --- |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000031729.png" width="50%"/>
-Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000031729.png" width="50%"/> Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. |
 
 The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips.
 
@@ -244,8 +243,7 @@ The Commander X16 main board SMC, VERA and main ROM chip are detected, together 
 
 |  |  |
 | --- | --- |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000048225.png" width="50%"/>
-When there are no issues, the user is asked for a confirmation to proceed with the update. Replying `N` will cancel the update. Replying `Y` will proceed with the update! |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000048225.png" width="50%"/> When there are no issues, the user is asked for a confirmation to proceed with the update. Replying `N` will cancel the update. Replying `Y` will proceed with the update! |
 
 
 ## 2.2 The CX16 update program updating your CX16 internal and external components
@@ -254,33 +252,23 @@ The CX16 update program will update each component that has status `Update`.
 
 For each component, program will read the firmware data into RAM memory first, and will then use the data stored in RAM to update your CX16 component. The program guides you through the update process for each component in a very user friendly way, but mistakes are always possible, to please read carefully the below explanation. However, the **component update process differs for each component type**, so be aware! 
 
+
 ### 2.2.1 The VERA update process
 
-|   |   |
-| --- | --- |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Once the CX16 update has verified all the the files, and the VERA.BIN file is accepted, you need to confirm here with typing `Y` on the CX16 keyboard. | ![VERA-UPDATE-CONFIRMATION](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-CONFIRMATION.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-You will be presented with this briefing, that explains the importance of the JP1 jumper pins manual handing during the update process (Picture above). Press SPACE on the CX16 keyboard to continue. | ![VERA-UPDATE-BRIEFING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-BRIEFING.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-The program will then read the VERA.BIN file contents into RAM. | ![VERA-UPDATE-READING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-READING.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Then you will be asked to place the JP1 jumper cap onto the JP1 jumper pins, thus closing the JP1 jumper pins, in order to instruct VERA to direct its instructions to the SPI IC (instead of the SD card). | ![VERA-UPDATE-READING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-READING.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Place the JP1 jumper cap, closing the JP1 jumper pins on the VERA board. Press SPACE to continue when finished. | ![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Before the program updates your VERA firmware, it will compare the contents of the current VERA firmware with the contents of the VERA.BIN from RAM. | ![VERA-UPDATE-COMPARING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-COMPARING.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Once all the data has been compared, it will update your firmware if the compare results shows differences. | ![VERA-UPDATE-FLASHING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-FLASHING.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-After the program has flashed your new VERA firmware, the program will compare the contents of the new VERA firmware flashed with the RAM contents. The comparison result should be equal. | ![VERA-UPDATE-COMPARING](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-COMPARING.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Once all VERA flashing and verification processes are complete, the program will ask you to remove the JP1 jumper cap from the JP1 jumper pins, thus opening the JP1 jumper pins to instruct VERA to direct its instructions back to the SD card. | ![VERA-UPDATE-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-UPDATE-JP1-OPEN.jpg) |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Remove the JP1 jumper cap from the JP1 jumper pins on the VERA board. Press SPACE to continue. | ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg) |
-| When the comparison result is equal, the VERA led whill show a **GREEN** color and the status will show `Flashed`. |  |
+|   |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000056721.png" width="50%"/> Before the VERA update starts, you will be presented with this important briefing, that explains the purpose of the JP1 jumper pins manual handing during the update process (Picture above). Press SPACE on the CX16 keyboard to continue. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000066881.png" width="50%"/> The program will then read the VERA.BIN file contents into RAM. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000073874.png" width="50%"/> Then you will be asked to place the JP1 jumper cap onto the JP1 jumper pins, thus closing the JP1 jumper pins, in order to instruct VERA to direct its instructions to the SPI IC (instead of the SD card). |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg" width="50%"/> Place the JP1 jumper cap, closing the JP1 jumper pins on the VERA board. Press SPACE to continue when finished. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000086882.png" width="50%"/> Before the program updates your VERA firmware, it will compare the contents of the current VERA firmware with the contents of the VERA.BIN from RAM. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000096898.png" width="50%"/> Once all the data has been compared, it will update your firmware if the compare results shows differences. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000104899.png" width="50%"/> Once the program has flashed your new VERA firmware, the program will verify the contents of the new VERA firmware flashed with the RAM contents. The comparison result should be equal. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000112899.png" width="50%"/> When all VERA flashing and verification processes are complete, the program will ask you to remove the JP1 jumper cap from the JP1 jumper pins, thus opening the JP1 jumper pins to instruct VERA to direct its instructions back to the SD card. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg" width="50%"/> Remove the JP1 jumper cap from the JP1 jumper pins on the VERA board. Press SPACE to continue. |
 
-The program will now update the SMC (if needed).
+> When the comparison result is equal, the VERA led whill show a **GREEN** color and the status will show `Flashed`.
+
 
 ### 2.2.2 The SMC update process
 
