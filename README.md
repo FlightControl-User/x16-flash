@@ -204,15 +204,13 @@ If there are ROMs on an external cardridge detected, then those roms will be ins
 | |
 | --- |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000020368.png" width="50%"/> At program start, you will see an introduction screen, introducing the update process. Please carefully read the text at the bottom panel of the screen, and press SPACE to continue ... |
-
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
- A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your expansion cartridge board. Press SPACE to continue. | ![Into-2](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/INTRO2.jpg) |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000022736.png" width="50%"/> A second screen appears, which indicates the color schema used to indicate the update status of each component on your Commander X16 main board and/or your expansion cartridge board. Press SPACE to continue. |
 
 
 ### 2.1.2 Component detection
 
-|  |  |
-| --- | --- |
+|  |
+| --- |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
 Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. | ![DETECTED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/DETECTED.jpg) |
 
