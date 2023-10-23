@@ -274,9 +274,9 @@ The SMC update is straightforward.
 
 |   |
 | --- |
-| It will first read the `SMC.BIN` into internal memory. |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET-SCREEN.jpg" width="50%"/> Then, the program asks you to press the `POWER` and the `RESET` button at the same time on the CX16 board. |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg" width="50%"/> Do so on the CX16 board. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000115043.png" width="50%"/> The program will first read the `SMC.BIN` into internal memory. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000127907.png" width="50%"/> Then, the program asks you to press the `POWER` and the `RESET` button simultaneously on the CX16 board. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg" width="50%"/> Perform this action on the CX16 board. |
 
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-ISSUE.jpg" width="50%"/> When the POWER-RESET button is not pressed in time (there is a countdown), the program will cancel the update of the SMC but will continue updating any other component. The update of the ROM will be skipped, though! The cancellation of the SMC update results in a reported issue, as the SMC and the ROM must be flashed together. |
 
