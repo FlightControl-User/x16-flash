@@ -127,8 +127,7 @@ So in summary, remember the following:
 | --- |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD.jpg" width="50%"/> First for all clarity, find below a picture of such a ROM expansion cartridge. |
 
-> [!NOTE]
-> On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and can be updated using this program. The cartridge is placed in one of the 4 PCI extension slots on the CX16 main board, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
+On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and can be updated using this program. The cartridge is placed in one of the 4 PCI extension slots on the CX16 main board, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
 
 > [!NOTE]
 > Each ROM is addressing wise 512K separated from each other, and can be flashed with its own `ROMn.BIN` file(s), where *n* must be a number between 1 and 7! For example, `ROM1.BIN` will flash ROM#1 on the cartridge. `ROM5.BIN` will flash ROM#5. ROMs are to be counted from left to right!
