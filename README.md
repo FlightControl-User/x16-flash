@@ -12,7 +12,8 @@ This program allows you to upgrade (or downgrade) the firmware of your CX16 inte
 | **ROM**   | internal CX16 board | The main CX16 ROM contains the DOS and KERNAL to run your CX16. | `ROM.BIN` | 512KB |
 | **ROM** | external CX16 cardridge |  This cardridge allows you to extend the memory of your CX16 with (7) extra ROM or RAM ICs, fitted into a PCI slot on your CX16 board. | `ROMn.BIN` | 7x512KB |
 
-**Please note that there are Manual Actions or Preparations needed to update your CX16 components! So don't just run this program but first carefully read this User Manual!**
+> [!IMPORTANT]
+**There are manual actions or preparations needed to update your CX16 components! So don't just run this program but first carefully read this User Manual!**
 
 # Table of contents:
 
@@ -30,7 +31,10 @@ Further steps to mitigate and recover from such situations is always possible. H
 
 # 1 User Manual
 
-Please consider this draft user manual as a first guide how to use the update program.
+Please consider this user manual as a first guide how to use the update program. This user manual is compatible with the CX16 update program version 3.0.0.
+
+> [!NOTE]  
+> Included are illustrative pictures that provides you a very good understanding of the overall flow. You can click on an illustration to get a zoomed view of it.
 
 ## 1.0 What you need
 
@@ -79,7 +83,7 @@ Notes:
 
 Copy the `SMC.BIN`, `VERA.BIN`, `VERA1.BIN`, `ROM.BIN` and `ROMn.BIN` files on the SD card at the same folder fro where your CX16-UPDATE.PRG file is located according your update strategy and needs.
 
-Ensure the files are copied onto the SD card with the file names in **CAPITAL** letters.
+> Ensure the files are copied onto the SD card with the file names in **CAPITAL** letters.
 
 For an overview, please find the following checklists with all the actions and attention points, which are explained further below with pictures and further details.
 
@@ -97,8 +101,10 @@ So in summary, remember the following:
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg" width="50%"/> During the update process, the program will ask you to place a jumper cap, **CLOSING** the JP1 jumper pins (picture above). This is necessary to instruct VERA to address any memory instruction to the SPI IC, in order to allow for the memory flashing of the VERA.BIN file now stored in RAM, onto the SPI IC memory (only the first 128KB will be updated). |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg" width="50%"/> Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, **opening** the pins again. This is necessary to direct VERA to address the SD card again for further file reads. |
 
-> **Note that this will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!**
+> [!WARNING]
+> This will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!**
 
+> [!NOTE]
 > Updating the **external** VERA card won't require you to follow this process.
 
 ### 1.3.2 Prepare: CLOSE SMC J5 jumper pins!
@@ -121,9 +127,11 @@ So in summary, remember the following:
 | --- |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD.jpg" width="50%"/> First for all clarity, find below a picture of such a ROM expansion cartridge. |
 
+> [!NOTE]
 > On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and can be updated using this program. The cartridge is placed in one of the 4 PCI extension slots on the CX16 main board, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
 
-> Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM*n*.BIN file(s), where *n* must be a number between 1 and 7! For example, `ROM1.BIN` will flash ROM#1 on the cartridge. `ROM5.BIN` will flash ROM#5. ROMs are to be counted from left to right!
+> [!NOTE]
+> Each ROM is addressing wise 512K separated from each other, and can be flashed with its own `ROMn.BIN` file(s), where *n* must be a number between 1 and 7! For example, `ROM1.BIN` will flash ROM#1 on the cartridge. `ROM5.BIN` will flash ROM#5. ROMs are to be counted from left to right!
 
 In order to flash the ROMs, **close** the relevant jumper pins:
 
@@ -132,6 +140,7 @@ In order to flash the ROMs, **close** the relevant jumper pins:
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J1-CLOSED.jpg" width="50%"/> **Close** the J1 jumper pins (at the left side of the cartridge board) to remove the write-protection for ROM#1 till ROM#6. |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J2-CLOSED.jpg" width="50%"/> **Close** the J2 jumper pins (at the right side of the cartridge board) to remove the write-protection for ROM#7. |
 
+> [!IMPORTANT]
 > Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM*n*.BIN file(s) will not be flashed!
 
 ## 1.4. Final Update checklist for the Commander X16.
