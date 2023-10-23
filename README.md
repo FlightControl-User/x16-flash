@@ -100,7 +100,7 @@ So in summary, remember the following:
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg" width="50%"/> Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, **opening** the pins again. This is necessary to direct VERA to address the SD card again for further file reads. |
 
 > [!WARNING]
-> This will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!**
+> This will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!
 
 > [!NOTE]
 > Updating the **external** VERA card won't require you to follow this process.
@@ -273,6 +273,7 @@ For each component, program will read the firmware data into RAM memory first, a
 
 Once the VERA update process has finished, the SMC update starts.
 
+> [!WARNING]
 > **The SMC update process is one of the most critical phases updating your CX16. Ensure that you keep your device powered on at all times during this update process! Don't disconnect or power off the CX16 once the SMC update has been finalized. The complete CX16 program needs to execute completely till the end before the CX16 can be restarted!**
 
 |   |
