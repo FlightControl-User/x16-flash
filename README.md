@@ -211,23 +211,24 @@ If there are ROMs on an external cardridge detected, then those roms will be ins
 
 |  |
 | --- |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. | ![DETECTED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/DETECTED.jpg) |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000031729.png" width="50%"/>
+Next, the update program detects which components are upgradable and will validate which files are found on the SD card. The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips. |
 
 The Commander X16 main board SMC, VERA and main ROM chip are detected, together with the external cardridge 7 ROM chips.
 
-- Each component detected will be highlighted with a Detected status and a **WHITE** led. The capacity of each detected ROM is shown in KBytes. 
-- Other components that are not detected are highlighed with a None staus and a **BLACK** led. These ROMs won't be considered for flashing.
+> Each component detected will be highlighted with a Detected status and a **WHITE** led. The capacity of each detected ROM is shown in KBytes. 
+
+> Other components that are not detected are highlighed with a None staus and a **BLACK** led. These ROMs won't be considered for flashing.
 
 ### 2.1.3 File presence and validation for each detected component.
 
-|  |  |
-| --- | --- |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-After component detection, the program will immediately search for file presence for **each detected component** and will validate it. The program will read each file and check on data size and any validation content to be used before flashing.  | ![CHECK](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CHECK.jpg) |
+|  |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000060881.png" width="50%"/> After component detection, the program will immediately search for file presence for **each detected component** and will validate it. The program will read each file and check on data size and any validation content to be used before flashing.  |
 
-- Detected and valid files will result in the status of the component in a **PURPLE** led and status `Update`.
-- Files that are not present, will result in the component not to be updated. The component will get a GREY led and status `Skipped`.
+> Detected and valid files will result in the status of the component in a **PURPLE** led and status `Update`.
+
+> Files that are not present, will result in the component not to be updated. The component will get a GREY led and status `Skipped`.
 
 
 ### 2.1.4 Pre-Update conditions.
@@ -243,8 +244,8 @@ After component detection, the program will immediately search for file presence
 
 |  |  |
 | --- | --- |
-| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/" width="50%"/>
-When there are no issues, the user is asked for a confirmation to proceed with the update. Replying `N` will cancel the update. Replying `Y` will proceed with the update! | ![UPDATE-CONFIRMATION](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/UPDATE-CONFIRMATION.jpg) |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000048225.png" width="50%"/>
+When there are no issues, the user is asked for a confirmation to proceed with the update. Replying `N` will cancel the update. Replying `Y` will proceed with the update! |
 
 
 ## 2.2 The CX16 update program updating your CX16 internal and external components
