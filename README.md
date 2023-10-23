@@ -1,5 +1,3 @@
-# --- WORK IN PROGRESS ---
-
 # Commander X16 update program
 
 This program allows you to upgrade (or downgrade) the firmware of your CX16 internal and external components in a very user friendly way and with minimal preparations and/or manual actions during the update process:
