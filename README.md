@@ -91,55 +91,48 @@ So in summary, remember the following:
 - JP1 jumper pins OPEN => VERA addresses the SD card.
 - JP1 jumper pins CLOSED => VERA addresses the SPI IC.
 
-|   |   |
-| --- | --- |
-| 1. For preparation, before running the CX16 update program, **ensure** that the JP1 jumper pins on the VERA board are **OPEN** (Picture above)! This is necessary to instruct VERA to address any memory instruction to the SD card. | ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg) |
-| 2. During the update process, the program will ask you to place a jumper cap, **CLOSING** the JP1 jumper pins (picture above). This is necessary to instruct VERA to address any memory instruction to the SPI IC, in order to allow for the memory flashing of the VERA.BIN file now stored in RAM, onto the SPI IC memory (only the first 128KB will be updated). | ![VERA-JP1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg) |
-| 3. Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, **opening** the pins again. This is necessary to direct VERA to address the SD card again for further file reads. | ![VERA-JP1-OPEN](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg) |
+|   |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg" width="50%"/> For preparation, before running the CX16 update program, **ensure** that the JP1 jumper pins on the VERA board are **OPEN** (Picture above)! This is necessary to instruct VERA to address any memory instruction to the SD card. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-CLOSED.jpg" width="50%"/> During the update process, the program will ask you to place a jumper cap, **CLOSING** the JP1 jumper pins (picture above). This is necessary to instruct VERA to address any memory instruction to the SPI IC, in order to allow for the memory flashing of the VERA.BIN file now stored in RAM, onto the SPI IC memory (only the first 128KB will be updated). |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/VERA-JP1-OPEN.jpg" width="50%"/> Once the VERA memory has been updated, the program will ask you to remove the JP1 jumper cap, **opening** the pins again. This is necessary to direct VERA to address the SD card again for further file reads. |
 
-**Note that this will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!**
+> **Note that this will happen during the update process and it is crucial that you follow carefully the instructions given by the program! It might be advisory to practice this process before you execute the CX16 update program, with your CX16 board powered OFF! Put a jumper cap on the JP1 jumper pins closing it and re-opening it by removing. Simple, but if you've never done this, this may require a bit of practice!**
 
-Updating the **external** VERA card won't require you to follow this process.
+> Updating the **external** VERA card won't require you to follow this process.
 
 ### 1.3.2 Prepare: CLOSE SMC J5 jumper pins!
 
-|   |   |
-| --- | --- |
-| Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. If the J5 jumper pins are not closed, the keyboard won't be functional! | ![CX16-J5](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J5.jpg) |
+|   |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J5.jpg" width="50%"/> Ensure that the J5 jumper pins on the Commander X16 main board are **closed**. If the J5 jumper pins are not closed, the keyboard won't be functional! |
 
 
 ### 1.3.3 Prepare: CLOSE Main CX16 ROM J1 jumper pins!
 
-|   |   |
-| --- | --- |
-| Ensure that the J1 jumper pins on the Commander X16 main board are **closed**, to **remove the write protection** of the main CX16 ROM.  If the J1 jumper pins are **not closed**, the **main CX16 ROM will not be detected** by the update program! | ![CX16-J1](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg) |
+|   |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/CX16-J1.jpg" width="50%"/> Ensure that the J1 jumper pins on the Commander X16 main board are **closed**, to **remove the write protection** of the main CX16 ROM.  If the J1 jumper pins are **not closed**, the **main CX16 ROM will not be detected** by the update program! |
 
 
 ### 1.3.4 Prepare: Flash multiple ROMs on the external RAM/ROM board or cartridge.
 
-|   |   |
-| --- | --- |
-| First for all clarity, find below a picture of such a ROM expansion cartridge. | ![ROM-CARD](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD.jpg) |
+|   |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD.jpg" width="50%"/> First for all clarity, find below a picture of such a ROM expansion cartridge. |
 
-On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and can be updated using this program. The cartridge is placed in one of the 4 PCI extension slots on the CX16 main board, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
+> On the ROM cartridge, 7 extra RAM/ROM chips can be placed for usage, and can be updated using this program. The cartridge is placed in one of the 4 PCI extension slots on the CX16 main board, and provides an extra 3.5 MB of banked RAM/ROM to your CX16 between addresses $C000 and $FFFF, with zeropage $01 as the bank register. Each bank has $4000 bytes!
 
-Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM*n*.BIN file(s), where *n* must be a number between 1 and 7! 
-
-For example, `ROM1.BIN` will flash ROM#1 on the cartridge. `ROM5.BIN` will flash ROM#5. ROMs are to be counted from left to right!
+> Each ROM is addressing wise 512K separated from each other, and can be flashed with its own ROM*n*.BIN file(s), where *n* must be a number between 1 and 7! For example, `ROM1.BIN` will flash ROM#1 on the cartridge. `ROM5.BIN` will flash ROM#5. ROMs are to be counted from left to right!
 
 In order to flash the ROMs, **close** the relevant jumper pins:
 
-| Preparation  |   |
-| --- | --- |
-| 1. **Close** the J1 jumper pins (at the left side of the cartridge board) to remove the write-protection for ROM#1 till ROM#6. | ![ROM-CARD-J1-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J1-CLOSED.jpg) |
-| 2. **Close** the J2 jumper pins (at the right side of the cartridge board) to remove the write-protection for ROM#7. | ![ROM-CARD-J2-CLOSED](https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J2-CLOSED.jpg) |
+|  |
+| --- |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J1-CLOSED.jpg" width="50%"/> **Close** the J1 jumper pins (at the left side of the cartridge board) to remove the write-protection for ROM#1 till ROM#6. |
+| <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/ROM-CARD-J2-CLOSED.jpg" width="50%"/> **Close** the J2 jumper pins (at the right side of the cartridge board) to remove the write-protection for ROM#7. |
 
- 
-
-
- 
-
-Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM*n*.BIN file(s) will not be flashed!
+> Once you have the J1 and/or J2 jumper pins properly closed on the cartridge board, the ROMs will be detected by the flashing program. If the jumper pins are open, the ROMs won't be recognized by the flashing program and your ROM*n*.BIN file(s) will not be flashed!
 
 ## 1.4. Final Update checklist for the Commander X16.
 
@@ -281,7 +274,6 @@ Once the VERA update process has finished, the SMC update starts.
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000115043.png" width="50%"/> The program reads the `SMC.BIN` into your CX16 RAM. |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/WIN_20231022_18_07_29_Pro.mp4_000127907.png" width="50%"/> Next, the program asks you to press the `POWER` and the `RESET` button simultaneously on the CX16 board. |
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/POWER-RESET.jpg" width="50%"/> Perform this action on the CX16 board. (You can also press the POWER and RESET buttons on your (CX16) computer case if these `POWER` and `RESET` buttons are wired onto the FP header on the main CX16 board.) |
-
 | <img align="right" src="https://raw.githubusercontent.com/FlightControl-User/x16-flash/main/images/SMC-ROM-ISSUE.jpg" width="50%"/> When the `POWER` and `RESET` buttons are not pressed in time (there is a countdown), the program will cancel the update of the SMC but will continue updating any other component. The update of the ROM will be skipped, though! The cancellation of the SMC update results in a reported issue, as the SMC and the ROM must be flashed together. |
 
 | When `POWER` and `RESET` buttons are pressed, the program will update your SMC. Don't interrupt the process! It is essential at this stage that you don't shut down your CX16! | |
